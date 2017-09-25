@@ -1,0 +1,73 @@
+////////////////////////////////////////////////////////////////////////////////
+//	锟斤拷锟杰ｏ拷 实锟斤拷LED锟斤拷始锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷夭锟斤拷锟�
+//
+//	锟芥本锟斤拷V1.0
+//  锟斤拷锟斤拷锟斤拷
+//										锟较撅拷锟斤拷锟斤拷学微锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷
+//												   2015.11.05
+////////////////////////////////////////////////////////////////////////////////
+
+#include "bsp_watchdog.h"
+
+////////////////////////////////////////////////////////////////////////////////
+//	锟斤拷锟斤拷说锟斤拷: 锟斤拷锟斤拷LED指示锟斤拷锟斤拷氐锟紾PIO
+//	锟斤拷    锟斤拷:  锟斤拷
+//	锟斤拷 锟斤拷 值: 锟斤拷
+////////////////////////////////////////////////////////////////////////////////
+void bsp_InitWatchDog(void) {
+	GPIO_InitTypeDef GPIO_InitStructure;
+
+	// 锟斤拷GPIO时锟斤拷
+	RCC_AHB1PeriphClockCmd(GPIO_WatchDog, ENABLE);
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_PIN_WatchDog;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init(GPIO_PORT_WatchDog, &GPIO_InitStructure);
+
+	// Start with led turned off
+	GPIO_ResetBits(GPIO_PORT_WatchDog, GPIO_PIN_WatchDog);
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//	锟斤拷锟斤拷说锟斤拷: 锟斤拷锟斤拷指锟斤拷锟斤拷LED指示锟斤拷
+//	锟斤拷    锟斤拷:
+//	锟斤拷 锟斤拷 值: 锟斤拷
+////////////////////////////////////////////////////////////////////////////////
+void bsp_WatchDogOn(void) {
+	GPIO_PORT_WatchDog->BSRRH = GPIO_PIN_WatchDog;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//	锟斤拷锟斤拷说锟斤拷: 熄锟斤拷指锟斤拷锟斤拷LED指示锟斤拷
+//	锟斤拷    锟斤拷:
+//	锟斤拷 锟斤拷 值: 锟斤拷
+////////////////////////////////////////////////////////////////////////////////
+void bsp_WatchDogOff(void) {
+	GPIO_PORT_WatchDog->BSRRL = GPIO_PIN_WatchDog;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//	锟斤拷锟斤拷说锟斤拷: 锟斤拷转指锟斤拷锟斤拷LED指示锟斤拷
+//	锟斤拷    锟斤拷:
+//	锟斤拷 锟斤拷 值: 锟斤拷
+////////////////////////////////////////////////////////////////////////////////
+void bsp_WatchDogToggle(void) {
+	GPIO_ToggleBits(GPIO_PORT_WatchDog, GPIO_PIN_WatchDog);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//	锟斤拷锟斤拷说锟斤拷: 锟叫讹拷LED指示锟斤拷锟角凤拷锟窖撅拷锟斤拷锟斤拷
+//	锟斤拷    锟斤拷:
+//	锟斤拷 锟斤拷 值: 1锟斤拷示锟窖撅拷锟斤拷锟斤拷锟斤拷0锟斤拷示未锟斤拷锟斤拷
+////////////////////////////////////////////////////////////////////////////////
+uint8_t bsp_IsWatchDogOn(void) {
+
+	if ((GPIO_PORT_WatchDog->ODR & GPIO_PIN_WatchDog) == 0) {
+		return 1;
+	}
+	return 0;
+}

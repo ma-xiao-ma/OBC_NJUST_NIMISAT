@@ -1,0 +1,673 @@
+/*
+ * cmd_switches.c
+ *
+ *  Created on: 2016年5月10日
+ *      Author: Administrator
+ */
+
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#include "bsp_delay.h"
+
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "semphr.h"
+
+#include "driver_debug.h"
+#include "command.h"
+
+#include "stm32f4xx.h"
+
+#include "cubesat.h"
+#include "switches.h"
+
+int cmd_rstadcs(struct command_context *ctx) {
+
+	char * args = command_args(ctx);
+	uint32_t delay;
+
+	if (sscanf(args," %u", &delay) != 1)
+		return CMD_ERROR_SYNTAX;
+
+	int res = adcs_reset(delay, 0);
+
+	if(res != -1)
+		printf("reset ADCS FAILED\r\nRes: %d, \r\n", res);
+	else
+		printf("reset ADCS\r\n");
+
+	return CMD_ERROR_NONE;
+}
+
+//int cmd_gps(struct command_context *ctx) {
+//
+//	char * args = command_args(ctx);
+//	uint32_t opt;
+//	uint32_t delay;
+//
+//	if (sscanf(args," %u %u", &opt, &delay) != 2)
+//		return CMD_ERROR_SYNTAX;
+//
+//	if(opt == 0)	{
+//		int res = disable_gps(delay, 0);
+//		if(res != 1)
+//			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+//		else
+//			printf("GPS close\r\n");
+//	}
+//
+//	if(opt == 1)	{
+//		int res = enable_gps(delay, 0);
+//		if(res != 1)
+//			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+//		else
+//			printf("GPS open\r\n");
+//	}
+//
+//	if(opt != 1 && opt != 0)
+//		printf("No such option\r\n");
+//
+//	return CMD_ERROR_NONE;
+//}
+//
+//int cmd_gpsb(struct command_context *ctx) {
+//
+//	char * args = command_args(ctx);
+//	uint32_t opt;
+//	uint32_t delay;
+//
+//	if (sscanf(args," %u %u", &opt, &delay) != 2)
+//		return CMD_ERROR_SYNTAX;
+//
+//	if(opt == 0)	{
+//		int res = disable_gpsb(delay, 0);
+//		if(res != -1)
+//			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+//		else
+//			printf("GPSB close\r\n");
+//	}
+//
+//	if(opt == 1)	{
+//		int res = disable_gpsa(delay, 0);
+//		if(res != -1) {
+//			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+//			return CMD_ERROR_NONE;
+//		}
+//
+//		res = enable_gpsb(delay, 0);
+//		if(res != -1)
+//			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+//		else
+//			printf("GPSB open\r\n");
+//	}
+//
+//	if(opt != 1 && opt != 0)
+//		printf("No such option\r\n");
+//
+//	return CMD_ERROR_NONE;
+//}
+
+int cmd_momentum1(struct command_context *ctx) {
+
+	char * args = command_args(ctx);
+	uint32_t opt;
+	uint32_t data;
+	uint32_t delay;
+
+	if (sscanf(args," %u %u %u", &opt, &delay, &data) != 3)
+		return CMD_ERROR_SYNTAX;
+
+	if(opt == 0)	{
+		int res = disable_momentum1(delay, data);
+		if(res != -1)
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+		else
+			printf("MOMEN1 close\r\n");
+	}
+
+	if(opt == 1)	{
+		int res = enable_momentum1(delay, data);
+		if(res != -1)
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+		else
+			printf("MOMEN1 open\r\n");
+	}
+
+	if(opt != 1 && opt != 0)
+		printf("No such option\r\n");
+
+	return CMD_ERROR_NONE;
+}
+
+int cmd_momentum2(struct command_context *ctx) {
+
+	char * args = command_args(ctx);
+	uint32_t opt;
+	uint32_t data;
+	uint32_t delay;
+
+	if (sscanf(args," %u %u %u", &opt, &delay, &data) != 3)
+		return CMD_ERROR_SYNTAX;
+
+	if(opt == 0)	{
+		int res = disable_momentum2(delay, data);
+		if(res != -1)
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+		else
+			printf("MOMEN2 close\r\n");
+	}
+
+	if(opt == 1)	{
+		int res = enable_momentum2(delay, data);
+		if(res != -1)
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+		else
+			printf("MOMEN2 open\r\n");
+	}
+
+	if(opt != 1 && opt != 0)
+		printf("No such option\r\n");
+
+	return CMD_ERROR_NONE;
+}
+
+int cmd_momentum3(struct command_context *ctx) {
+
+	char * args = command_args(ctx);
+	uint32_t opt;
+	uint32_t data;
+	uint32_t delay;
+
+	if (sscanf(args," %u %u %u", &opt, &delay, &data) != 3)
+		return CMD_ERROR_SYNTAX;
+
+	if(opt == 0)	{
+		int res = disable_momentum3(delay, data);
+		if(res != -1)
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+		else
+			printf("MOMEN3 close\r\n");
+	}
+
+	if(opt == 1)	{
+		int res = enable_momentum3(delay, data);
+		if(res != -1)
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+		else
+			printf("MOMEN3 open\r\n");
+	}
+
+	if(opt != 1 && opt != 0)
+		printf("No such option\r\n");
+
+	return CMD_ERROR_NONE;
+}
+
+int cmd_momentum4(struct command_context *ctx) {
+
+	char * args = command_args(ctx);
+	uint32_t opt;
+	uint32_t data;
+	uint32_t delay;
+
+	if (sscanf(args," %u %u %u", &opt, &delay, &data) != 3)
+		return CMD_ERROR_SYNTAX;
+
+	if(opt == 0)	{
+		int res = disable_momentum4(delay, data);
+		if(res != -1)
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+		else
+			printf("MOMEN4 close\r\n");
+	}
+
+	if(opt == 1)	{
+		int res = enable_momentum4(delay, data);
+		if(res != -1)
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+		else
+			printf("MOMEN4 open\r\n");
+	}
+
+	if(opt != 1 && opt != 0)
+		printf("No such option\r\n");
+
+	return CMD_ERROR_NONE;
+}
+
+int cmd_maga(struct command_context *ctx) {
+
+	char * args = command_args(ctx);
+	uint32_t opt;
+	uint32_t delay;
+
+	if (sscanf(args," %u %u", &opt, &delay) != 2)
+		return CMD_ERROR_SYNTAX;
+
+	if(opt == 0)	{
+		int res = disable_hmra(delay, 0);
+		if(res != -1)
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+		else
+			printf("MAGA close\r\n");
+	}
+
+	if(opt == 1)	{
+		int res = disable_hmrb(delay, 0);
+		if(res != -1) {
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+
+			return CMD_ERROR_NONE;
+		}
+
+		res = enable_hmra(delay, 0);
+		if(res != -1)
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+		else
+			printf("MAGA open\r\n");
+	}
+
+	if(opt != 1 && opt != 0)
+		printf("No such option\r\n");
+
+	return CMD_ERROR_NONE;
+}
+
+int cmd_magb(struct command_context *ctx) {
+
+	char * args = command_args(ctx);
+	uint32_t opt;
+	uint32_t delay;
+
+	if (sscanf(args," %u %u", &opt, &delay) != 2)
+		return CMD_ERROR_SYNTAX;
+
+	if(opt == 0)	{
+		int res = disable_hmrb(delay, 0);
+		if(res != -1)
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+		else
+			printf("MAGB close\r\n");
+	}
+
+	if(opt == 1)	{
+		int res = disable_hmra(delay, 0);
+		if(res != -1) {
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+
+			return CMD_ERROR_NONE;
+		}
+
+		res = enable_hmrb(delay, 0);
+		if(res != -1)
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+		else
+			printf("MAGB open\r\n");
+	}
+
+	if(opt != 1 && opt != 0)
+		printf("No such option\r\n");
+
+	return CMD_ERROR_NONE;
+}
+
+int cmd_panel(struct command_context *ctx) {
+
+	char * args = command_args(ctx);
+	uint32_t opt;
+	uint32_t delay;
+
+	if (sscanf(args," %u %u", &opt, &delay) != 2)
+		return CMD_ERROR_SYNTAX;
+
+	if(opt == 0)	{
+		int res = disable_panel(delay, 0);
+		if(res != -1)
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+		else
+			printf("panel close\r\n");
+	}
+
+	if(opt == 1)	{
+		int res = enable_panel(delay, 0);
+		if(res != 1)
+			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+		else
+			printf("panel open\r\n");
+	}
+
+	if(opt != 1 && opt != 0)
+		printf("No such option\r\n");
+
+	return CMD_ERROR_NONE;
+}
+
+int cmd_switch_off(struct command_context *ctx __attribute__((unused))) {
+
+	char * args = command_args(ctx);
+	uint32_t delay;
+
+	if (sscanf(args,"%u", &delay) != 1)
+		return CMD_ERROR_SYNTAX;
+
+	int res = switch_off_all(delay, 0);
+	if(res != -1)
+		printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+	else
+		printf("CLOSE ALL\r\n");
+
+	return CMD_ERROR_NONE;
+}
+
+int cmd_switch_status(struct command_context *ctx __attribute__((unused))) {
+
+	int result = 0;
+
+	uint8_t status[4] = {0};
+
+	result = get_switch_status((uint8_t *)status);
+
+	if(result != -1)
+		printf("get status from adcs error\r\n");
+
+
+	/*第一个字节*/
+//	#define ANTS1
+//	#define ANTS2
+//	#define ANTS3
+//	#define ANTS4
+//	#define ARM
+//	#define ANTSMSK
+//	#define PANELA
+//	#define PANELB
+
+	if(status[0] & ANTS1) {
+		printf("ants1 open\r\n");
+	}else{
+		printf("ants1 close\r\n");
+	}
+
+	if(status[0] & ANTS2) {
+		printf("ants2 open\r\n");
+	}else{
+		printf("ants2 close\r\n");
+	}
+
+	if(status[0] & ANTS3) {
+		printf("ants3 open\r\n");
+	}else{
+		printf("ants3 close\r\n");
+	}
+
+	if(status[0] & ANTS4) {
+		printf("ants4 open\r\n");
+	}else{
+		printf("ants4 close\r\n");
+	}
+
+	if(status[0] & ARM) {
+		printf("arm open\r\n");
+	}else{
+		printf("arm close\r\n");
+	}
+
+	if(status[0] & ANTSMSK) {
+		printf("antsmsk open\r\n");
+	}else{
+		printf("antsmsk close\r\n");
+	}
+
+	if(status[0] & PANELA) {
+		printf("panela open\r\n");
+	}else{
+		printf("panela close\r\n");
+	}
+
+	if(status[0] & PANELB) {
+		printf("panelb open\r\n");
+	}else{
+		printf("panelb close\r\n");
+	}
+
+	/*第二个字节*/
+//	#define GPS_EN
+//	#define ANTS_EN
+//	#define FI_5V_EN
+//	#define FI_3V_EN
+//	#define ADCS_EN
+//	#define PANEL_EN
+//	#define HEAT_EN
+
+	if(status[1] & ADCS_EN) {
+		printf("adcs_en open\r\n");
+	}else{
+		printf("adcs_en close\r\n");
+	}
+
+	if(status[1] & ANTS_EN) {
+		printf("ants_en open\r\n");
+	}else{
+		printf("ants_en close\r\n");
+	}
+
+	if(status[1] & DIGI_TRAN_5V_EN) {
+		printf("tran_5v_en open\r\n");
+	}else{
+		printf("tran_5v_en close\r\n");
+	}
+
+	if(status[1] & DIGI_TRAN_12V_EN) {
+		printf("tran_12v_en open\r\n");
+	}else{
+		printf("tran_12v_en close\r\n");
+	}
+
+	if(status[1] & CAMERA_10W_5V_EN) {
+		printf("cam_10w_en open\r\n");
+	}else{
+		printf("cam_10w_en close\r\n");
+	}
+
+	if(status[1] & CAMERA_5W_5V_EN) {
+		printf("cam_5w_en open\r\n");
+	}else{
+		printf("cam_5w_en close\r\n");
+	}
+
+	if(status[1] & CAMERA_HEAT1_EN) {
+		printf("cam_heat1_en open\r\n");
+	}else{
+		printf("cam_heat1_en close\r\n");
+	}
+
+    if(status[1] & CAMERA_HEAT2_EN) {
+        printf("cam_heat2_en open\r\n");
+    }else{
+        printf("cam_heat2_en close\r\n");
+    }
+
+	/*第三个字节*/
+//	#define M1_POWER_MASK
+//	#define M2_POWER_MASK
+//	#define M3_POWER_MASK
+//	#define M4_POWER_MASK
+//	#define OUT_EN_5V
+//	#define GR_POWER_MASK
+//	#define MAG_POWER_MASK
+//	#define GPS_POWER_MASK
+
+	if(status[2] & M1_POWER_MASK) {
+		printf("m1_power_mask open\r\n");
+	}else{
+		printf("m1_power_mask close\r\n");
+	}
+
+
+	if(status[2] & M2_POWER_MASK) {
+		printf("m2_power_mask open\r\n");
+	}else{
+		printf("m2_power_mask close\r\n");
+	}
+
+	if(status[2] & M3_POWER_MASK) {
+		printf("m3_power_mask open\r\n");
+	}else{
+		printf("m3_power_mask close\r\n");
+	}
+
+	if(status[2] & M4_POWER_MASK) {
+		printf("m4_power_mask open\r\n");
+	}else{
+		printf("m4_power_mask close\r\n");
+	}
+
+	if(status[2] & OUT_EN_5V) {
+		printf("out_en_5v open\r\n");
+	}else{
+		printf("out_en_5v close\r\n");
+	}
+
+	if(status[2] & GR_POWER_MASK) {
+		printf("gr_power_mask open\r\n");
+	}else{
+		printf("gr_power_mask close\r\n");
+	}
+
+	if(status[2] & MAG_POWER_MASK) {
+		printf("mag_power_mask open\r\n");
+	}else{
+		printf("mag_power_mask close\r\n");
+	}
+
+	if(status[2] & GPS_POWER_MASK) {
+		printf("gps_power_mask open\r\n");
+	}else{
+		printf("gps_power_mask close\r\n");
+	}
+
+	/*第四个字节*/
+//	#define MAGA_EN_MASK
+//	#define MAGB_EN_MASK
+//	#define GPSA_EN_MASK
+//	#define GPSB_EN_MASK
+
+	if(status[3] & MAGA_EN_MASK) {
+		printf("maga_en_mask open\r\n");
+	}else{
+		printf("maga_en_mask close\r\n");
+	}
+
+	if(status[3] & MAGB_EN_MASK) {
+		printf("magb_en_mask open\r\n");
+	}else{
+		printf("magb_en_mask close\r\n");
+	}
+
+	if(status[3] & GPSA_EN_MASK) {
+		printf("gpsa_en_mask open\r\n");
+	}else{
+		printf("gpsa_en_mask close\r\n");
+	}
+
+	if(status[3] & GPSB_EN_MASK) {
+		printf("gpsb_en_mask open\r\n");
+	}else{
+		printf("gpsb_en_mask close\r\n");
+	}
+
+	if(status[3] & MAGBAR_EN_MASK) {
+		printf("magbar_en_mask open\r\n");
+	}else{
+		printf("magbar_en_mask close\r\n");
+	}
+
+	return CMD_ERROR_NONE;
+}
+
+struct command switches_subcommands[] = {
+//	{
+//		.name = "gps",
+//		.help = "GPS switch",
+//		.usage = "<opts> 0:close 1:open <delay>",
+//		.handler = cmd_gps,
+//	},{
+//		.name = "fipex",
+//		.help = "fipex switch",
+//		.usage = "<opts> 0:close 1:open <delay>",
+//		.handler = cmd_fipex,
+//	},{
+//		.name = "gpsb",
+//		.help = "GPSB switch",
+//		.usage = "<opts> 0:close 1:open <delay>",
+//		.handler = cmd_gpsb,
+//	},
+	{
+		.name = "momen1",
+		.help = "MOMENTUMA switch",
+		.usage = "<opts> 0:close 1:open <delay><data>",
+		.handler = cmd_momentum1,
+	},{
+		.name = "momen2",
+		.help = "MOMENTUMB switch",
+		.usage = "<opts> 0:close 1:open <delay><data>",
+		.handler = cmd_momentum2,
+	},{
+		.name = "momen3",
+		.help = "MOMENTUMA switch",
+		.usage = "<opts> 0:close 1:open <delay><data>",
+		.handler = cmd_momentum3,
+	},{
+		.name = "momen4",
+		.help = "MOMENTUMB switch",
+		.usage = "<opts> 0:close 1:open <delay><data>",
+		.handler = cmd_momentum4,
+	},
+//	{
+//		.name = "maga",
+//		.help = "MAGA switch",
+//		.usage = "<opts> 0:close 1:open <delay>",
+//		.handler = cmd_maga,
+//	},
+//	{
+//		.name = "magb",
+//		.help = "MAGB switch",
+//		.usage = "<opts> 0:close 1:open <delay>",
+//		.handler = cmd_magb,
+//	},
+	{
+		.name = "switch",
+		.help = "ALL SWITCH",
+		.usage = "<delay>",
+		.handler = cmd_switch_off,
+	},{
+		.name = "rst",
+		.help = "reset ADCS",
+		.usage = "<delay>",
+		.handler = cmd_rstadcs,
+	},{
+		.name = "hk",
+		.help = "read switches status",
+		.handler = cmd_switch_status,
+	},{
+		.name = "panel",
+		.help = "panel switches",
+		.handler = cmd_panel,
+		.usage = "<opts> 0:close 1:open <delay>",
+	},
+};
+
+struct command __root_command switches_commands_master[] =
+{
+	{
+		.name = "sw",
+		.help = "switches operation",
+		.chain = INIT_CHAIN(switches_subcommands),
+	},
+};
+
+void cmd_switches_setup(void)
+{
+	command_register(switches_commands_master);
+}

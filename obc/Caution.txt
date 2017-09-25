@@ -1,0 +1,13 @@
+/*
+ * Caution.txt
+ *
+ *  Created on: 2017年8月12日
+ *      Author: Ma Wenli
+ */
+  星务软件注意事项 
+
+1、卫星上天前需要关闭FreeRTOSconfig.h里一些配置选项
+
+2、hk.h中主帧和辅帧的长度需要根须实际的长度进行调整   HK_Fifo_t结构体中主帧和副帧的的长度也要进行相应修改
+
+3、要擦除Flash区一些复位时保存的永久状态量
