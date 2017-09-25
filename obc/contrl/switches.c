@@ -580,23 +580,19 @@ int disable_momentum4(uint32_t delay, uint32_t data __attribute__((unused)))
 	return result;
 }
 
-int send_mode(uint32_t delay, uint32_t data __attribute__((unused)))
+int send_mode(void)
 {
-	int 			result = 0;
-	ctrl_mode_t 	cmd;
-	crc_mode_t		crc;
+    routing_packet_t *ModeSend = (routing_packet_t *)qb50Malloc((size_t)(sizeof(routing_packet_t) + 1));
 
-	cmd.id 		= 2;
-	cmd.delay 	= delay;
-	cmd.cmd 	= 0x10;
-	cmd.mode	= mode;
+    ModeSend->len = 1;
+    ModeSend->dst = 2;
+    ModeSend->src = 1;
+    ModeSend->typ = 0x01;
+    ModeSend->dat[0] = mode;
 
-	crc.cmd = cmd;
-	crc.crc = clock_get_time_nopara();
+    route_queue_wirte(ModeSend, NULL);
 
-	result = i2c_master_transaction(OBC_TO_ADCS_HANDLE, ADCS_ADDR, &crc, sizeof(crc_mode_t), NULL, 0, 0);
-
-	return result;
+    return 0;
 }
 
 //int send_gps(uint32_t delay __attribute__((unused)), uint32_t data __attribute__((unused)))

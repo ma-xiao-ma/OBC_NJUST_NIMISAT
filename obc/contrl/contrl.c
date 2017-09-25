@@ -77,7 +77,7 @@ void chcontinuetimes(uint32_t *times) {
 
     void SendDownCmd(void *pData, uint32_t Length)
     {
-        vSerialSend(pData, Length, 1000);
+        vSerialSend(pData, Length);
     }
 
 #else
@@ -130,7 +130,7 @@ void NormalWorkMode(void) {
 	if (mode == SLEEP_MODE) {
 		mode = NORMAL_MODE;
 	}
-	send_mode(0,0);
+	send_mode();
 }
 
 void SleepWorkMode(void) {
@@ -138,7 +138,7 @@ void SleepWorkMode(void) {
 	if (mode == NORMAL_MODE) {
 		mode = SLEEP_MODE;
 	}
-	send_mode(0,0);
+	send_mode();
 }
 
 void ControlTask(void * pvParameters __attribute__((unused))) {
@@ -618,10 +618,10 @@ void ObcUnpacketTask(void *pvPara)
 //}
 
 
-void i2c_server_task(void *param __attribute__((unused))) {
+void route_server_task(void *param __attribute__((unused))) {
 
-	i2c_frame_t 	*frame 			= NULL;
-	uint16_t 		length			= 0;
+    routing_packet_t *packet = NULL;
+	uint16_t len	= 0;
 
 	while(1)
 	{
@@ -629,28 +629,34 @@ void i2c_server_task(void *param __attribute__((unused))) {
 			EpsOutSwitch(OUT_EPS_S0, ENABLE);  //enable ADCS power
 		}
 
-		if(xI2CServerReceive(frame, portMAX_DELAY) == E_NO_ERR)
+		if(xI2CServerReceive(packet, portMAX_DELAY) == E_NO_ERR)
 		{
-            length = frame->len;
-            /*driver_debug(DEBUG_I2C,*/printf( "I2C rx length: %u\n\r", length);
+			if(packet == NULL)
+		    {
+            /*driver_debug(DEBUG_I2C,*/printf( "I2C server task error! %u\n\r");
+		        continue;
+			}
+			
+            len = packet->len;
+            /*driver_debug(DEBUG_I2C,*/printf( "I2C rx length: %u\n\r", len+3);
 
 
             /*姿控命令应答*/
-            if(frame->data[0] == 0xEB && frame->data[1] == 0x53)
+            if(packet->dat[0] == 0xEB && packet->dat[1] == 0x53)
             {
                 adcs_pwr_sta = 1;
-                frame->data[0] = 0x1A;
-                obc_cmd_ack(&frame->data[0], sizeof(cmd_ack_t));
+                packet->dat[0] = 0x1A;
+                obc_cmd_ack(&packet->dat[0], sizeof(cmd_ack_t));
             }
 
             /*遥测辅帧*/
-            if(frame->data[0] == 0x1A && frame->data[1] == 0x54)
+            if(packet->dat[0] == 0x1A && packet->dat[1] == 0x54)
             {
                 adcs_pwr_sta = 1;
-                memcpy((uint8_t*)&(hk_frame.append_frame.adcs_hk), &frame->data[2], sizeof(adcs805_hk_t));
+                memcpy((uint8_t*)&(hk_frame.append_frame.adcs_hk), &packet->dat[2], sizeof(adcs805_hk_t));
             }
 
-            qb50Free(frame);
+            qb50Free(packet);
 		}
 	}
 }

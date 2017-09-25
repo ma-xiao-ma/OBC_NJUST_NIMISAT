@@ -37,38 +37,38 @@ pca9665_device_object_t device[2] =
 void EXTI0_IRQHandler(void) {
 
     uint32_t status_value;
-    static portBASE_TYPE task_woken;
+    static portBASE_TYPE TaskWokenExit0;
 
     if (EXTI_GetITStatus(EXTI_Line0) != RESET)
     {
-        EXTI_ClearITPendingBit(EXTI_Line0);
-
-        task_woken = pdFALSE;
+        TaskWokenExit0 = pdFALSE;
 
         status_value = taskENTER_CRITICAL_FROM_ISR();
-        pca9665_dsr(&task_woken);
+        pca9665_dsr(&TaskWokenExit0);
         taskEXIT_CRITICAL_FROM_ISR(status_value);
 
-        portYIELD_FROM_ISR(task_woken);
+        portYIELD_FROM_ISR(TaskWokenExit0);
     }
+
+    EXTI_ClearITPendingBit(EXTI_Line0);
 }
 
 void EXTI1_IRQHandler(void) {
 
     uint32_t status_value;
-    static portBASE_TYPE task_woken;
+    static portBASE_TYPE TaskWokenExit1;
 
     if (EXTI_GetITStatus(EXTI_Line1) != RESET)
     {
         EXTI_ClearITPendingBit(EXTI_Line1);
 
-        task_woken = pdFALSE;
+        TaskWokenExit1 = pdFALSE;
 
         status_value = taskENTER_CRITICAL_FROM_ISR();
-        pca9665_dsr(&task_woken);
+        pca9665_dsr(&TaskWokenExit1);
         taskEXIT_CRITICAL_FROM_ISR(status_value);
 
-        portYIELD_FROM_ISR(task_woken);
+        portYIELD_FROM_ISR(TaskWokenExit1);
     }
 }
 

@@ -21,6 +21,8 @@
 #include "driver_debug.h"
 #include "command.h"
 #include "QB50_mem.h"
+#include "ctrl_cmd_types.h"
+#include "route.h"
 
 /** I2C master mode lock */
 xSemaphoreHandle i2c_lock = NULL;
@@ -1029,33 +1031,36 @@ int i2c_master_transaction(int handle, uint8_t addr, void * txbuf, size_t txlen,
 
 }
 
-/*中断回调函数*/
-void i2c_rx_callback(i2c_frame_t * frame, void * pxTaskWoken) {
+/*中断回调函数，只能在中断中调用*/
+void i2c_rx_callback(i2c_frame_t * frame, void * pxTaskWoken)
+{
+
+    static routing_packet_t *packet;
 
     /* Validate input */
     if (frame == NULL)
         return;
 
-    if (frame->len > I2C_MTU) {
+    if ((frame->len < 3) || (frame->len > I2C_MTU)) {
         qb50Free(frame);
         return;
     }
 
-    if(xQueueSendToBackFromISR(i2c_server_queue, &frame, pxTaskWoken) == pdFALSE)
-    {
-        driver_debug(DEBUG_I2C, "I2C Server queue full\n\r");
-        qb50Free(frame);
-    }
+    frame->len -= 3;
+
+    packet = (routing_packet_t *) frame;
+
+    route_queue_wirte(packet, pxTaskWoken);
 }
 
 /*I2C从收Server函数，只能在任务中调用*/
-int xI2CServerReceive(i2c_frame_t ** frame, uint32_t timeout)
+int xI2CServerReceive(routing_packet_t ** packet, uint32_t timeout)
 {
 
     if (i2c_server_queue == NULL)
         return E_NO_DEVICE;
 
-    if (xQueueReceive(i2c_server_queue, frame, timeout) == pdFALSE)
+    if (xQueueReceive(i2c_server_queue, packet, timeout) == pdFALSE)
         return E_TIMEOUT;
 
     return E_NO_ERR;

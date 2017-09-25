@@ -223,7 +223,7 @@ void MYDMA_Enable(DMA_Stream_TypeDef *DMA_Streamx, u16 ndtr)
     DMA_Cmd(DMA_Streamx, ENABLE);
 }
 
-int vSerialSend(void *pdata, uint16_t length, uint32_t timeout)
+int vSerialSend(void *pdata, uint16_t length)
 {
     uint8_t* DataToSend  = (uint8_t*)pdata;
     uint8_t DataLen = 0;
@@ -248,10 +248,7 @@ int vSerialSend(void *pdata, uint16_t length, uint32_t timeout)
 
 void vSerialACK(void *pdata, uint16_t length)
 {
-    /* 拷贝数据到发送缓冲区 */
-    memcpy(SendBuffer, (uint8_t *)pdata, (size_t)length);
-    /* 使能串口DMA发送 */
-    MYDMA_Enable(DMA1_Stream6, length);
+    vSerialSend(pdata, length);
 }
 
 int xSerialReceive(usart2_frame_t ** frame, uint32_t timeout)

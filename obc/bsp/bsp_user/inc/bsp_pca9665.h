@@ -11,7 +11,8 @@
 
 #include "FreeRTOS.h"
 #include "queue.h"
-#include "bsp_pca9665.h"
+
+#include "route.h"
 
 /**
  * Maximum transfer length on I2C
@@ -131,6 +132,6 @@ void pca9665_dump_regs(int handler);
 
 void i2c_rx_callback(i2c_frame_t * frame, void * pxTaskWoken);
 
-int xI2CServerReceive(i2c_frame_t ** frame, uint32_t timeout);
+int xI2CServerReceive(routing_packet_t ** packet, uint32_t timeout);
 
 #endif /* PCA9665_H_ */

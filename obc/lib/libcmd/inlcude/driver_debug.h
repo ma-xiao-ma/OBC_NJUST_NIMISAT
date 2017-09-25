@@ -19,7 +19,8 @@ typedef enum driver_debug_e {
 	DEBUG_HK = 5,
 	DEBUG_TTC = 6,
 	DEBUG_FLASH = 7,
-	DEBUG_ENUM_MAX = DEBUG_FLASH,
+	DEBUG_ROUTER = 8,
+	DEBUG_ENUM_MAX = DEBUG_ROUTER,
 } driver_debug_t;
 
 typedef enum driver_debug_value_e {

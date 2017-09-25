@@ -73,11 +73,11 @@ TaskHandle_t ISISReadTask_Handler;
 //任务函数
 /***************I2C1从任务*******************/
 //任务优先级
-#define I2C_SERVER_TASK_PRIO     (tskIDLE_PRIORITY + 2)
+#define RTE_SERVER_TASK_PRIO     (tskIDLE_PRIORITY + 2)
 //任务堆栈大小
-#define I2C_SERVER_STK_SIZE      (configMINIMAL_STACK_SIZE)
+#define RTE_SERVER_STK_SIZE      (configMINIMAL_STACK_SIZE)
 //任务句柄
-TaskHandle_t I2CServerTask_Handler;
+TaskHandle_t RTEServerTask_Handler;
 //任务函数
 /***************遥测下行和保存任务*******************/
 //任务优先级
@@ -208,12 +208,12 @@ void start_task(void *pvParameters)
 #endif
 
     //创建I2C1从任务，接收姿控计算机主发数据
-    xTaskCreate((TaskFunction_t )i2c_server_task,
+    xTaskCreate((TaskFunction_t )route_server_task,
                 (const char*    )"server",
-                (uint16_t       )I2C_SERVER_STK_SIZE,
+                (uint16_t       )RTE_SERVER_STK_SIZE,
                 (void*          )NULL,
-                (UBaseType_t    )I2C_SERVER_TASK_PRIO,
-                (TaskHandle_t*  )&I2CServerTask_Handler);
+                (UBaseType_t    )RTE_SERVER_TASK_PRIO,
+                (TaskHandle_t*  )&RTEServerTask_Handler);
 
     //遥测下行和保存任务
     xTaskCreate((TaskFunction_t )down_save_task,
@@ -222,14 +222,6 @@ void start_task(void *pvParameters)
                 (void*          )NULL,
                 (UBaseType_t    )DOWN_SAVE_TASK_PRIO,
                 (TaskHandle_t*  )&DownSaveTask_Handler);
-
-//    //遥测文件管理任务
-//    xTaskCreate((TaskFunction_t )hk_file_task,
-//                (const char*    )"file",
-//                (uint16_t       )HK_FILE_STK_SIZE,
-//                (void*          )&hk_list,   //传入文件管理列表
-//                (UBaseType_t    )HK_FILE_TASK_PRIO,
-//                (TaskHandle_t*  )&HKFileTask_Handler);
 
 //    //展电池阵任务
 //    xTaskCreate((TaskFunction_t )OpenPanel_Task,

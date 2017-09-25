@@ -14,22 +14,6 @@
 
 enum BOOL {INVALID=0,VALID=1};
 
-typedef struct __attribute__((packed))
- {
-	unsigned char 				status;
-	unsigned short int 			weeks;   		//week
-	double 						secs;			//sec
-	unsigned char 				numV;			//obs star number
-	unsigned short int  		pdop;	    	//pdop
-	double 						posi[3];
-	double 						velo[3];
-
-	float 						gps_clock_1;
-	float 						gps_clock_2;
-
-	float 						bd_clock_1;
-	float 						bd_clock_2;
- }gps_t;
 
 typedef struct __attribute__((packed)) {
 	uint8_t		head[2];
@@ -39,35 +23,16 @@ typedef struct __attribute__((packed)) {
 }cmd_ack_t;
 
 typedef struct __attribute__((packed)) {
-	uint8_t 	id;
+	uint8_t 	    id;
 	uint8_t		cmd;
-	uint32_t	delay;
-	gps_t		gps;
-}ctrl_gps_t;
-
-typedef struct __attribute__((packed)) {
-	uint8_t 	id;
-	uint8_t		cmd;
-	uint32_t	delay;
-	uint8_t		mode;
-}ctrl_mode_t;
-
-typedef struct __attribute__((packed)) {
-	ctrl_mode_t		cmd;
-	uint32_t		crc;
-}crc_mode_t;
-
-typedef struct __attribute__((packed)) {
-	uint8_t 	id;
-	uint8_t		cmd;
-	uint32_t	delay;
+	uint32_t	    delay;
 }ctrl_nopara_t;
 
 typedef struct __attribute__((packed)) {
-	uint8_t 	id;
+	uint8_t 	    id;
 	uint8_t		cmd;
-	uint32_t	delay;
-	uint8_t 	pass;
+	uint32_t	    delay;
+	uint8_t     	pass;
 }ctrl_pass_t;
 
 typedef struct __attribute__((packed)) {
@@ -76,10 +41,10 @@ typedef struct __attribute__((packed)) {
 }crc_nopara_t;
 
 typedef struct __attribute__((packed)) {
-	uint8_t 	id;
+	uint8_t 	    id;
 	uint8_t		cmd;
-	uint32_t	delay;
-	uint32_t	msecs;
+	uint32_t	    delay;
+	uint32_t    	msecs;
 }ctrl_syntime_t;
 
 typedef struct __attribute__((packed)) {

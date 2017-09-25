@@ -28,6 +28,8 @@
 
 #include "ff.h"
 
+#include "route.h"
+#include "router_io.h"
 #include "obc_argvs_save.h"
 #include "hk.h"
 #include "contrl.h"
@@ -77,6 +79,10 @@ void task_initz(void)
 
 	/*command initialize*/
 	command_init();
+
+	router_init(1, 10);
+	server_start_task(128, tskIDLE_PRIORITY + 3);
+	router_start_task(128, tskIDLE_PRIORITY + 3);
 
 extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
 	driver_debug_switch[DEBUG_HK] = 1;

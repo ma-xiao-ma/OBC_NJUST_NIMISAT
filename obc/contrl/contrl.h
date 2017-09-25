@@ -43,7 +43,7 @@ void DownloadNewAudioFiles (void *para);
 void SavePermanentAudioFiles (void *para);
 
 void adcs_pwr_task(void *pvParameters __attribute__((unused)));
-void i2c_server_task(void *param __attribute__((unused)));
+void route_server_task(void *param __attribute__((unused)));
 void isis_read_task(void *para __attribute__((unused)));
 
 #endif

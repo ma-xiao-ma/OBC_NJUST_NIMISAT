@@ -186,7 +186,7 @@ int disable_fipexpwr(uint32_t delay, uint32_t data __attribute__((unused)));
 
 int obc_closeall(uint32_t delay, uint32_t data __attribute__((unused)));
 
-int send_mode(uint32_t delay, uint32_t data __attribute__((unused)));
+int send_mode(void);
 
 int send_gps(uint32_t delay __attribute__((unused)), uint32_t data __attribute__((unused)));
 

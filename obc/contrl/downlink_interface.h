@@ -33,7 +33,7 @@ typedef struct
 
 } usart2_transmission_object_t;
 
-int vSerialSend(void *pdata, uint16_t length, uint32_t timeout);
+int vSerialSend(void *pdata, uint16_t length);
 void vSerialACK(void *pdata, uint16_t length);
 void vSerialInterfaceInit(void);
 void USART2_Receive_Task(void *pvPara);
