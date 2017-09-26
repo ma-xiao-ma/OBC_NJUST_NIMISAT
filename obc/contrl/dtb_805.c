@@ -106,6 +106,5 @@ int xDTBTeleControlSend(uint8_t Cmd, uint16_t Timeout)
         return E_NO_SS;
     }
 
-    qb50Free(pBuffer);
     return 0;
 }
