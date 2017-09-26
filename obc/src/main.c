@@ -139,6 +139,7 @@ void eps_task(void *pvParameters __attribute__((unused))) {
 int main(void)
 {
 
+
     task_initz();
 
     /* 创建开始任务 */
@@ -207,13 +208,13 @@ void start_task(void *pvParameters)
 
 #endif
 
-    //创建I2C1从任务，接收姿控计算机主发数据
-    xTaskCreate((TaskFunction_t )route_server_task,
-                (const char*    )"server",
-                (uint16_t       )RTE_SERVER_STK_SIZE,
-                (void*          )NULL,
-                (UBaseType_t    )RTE_SERVER_TASK_PRIO,
-                (TaskHandle_t*  )&RTEServerTask_Handler);
+//    //创建I2C1从任务，接收姿控计算机主发数据
+//    xTaskCreate((TaskFunction_t )route_server_task,
+//                (const char*    )"server",
+//                (uint16_t       )RTE_SERVER_STK_SIZE,
+//                (void*          )NULL,
+//                (UBaseType_t    )RTE_SERVER_TASK_PRIO,
+//                (TaskHandle_t*  )&RTEServerTask_Handler);
 
     //遥测下行和保存任务
     xTaskCreate((TaskFunction_t )down_save_task,

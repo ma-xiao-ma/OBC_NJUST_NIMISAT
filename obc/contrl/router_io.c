@@ -11,6 +11,7 @@
 #include "error.h"
 #include "bsp_pca9665.h"
 #include "switches.h"
+#include "driver_debug.h"
 
 /** 路由软件定义地址 */
 static uint8_t router_my_address;
@@ -50,6 +51,9 @@ int router_send_to_other_node(routing_packet_t *packet)
     /**
      * 根据各分系统情况做相应的处理
      */
+    driver_debug(DEBUG_ROUTER, "OTP: S %u, D %u, Tp 0x%02X, Sz %u\r\n",
+            packet->src, packet->dst, packet->typ, packet->len);
+
     switch(packet->dst)
     {
         case ADCS_ROUTE_ADDR:

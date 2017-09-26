@@ -76,12 +76,12 @@ void route_queue_wirte(routing_packet_t *packet, portBASE_TYPE *pxTaskWoken)
 
 void router_task(void *param __attribute__((unused)))
 {
-    routing_packet_t *packet = NULL;
+    static routing_packet_t *packet = NULL;
     uint16_t len    = 0;
 
     while(1)
     {
-        if(route_queue_read(packet) != E_NO_ERR)
+        if(route_queue_read(&packet) != E_NO_ERR)
             continue;
 
         if(packet == NULL)
@@ -90,16 +90,17 @@ void router_task(void *param __attribute__((unused)))
             continue;
         }
 
-        driver_debug(DEBUG_ROUTER, "INP: S %u, D %u, Sz %u, Tp 0x%02X\r\n",
-                packet->src, packet->dst, packet->len, packet->typ);
+        driver_debug(DEBUG_ROUTER, "INP: S %u, D %u, Tp 0x%02X, Sz %u\r\n",
+                packet->src, packet->dst, packet->typ, packet->len);
 
-        /*如果数据包是发给其他设备的，则调用对应发送函数*/
+        /*如果数据包是发给其他节点的，则发送包到传输队列*/
         if(packet->dst != router_get_my_address())
         {
             /*根据各分系统情况实现函数内容*/
             router_send_to_other_node(packet);
         }
 
+        /*如果数据包是给本节点的，则发送包到服务器队列*/
         if(xQueueSendToBack(server_queue, &packet, 0) != pdTRUE)
         {
             printf("ERROR: Server queue is FULL. Dropping packet.\r\n");
@@ -123,12 +124,12 @@ int router_start_task(uint32_t task_stack_size, uint32_t priority)
 
 void server_task(void *param __attribute__((unused)))
 {
-    routing_packet_t *packet = NULL;
+    static routing_packet_t *packet = NULL;
     uint16_t len    = 0;
 
     while(1)
     {
-        if(xQueueReceive(server_queue, packet, portMAX_DELAY) != E_NO_ERR)
+        if(xQueueReceive(server_queue, &packet, portMAX_DELAY) != E_NO_ERR)
             continue;
 
         if(packet == NULL)

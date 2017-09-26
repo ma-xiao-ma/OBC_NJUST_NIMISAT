@@ -590,6 +590,7 @@ int send_mode(void)
     ModeSend->typ = 0x01;
     ModeSend->dat[0] = mode;
 
+
     route_queue_wirte(ModeSend, NULL);
 
     return 0;

@@ -81,8 +81,8 @@ void task_initz(void)
 	command_init();
 
 	router_init(1, 10);
-	server_start_task(128, tskIDLE_PRIORITY + 3);
-	router_start_task(128, tskIDLE_PRIORITY + 3);
+	server_start_task(configMINIMAL_STACK_SIZE, tskIDLE_PRIORITY + 3);
+	router_start_task(configMINIMAL_STACK_SIZE, tskIDLE_PRIORITY + 3);
 
 extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
 	driver_debug_switch[DEBUG_HK] = 1;

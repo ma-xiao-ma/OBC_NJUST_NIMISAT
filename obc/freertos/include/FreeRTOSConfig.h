@@ -119,7 +119,7 @@
 /* 可使用的最大优先级 */
 #define configMAX_PRIORITIES			            ( 6 )
 /* 空闲任务使用的堆栈大小 */
-#define configMINIMAL_STACK_SIZE		            ( ( unsigned short ) 256 )
+#define configMINIMAL_STACK_SIZE		            ( ( unsigned short ) 128 )
 /* 任务名字字符串长度 */
 #define configMAX_TASK_NAME_LEN			            ( 10 )
 /* 系统节拍计数器变量数据类型，1表示16位无符号整形，0表示为32位无符号整形 */
