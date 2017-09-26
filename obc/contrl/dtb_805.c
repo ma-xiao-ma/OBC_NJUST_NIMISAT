@@ -100,11 +100,12 @@ int xDTBTeleControlSend(uint8_t Cmd, uint16_t Timeout)
     }
 
     /*和校验*/
-    if(pBuffer[4] != 0x2C)
+    if(pBuffer[4] != 0x28)
     {
         qb50Free(pBuffer);
         return E_NO_SS;
     }
 
+    qb50Free(pBuffer);
     return 0;
 }

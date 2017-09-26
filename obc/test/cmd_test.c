@@ -319,6 +319,32 @@ int ts_cam(struct command_context * context __attribute__((unused))){
 //    return 0;
 //}
 
+int dtb_tc(struct command_context *ctx )
+{
+    char * args = command_args(ctx);
+    uint8_t cmd;
+    if(sscanf(args, "%u", &cmd) != 1)
+        return CMD_ERROR_SYNTAX;
+
+    if(!xDTBTeleControlSend(cmd, 1000))
+    {
+        printf("DTB tc send success!\r\n");
+    }
+
+    return CMD_ERROR_NONE;
+}
+
+int dtb_tm(struct command_context * context __attribute__((unused)))
+{
+    static uint8_t tm_data[17];
+
+    if(xDTBTelemetryGet(tm_data, 1000) > 0)
+    {
+        printf("DTB tm receive success!\r\n");
+    }
+
+    return CMD_ERROR_NONE;
+}
 
 
 
