@@ -93,18 +93,19 @@ int xDTBTeleControlSend(uint8_t Cmd, uint16_t Timeout)
     RxDataLen = pBuffer[0];
 
     /*差错检查*/
-    if(RxDataLen > 5 || pBuffer[1] != DTB_TC_FLAG)
+    if (RxDataLen > 5 || pBuffer[1] != DTB_TC_FLAG)
     {
         qb50Free(pBuffer);
         return E_NO_SS;
     }
 
     /*和校验*/
-    if(pBuffer[4] != 0x28)
+    if (pBuffer[4] != 0x28)
     {
         qb50Free(pBuffer);
         return E_NO_SS;
     }
 
+    qb50Free(pBuffer);
     return 0;
 }
