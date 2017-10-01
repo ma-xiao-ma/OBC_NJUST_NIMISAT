@@ -9,10 +9,18 @@
 #define CONTRL_ROUTE_H_
 
 #include "FreeRTOS.h"
+#include "queue.h"
 
-#define ROUTE_READ_TIMEOUT portMAX_DELAY
+#define USE_ROUTE_PROTOCOL  1
 
-#define PADDING_BYTES 8
+#define ROUTE_QUEUE_READ_TIMEOUT    portMAX_DELAY
+#define SERVER_QUEUE_READ_TIMEOUT   portMAX_DELAY
+#define SEND_QUEUE_READ_TIMEOUT     portMAX_DELAY
+
+#define PADDING_BYTES       8
+#define ROUTE_HEAD_SIZE     3
+
+
 /*路由结构体*/
 typedef struct __attribute__((packed))
 {
@@ -22,24 +30,74 @@ typedef struct __attribute__((packed))
     uint8_t    src;         //源地址
     uint8_t    typ;         //消息类型
     uint8_t    dat[0];      //数据
-}routing_packet_t;
+}route_packet_t;
 
+typedef struct __attribute__((packed))
+{
+    uint8_t    dst;         //目的地址
+    uint8_t    src;         //源地址
+    uint8_t    typ;         //消息类型
+    uint8_t    dat[0];      //数据
+}route_frame_t;
+
+/**
+ *
+ * @param queue_len_router
+ * @return
+ */
 int route_queue_init(uint32_t queue_len_router);
 
 int server_queue_init(uint32_t queue_len_server);
 
-int route_queue_read(routing_packet_t ** packet);
+int send_processing_queue_init(uint32_t queue_len_server);
 
-void route_queue_wirte(routing_packet_t *packet, portBASE_TYPE *pxTaskWoken);
+int router_init(uint8_t address, uint32_t router_queue_len);
 
+/**
+ *
+ * @param packet
+ * @return
+ */
+int route_queue_read(route_packet_t ** packet);
+
+void route_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken);
+
+int server_queue_read(route_packet_t ** packet);
+
+void server_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken);
+
+int send_processing_queue_read(route_packet_t ** packet);
+
+void send_processing_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken);
+
+
+/**
+ *
+ * @return
+ */
 uint8_t router_get_my_address(void);
 
 void router_set_address(uint8_t addr);
 
-int router_init(uint8_t address, uint32_t router_queue_len);
 
+/**
+ *
+ * @param task_stack_size
+ * @param priority
+ * @return
+ */
 int router_start_task(uint32_t task_stack_size, uint32_t priority);
 
 int server_start_task(uint32_t task_stack_size, uint32_t priority);
+
+int send_processing_start_task(uint32_t task_stack_size, uint32_t priority);
+
+
+/**
+ *
+ * @param queue
+ * @param pxTaskWoken
+ */
+void route_queue_clean(QueueHandle_t queue, portBASE_TYPE *pxTaskWoken);
 
 #endif /* CONTRL_ROUTE_H_ */

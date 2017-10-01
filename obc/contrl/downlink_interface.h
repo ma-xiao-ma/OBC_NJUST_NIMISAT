@@ -21,7 +21,8 @@
 
 typedef struct __attribute__((packed))
 {
-    uint8_t len_rx;
+    uint8_t  padding[8];
+    uint16_t len_rx;
     uint8_t data[235];
 
 } usart2_frame_t;

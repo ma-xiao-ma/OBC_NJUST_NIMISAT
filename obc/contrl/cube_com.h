@@ -81,6 +81,52 @@
 #define UP_NEW_AUDIOFILES		    0x72
 #define DOWNLOAD_NEW_AUDIOFILES		0x73
 
+/*姿控上行指令*/
+#define INS_MTQ_ON             0x80
+#define INS_MTQ_OFF            0x81
+#define INS_GPS_ON             0x82
+#define INS_GPS_OFF            0x83
+#define INS_MWA_ON             0x84
+#define INS_MWA_OFF            0x85
+#define INS_MWB_ON             0x86
+#define INS_MWB_OFF            0x87
+#define INS_MAGA_ON            0x88
+#define INS_MAGA_OFF           0x89
+#define INS_MAGB_ON            0x8A
+#define INS_MAGB_OFF           0x8B
+#define INS_SUN_ON             0x8C
+#define INS_SUN_OFF            0x8D
+#define INS_GYR_ON             0x8E
+#define INS_GYR_OFF            0x8F
+
+#define INS_MagSun_FIL_ON      0x90
+#define INS_MagSun_FIL_OFF     0x91
+#define INS_MagGyr_FIL_ON      0x92
+#define INS_MagGyr_FIL_OFF     0x93
+
+#define INS_LowPower_Mode_ON   0x94
+#define INS_LowPower_Mode_OFF  0x95
+
+#define INS_Control_Mode       0x96
+#define INS_DAMP_COUNT         0x97
+#define INS_MEAR_COUNT         0x98
+
+#define INS_DET                0x99  //重新阻尼
+#define INS_STA                0x9A
+
+#define INS_Pit_FIL_QR_PARA    0x9B
+#define INS_MagSun_FIL_QR_PARA 0x9C
+#define INS_MagGyr_FIL_QR_PARA 0x9D
+#define INS_CTL_K_PRA          0x9E
+#define INS_ADCS_TIME_IN       0x9F
+#define INS_CTL_P_PRA          0xA0
+#define INS_CTL_D_PRA          0xA1
+#define INS_CTL_Z_PRA          0xA2
+#define INS_ORB_TLE_FLAG       0xA3   //轨道上注
+#define INS_MW_Speed_Set       0xA4
+#define INS_Max_MagTorque_Set  0xA5
+#define INS_OBC_GET_ADCS_HK    0xA6
+
 typedef struct __attribute__((packed))
 {
     uint8_t DataLength; //Id字段和Data字段的总长
@@ -98,9 +144,9 @@ typedef struct __attribute__((packed))
 
 extern uint32_t rec_cmd_cnt;
 
-void obc_cmd_ack(void *ack, uint32_t length);
+void obc_cmd_ack(uint8_t type, uint8_t result);
 
-void CubeUnPacket(const unsigned char *str);
+void CubeUnPacket(const void *str);
 void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
 void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
 void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);

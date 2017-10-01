@@ -10,18 +10,14 @@
 
 #include "hk.h"
 
-#define OBC_TO_ADCS_HANDLE		0x01
-#define ADCS_DELAY				1000U
-#define ADCS_ADDR				0x06
-
 //#define M1_POWER_MASK			0x01
 //#define M2_POWER_MASK			0x02
 //#define M3_POWER_MASK			0x04
 //#define M4_POWER_MASK			0x08
 //#define OUT_EN_5V				0x10
 //#define GR_POWER_MASK			0x20
-//#define MAG_POWER_MASK			0x40
-//#define GPS_POWER_MASK			0x80
+//#define MAG_POWER_MASK		0x40
+//#define GPS_POWER_MASK		0x80
 //#define MAGA_EN_MASK			0x01
 //#define MAGB_EN_MASK			0x02
 //#define GPSA_EN_MASK			0x04
@@ -112,57 +108,7 @@
 //#define GPIO_PANELB_PIN			GPIO_Pin_13
 //#define PANELB_PIN_STATUS()		GPIO_ReadOutputDataBit(GPIO_PANELB_PORT, GPIO_PANELA_PIN)
 
-void bsp_InitPanelGpio(void);
-
-int get_status_from_adcs(uint16_t * pstatus);
-
-//int get_adcs_hk(adcs_hk_t * phk);
-
 int get_switch_status(uint8_t * pstatus);
-
-int switch_off_all(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int adcs_reset(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int enable_gr(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int disable_gr(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int enable_gps(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int disable_gps(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int enable_gpsa(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int enable_gpsb(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int disable_gpsa(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int disable_gpsb(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int enable_hmra(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int enable_hmrb(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int disable_hmra(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int disable_hmrb(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int enable_momentum1(uint32_t delay, uint32_t data);
-
-int enable_momentum2(uint32_t delay, uint32_t data);
-
-int enable_momentum3(uint32_t delay, uint32_t data);
-
-int enable_momentum4(uint32_t delay, uint32_t data);
-
-int disable_momentum1(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int disable_momentum2(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int disable_momentum3(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int disable_momentum4(uint32_t delay, uint32_t data __attribute__((unused)));
 
 int open_antenna(void);
 
@@ -180,16 +126,6 @@ int enable_panel(uint32_t delay, uint32_t data __attribute__((unused)));
 
 int disable_panel(uint32_t delay, uint32_t data __attribute__((unused)));
 
-int enable_fipexpwr(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int disable_fipexpwr(uint32_t delay, uint32_t data __attribute__((unused)));
-
 int obc_closeall(uint32_t delay, uint32_t data __attribute__((unused)));
-
-int send_mode(void);
-
-int send_gps(uint32_t delay __attribute__((unused)), uint32_t data __attribute__((unused)));
-
-int get_fpx(uint32_t delay __attribute__((unused)), uint32_t data __attribute__((unused)));
 
 #endif /* CONTRL_SWITCHES_H_ */

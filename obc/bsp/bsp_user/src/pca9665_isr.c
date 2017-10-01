@@ -41,6 +41,8 @@ void EXTI0_IRQHandler(void) {
 
     if (EXTI_GetITStatus(EXTI_Line0) != RESET)
     {
+        EXTI_ClearITPendingBit(EXTI_Line0);
+
         TaskWokenExit0 = pdFALSE;
 
         status_value = taskENTER_CRITICAL_FROM_ISR();
@@ -49,8 +51,6 @@ void EXTI0_IRQHandler(void) {
 
         portYIELD_FROM_ISR(TaskWokenExit0);
     }
-
-    EXTI_ClearITPendingBit(EXTI_Line0);
 }
 
 void EXTI1_IRQHandler(void) {
@@ -72,11 +72,11 @@ void EXTI1_IRQHandler(void) {
     }
 }
 
-void pca9665_isr_init(void) {
-
-    EXTI_InitTypeDef EXTI_InitStructure;
-    GPIO_InitTypeDef GPIO_InitStructure;
-    NVIC_InitTypeDef NVIC_InitStructure;
+void pca9665_isr_init(void)
+{
+    EXTI_InitTypeDef   EXTI_InitStructure;
+    GPIO_InitTypeDef   GPIO_InitStructure;
+    NVIC_InitTypeDef   NVIC_InitStructure;
 
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);

@@ -132,6 +132,4 @@ void pca9665_dump_regs(int handler);
 
 void i2c_rx_callback(i2c_frame_t * frame, void * pxTaskWoken);
 
-int xI2CServerReceive(routing_packet_t ** packet, uint32_t timeout);
-
 #endif /* PCA9665_H_ */

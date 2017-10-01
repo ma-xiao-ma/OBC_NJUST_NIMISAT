@@ -23,8 +23,7 @@ typedef struct __attribute__((packed)) {
 }cmd_ack_t;
 
 typedef struct __attribute__((packed)) {
-	uint8_t 	    id;
-	uint8_t		cmd;
+
 	uint32_t	    delay;
 }ctrl_nopara_t;
 
@@ -55,9 +54,7 @@ typedef struct __attribute__((packed)) {
 }ctrl_downtime_t;
 
 typedef struct __attribute__((packed)) {
-	uint8_t 	id;
-	uint8_t		cmd;
-	uint32_t	delay;
+
 	uint16_t	select;		//0:SDCARD 1:RAM
 	uint16_t	index;		//used for RAM
 	uint32_t	secs;		//used for SDCARD
@@ -81,7 +78,7 @@ typedef struct __attribute__((packed)) {
 }crc_motor_t;
 
 typedef struct __attribute__((packed)) {
-	ctrl_nopara_t 	pretag;									/**< Length = 'strlen' of command */
+
 	char 			command[0];								/**< Zero-terminated string, max size = RSH_MAX_COMMAND_LENGTH */
 } rsh_command_t;
 

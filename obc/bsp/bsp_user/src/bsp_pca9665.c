@@ -27,13 +27,6 @@
 /** I2C master mode lock */
 xSemaphoreHandle i2c_lock = NULL;
 
-/*I2C从收队列*/
-xQueueHandle i2c_server_queue;
-
-/*I2C中断错误计数*/
-uint8_t i2c_error_num = 0;
-
-
 /** Registers */
 #define I2CSTA							0
 #define INDPTR							0
@@ -181,7 +174,7 @@ static inline void pca9665_read_data_to_buffer(int handle) {
 		return;
 
 	/* Check number of bytes */
-	int count = pca9665_read_reg(handle, I2CCOUNT) & 0x7f; //mask the most significant bit
+	int count = pca9665_read_reg(handle, I2CCOUNT) & 0x7f;
 	if (count == 0)
 		return;
 
@@ -190,11 +183,9 @@ static inline void pca9665_read_data_to_buffer(int handle) {
 		return;
 
 	/* Copy data and increment next_byte counter */
-	pca9665_read_data(handle,
-			&device[handle].rx.frame->data[device[handle].rx.next_byte], count);
+	pca9665_read_data(handle, &device[handle].rx.frame->data[device[handle].rx.next_byte], count);
 	device[handle].rx.next_byte += count;
-	driver_debug(DEBUG_I2C, "RX: count %u, next_byte %u\r\n", count,
-			device[handle].rx.next_byte);
+	driver_debug(DEBUG_I2C, "RX: count %u, next_byte %u\r\n", count, device[handle].rx.next_byte);
 
 }
 
@@ -548,6 +539,8 @@ void __attribute__((noinline)) pca9665_dsr(portBASE_TYPE * task_woken) {
 		case STA_S_SLAW_RECEIVED_ACKED:
 		case STA_S_GC_RECEIVED:
 
+		    device[handle].is_busy = 1;
+
 			/* Check if RX frame was started */
 			if (device[handle].rx.frame != NULL)
 				goto isr_error;
@@ -557,7 +550,7 @@ void __attribute__((noinline)) pca9665_dsr(portBASE_TYPE * task_woken) {
 			if (device[handle].rx.frame == NULL)
 				goto isr_error;
 
-			device[handle].is_busy = 1;
+//			device[handle].is_busy = 1;
 			device[handle].rx.next_byte = 0;
 			device[handle].rx.frame->len = 0;
 			device[handle].rx.frame->dest = device[handle].slave_addr;
@@ -641,21 +634,6 @@ isr_error:
 				device[handle].tx.frame = NULL;
 			}
 
-			i2c_error_num++;
-
-			if (i2c_error_num >= 3) {
-				i2c_frame_t * error_frame = (i2c_frame_t *) qb50Malloc(I2C_MTU);
-
-				i2c_error_num = 0;
-				while (uxQueueMessagesWaitingFromISR(device[handle].tx.queue)
-						> 0) {
-					xQueueReceiveFromISR(device[handle].tx.queue, &error_frame,
-							task_woken);
-				}
-
-				qb50Free(error_frame);
-			}
-
 			/* Start up again */
 			pca9665_try_tx_from_isr(handle, task_woken);
 
@@ -692,15 +670,15 @@ void pca9665_dump_regs(int handler) {
  * @param  None
  * @retval None
  */
-void PCA9665_IO_Init(void) {
-    FSMC_NORSRAMInitTypeDef FSMC_NORSRAMInitStructure;
-    FSMC_NORSRAMTimingInitTypeDef p;
+void PCA9665_IO_Init(void)
+{
+    FSMC_NORSRAMInitTypeDef  FSMC_NORSRAMInitStructure;
+    FSMC_NORSRAMTimingInitTypeDef  p;
     GPIO_InitTypeDef GPIO_InitStructure;
 
     /* Enable GPIOs clock */
-    RCC_AHB1PeriphClockCmd(
-            RCC_AHB1Periph_GPIOD | RCC_AHB1Periph_GPIOE | RCC_AHB1Periph_GPIOF |
-            RCC_AHB1Periph_GPIOG, ENABLE);
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD | RCC_AHB1Periph_GPIOE | RCC_AHB1Periph_GPIOF |
+                         RCC_AHB1Periph_GPIOG, ENABLE);
 
     /* Enable FSMC clock */
     RCC_AHB3PeriphClockCmd(RCC_AHB3Periph_FSMC, ENABLE);
@@ -741,16 +719,16 @@ void PCA9665_IO_Init(void) {
     GPIO_PinAFConfig(GPIOD, GPIO_PinSource14, GPIO_AF_FSMC);
     GPIO_PinAFConfig(GPIOD, GPIO_PinSource15, GPIO_AF_FSMC);
 
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_4
-            | GPIO_Pin_5 | GPIO_Pin_7 |
-            GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11 |
-            GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_7 |
+                                GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11 |
+                                GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
     GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
 
     GPIO_Init(GPIOD, &GPIO_InitStructure);
+
 
     /* GPIOE configuration */
     GPIO_PinAFConfig(GPIOE, GPIO_PinSource0, GPIO_AF_FSMC);
@@ -767,13 +745,13 @@ void PCA9665_IO_Init(void) {
     GPIO_PinAFConfig(GPIOE, GPIO_PinSource14, GPIO_AF_FSMC);
     GPIO_PinAFConfig(GPIOE, GPIO_PinSource15, GPIO_AF_FSMC);
 
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_3
-            | GPIO_Pin_4 |
-            GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 |
-            GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 |
-            GPIO_Pin_15;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0  | GPIO_Pin_1  | GPIO_Pin_3 | GPIO_Pin_4 |
+                                GPIO_Pin_7  | GPIO_Pin_8  | GPIO_Pin_9  | GPIO_Pin_10 |
+                                GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 |
+                                GPIO_Pin_15;
 
     GPIO_Init(GPIOE, &GPIO_InitStructure);
+
 
     /* GPIOF configuration */
     GPIO_PinAFConfig(GPIOF, GPIO_PinSource0, GPIO_AF_FSMC);
@@ -787,27 +765,23 @@ void PCA9665_IO_Init(void) {
     GPIO_PinAFConfig(GPIOF, GPIO_PinSource14, GPIO_AF_FSMC);
     GPIO_PinAFConfig(GPIOF, GPIO_PinSource15, GPIO_AF_FSMC);
 
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2
-            | GPIO_Pin_3 |
-            GPIO_Pin_4 | GPIO_Pin_5 |
-            GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0  | GPIO_Pin_1  | GPIO_Pin_2  | GPIO_Pin_3 |
+                                GPIO_Pin_4  | GPIO_Pin_5  |
+                                GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
 
     GPIO_Init(GPIOF, &GPIO_InitStructure);
 
     /* GPIOG configuration */
-    GPIO_PinAFConfig(GPIOG, GPIO_PinSource0, GPIO_AF_FSMC);
-    GPIO_PinAFConfig(GPIOG, GPIO_PinSource1, GPIO_AF_FSMC);
-    GPIO_PinAFConfig(GPIOG, GPIO_PinSource2, GPIO_AF_FSMC);
-    GPIO_PinAFConfig(GPIOG, GPIO_PinSource3, GPIO_AF_FSMC);
-    GPIO_PinAFConfig(GPIOG, GPIO_PinSource4, GPIO_AF_FSMC);
-    GPIO_PinAFConfig(GPIOG, GPIO_PinSource5, GPIO_AF_FSMC);
-    GPIO_PinAFConfig(GPIOG, GPIO_PinSource9, GPIO_AF_FSMC);
-    GPIO_PinAFConfig(GPIOG, GPIO_PinSource10, GPIO_AF_FSMC);
-    GPIO_PinAFConfig(GPIOG, GPIO_PinSource12, GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource0 , GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource1 , GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource2 , GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource3 , GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource4 , GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource5 , GPIO_AF_FSMC);
+    GPIO_PinAFConfig(GPIOG, GPIO_PinSource12 , GPIO_AF_FSMC);
 
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2
-            | GPIO_Pin_3 |
-            GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_12;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0  | GPIO_Pin_1  | GPIO_Pin_2  | GPIO_Pin_3 |
+                                GPIO_Pin_4  | GPIO_Pin_5  | GPIO_Pin_12;
 
     GPIO_Init(GPIOG, &GPIO_InitStructure);
 
@@ -820,20 +794,15 @@ void PCA9665_IO_Init(void) {
     p.FSMC_DataLatency = 0;
     p.FSMC_AccessMode = FSMC_AccessMode_A;
 
-//   FSMC_NORSRAMInitStructure.FSMC_Bank = FSMC_Bank1_NORSRAM2;
     FSMC_NORSRAMInitStructure.FSMC_Bank = FSMC_Bank1_NORSRAM1;
     FSMC_NORSRAMInitStructure.FSMC_DataAddressMux = FSMC_DataAddressMux_Disable;
     FSMC_NORSRAMInitStructure.FSMC_MemoryType = FSMC_MemoryType_SRAM;
     FSMC_NORSRAMInitStructure.FSMC_MemoryDataWidth = FSMC_MemoryDataWidth_8b;
-    FSMC_NORSRAMInitStructure.FSMC_BurstAccessMode =
-            FSMC_BurstAccessMode_Disable;
-    FSMC_NORSRAMInitStructure.FSMC_AsynchronousWait =
-            FSMC_AsynchronousWait_Disable;
-    FSMC_NORSRAMInitStructure.FSMC_WaitSignalPolarity =
-            FSMC_WaitSignalPolarity_Low;
+    FSMC_NORSRAMInitStructure.FSMC_BurstAccessMode = FSMC_BurstAccessMode_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_AsynchronousWait = FSMC_AsynchronousWait_Disable;
+    FSMC_NORSRAMInitStructure.FSMC_WaitSignalPolarity = FSMC_WaitSignalPolarity_Low;
     FSMC_NORSRAMInitStructure.FSMC_WrapMode = FSMC_WrapMode_Disable;
-    FSMC_NORSRAMInitStructure.FSMC_WaitSignalActive =
-            FSMC_WaitSignalActive_BeforeWaitState;
+    FSMC_NORSRAMInitStructure.FSMC_WaitSignalActive = FSMC_WaitSignalActive_BeforeWaitState;
     FSMC_NORSRAMInitStructure.FSMC_WriteOperation = FSMC_WriteOperation_Enable;
     FSMC_NORSRAMInitStructure.FSMC_WaitSignal = FSMC_WaitSignal_Disable;
     FSMC_NORSRAMInitStructure.FSMC_ExtendedMode = FSMC_ExtendedMode_Disable;
@@ -893,10 +862,6 @@ int i2c_init(int handle, int mode, uint8_t addr, uint16_t speed, int queue_len_t
 		device[handle].rx.queue = xQueueCreate(queue_len_rx, sizeof(i2c_frame_t *));
 	}
 
-    /* 从收队列 */
-    if ((i2c_server_queue == NULL) && (queue_len_rx > 0)) {
-        i2c_server_queue = xQueueCreate(queue_len_rx, sizeof(i2c_frame_t *));
-    }
 
 	/* Callback */
 	if (callback != NULL) {
@@ -1035,7 +1000,7 @@ int i2c_master_transaction(int handle, uint8_t addr, void * txbuf, size_t txlen,
 void i2c_rx_callback(i2c_frame_t * frame, void * pxTaskWoken)
 {
 
-    static routing_packet_t *packet;
+    static route_packet_t *packet;
 
     /* Validate input */
     if (frame == NULL)
@@ -1048,20 +1013,10 @@ void i2c_rx_callback(i2c_frame_t * frame, void * pxTaskWoken)
 
     frame->len -= 3;
 
-    packet = (routing_packet_t *) frame;
+    packet = (route_packet_t *) frame;
 
     route_queue_wirte(packet, pxTaskWoken);
 }
 
-/*I2C从收Server函数，只能在任务中调用*/
-int xI2CServerReceive(routing_packet_t ** packet, uint32_t timeout)
-{
 
-    if (i2c_server_queue == NULL)
-        return E_NO_DEVICE;
 
-    if (xQueueReceive(i2c_server_queue, packet, timeout) == pdFALSE)
-        return E_TIMEOUT;
-
-    return E_NO_ERR;
-}

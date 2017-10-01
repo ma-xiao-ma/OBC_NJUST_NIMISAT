@@ -21,6 +21,10 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "route.h"
+#include "router_io.h"
+#include "dtb_805.h"
+
 
 //static uint8_t array_myfiles[64*1024] = {0};
 //
@@ -346,7 +350,88 @@ int dtb_tm(struct command_context * context __attribute__((unused)))
     return CMD_ERROR_NONE;
 }
 
+int ttc_send_cmd(uint8_t handle, uint8_t cmd, uint8_t slen, uint8_t rlen)
+{
+    uint8_t *pbuffer = qb50Malloc((slen>rlen)?slen:rlen);
 
+    if (slen > 3)
+        rlen = 0;
+    else
+    {
+        slen = 3;
+        if(rlen < 3)
+            rlen = 3;
+    }
+
+    pbuffer[0] = 0;
+    pbuffer[1] = slen-2;
+    pbuffer[2] = cmd;
+
+    if (slen>3)
+    {
+        for (int i=3; i<slen; i++)
+        {
+            pbuffer[i] = i;
+        }
+    }
+
+    i2c_master_transaction(handle, 0x18, pbuffer, slen, pbuffer, rlen, 1000);
+
+//    if(rlen)
+//    {
+//        for(int i=0; i<rlen; i++)
+//            printf("%u ", pbuffer[i]);
+//        printf("\r\n");
+//    }
+
+    qb50Free(pbuffer);
+
+    return 0;
+}
+
+int ttc_cmd(struct command_context *ctx)
+{
+    static uint32_t cmd, slen, rlen, ctime;
+
+    char * args = command_args(ctx);
+    if(sscanf(args, "%u %u %u %u", &cmd, &slen, &rlen, &ctime) != 4)
+        return CMD_ERROR_SYNTAX;
+
+    do
+    {
+        ttc_send_cmd(0, (uint8_t)cmd, (uint8_t)slen, (uint8_t)rlen);
+        vTaskDelay(1 / portTICK_PERIOD_MS);
+    } while(--ctime);
+
+    return CMD_ERROR_NONE;
+}
+
+int route_queue_send_pack(struct command_context *ctx)
+{
+    static uint8_t dst, src, typ, len;
+
+    char * args = command_args(ctx);
+
+    if(sscanf(args, "%u %u %u %u", &dst, &src, &typ, &len) != 4)
+        return CMD_ERROR_SYNTAX;
+
+    if (len > 232)
+        return CMD_ERROR_SYNTAX;
+
+    route_packet_t *packet = (route_packet_t *)qb50Malloc(sizeof(route_packet_t)+len);
+
+    packet->len = len;
+    packet->dst = dst;
+    packet->src = src;
+    packet->typ = typ;
+
+    for(int i=0; i<len; i++)
+        packet->dat[i] = i+1;
+
+    route_queue_wirte(packet, NULL);
+
+    return CMD_ERROR_NONE;
+}
 
 struct command test_subcommands[] = {
 	{
@@ -394,6 +479,29 @@ struct command test_subcommands[] = {
         .help = "just a test",
         .handler = ts_cam,
     },
+    {
+        .name = "tc_dtb",
+        .help = "dtb tc cmd",
+        .usage = "<cmd>",
+        .handler = dtb_tc,
+    },
+    {
+        .name = "tm_dtb",
+        .help = "dtb tm cmd",
+        .handler = dtb_tm,
+    },
+    {
+        .name = "ttccmd",
+        .help = "ttc test",
+        .usage = "<cmd><slen><rlen><ctime>",
+        .handler = ttc_cmd,
+    },
+    {
+        .name = "route",
+        .help = "send route packet to route queue",
+        .usage = "<dst><src><typ><len>",
+        .handler = route_queue_send_pack,
+    }
 //    {
 //        .name = "camera",
 //        .help = "generate crc-citt",

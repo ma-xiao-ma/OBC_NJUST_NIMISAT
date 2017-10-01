@@ -408,6 +408,8 @@ int hk_collect(void) {
 
 	hk_frame.main_frame.header[0] 					= 0x1A;
 	hk_frame.main_frame.header[1] 					= 0x50;
+
+
 	hk_frame.main_frame.sat_id						= 0x05;
 	hk_frame.main_frame.soft_id						= 0x03;
 
@@ -415,7 +417,7 @@ int hk_collect(void) {
 	hk_frame.main_frame.rec_cmd_count				= rec_cmd_cnt;
 	hk_frame.main_frame.down_count					= down_cmd_cnt;
 	hk_frame.main_frame.last_reset_time				= obc_reset_time;
-	hk_frame.main_frame.utc_time					    = clock_get_time_nopara();
+	hk_frame.main_frame.utc_time					= clock_get_time_nopara();
 	hk_frame.main_frame.work_mode					= mode;
 
 //	get_antenna_status(&hk_frame.main_frame.status_sensor_on_off);   //ants[0-4] panel[5-6]
@@ -463,7 +465,6 @@ int hk_collect(void) {
 	hk_frame.append_frame.header[0] 		= 0x1A;
 	hk_frame.append_frame.header[0] 		= 0x51;
 
-	//get_adcs_hk(&hk_frame.append_frame.adcs_hk);  //不用了
 
 	HK_fifoIn(&hk_main_fifo, (unsigned char *)&hk_frame.main_frame, (uint8_t)HK_FRAME_MAIN);
 	HK_fifoIn(&hk_append_fifo, (unsigned char *)&hk_frame.append_frame, (uint8_t)HK_FRAME_APPEND);

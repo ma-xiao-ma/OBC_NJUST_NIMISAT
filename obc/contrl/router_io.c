@@ -10,81 +10,146 @@
 #include "route.h"
 #include "error.h"
 #include "bsp_pca9665.h"
-#include "switches.h"
+#include "adcs.h"
 #include "driver_debug.h"
+#include "cube_com.h"
+#include "bsp_icd.h"
 
-/** 路由软件定义地址 */
-static uint8_t router_my_address;
 
-void router_set_address(uint8_t addr)
-{
-    router_my_address = addr;
-}
-
-uint8_t router_get_my_address(void)
-{
-    return router_my_address;
-}
-
-int router_init(uint8_t address, uint32_t router_queue_len)
+int route_user_init(void)
 {
     int ret;
 
-    router_set_address(address);
-
-    ret = route_queue_init(router_queue_len);
-    if(ret != E_NO_ERR)
-        return ret;
-
-    ret = server_queue_init(SERVER_QUEUE_LEN);
-    if(ret != E_NO_ERR)
-        return ret;
     /**
-     * 想想还需要那些初始化
+     * 用户自定义的路由初始化函数
      */
+
+    ret = adcs_queue_init();
+    if(ret != E_NO_ERR)
+        return ret;
 
     return E_NO_ERR;
 }
 
-int router_send_to_other_node(routing_packet_t *packet)
+/**
+ *  通过路由地址查找MAC地址
+ *
+ * @param route_addr 路由地址，也就是网络地址
+ * @return 若有MAC地址，则返回MAC地址，若未查找到，则返回ROUTE_NODE_MAC(0xFF)
+ */
+uint8_t route_find_mac(uint8_t route_addr)
 {
+    uint8_t mac_addr;
+
     /**
-     * 根据各分系统情况做相应的处理
+     * 分系统需要根据自身情况作调整
      */
-    driver_debug(DEBUG_ROUTER, "OTP: S %u, D %u, Tp 0x%02X, Sz %u\r\n",
-            packet->src, packet->dst, packet->typ, packet->len);
+    switch(route_addr)
+    {
+        case TTC_ROUTE_ADDR:
+
+            return Transmitter_Address;
+        case ADCS_ROUTE_ADDR:
+
+            return ADCS_I2C1_ADDR;
+        default:
+
+            return ROUTE_NODE_MAC;
+    }
+}
+
+int route_i2c0_tx(route_packet_t * packet, uint32_t timeout)
+{
+    /*把分组信息转换成I2C帧信息*/
+    i2c_frame_t * frame = (i2c_frame_t *) packet;
+
+    /*通过路由地址查找MAC地址*/
+    if (route_find_mac(packet->dst) == ROUTE_NODE_MAC)
+    {
+        frame->dest = packet->dst;
+    }
+    else
+    {
+        frame->dest = route_find_mac(packet->dst);
+    }
+
+    /*添加路由头到I2C帧的长度字段 */
+    frame->len += 3;
+    frame->len_rx = 0;
+
+    /*添加I2C帧到发送队列*/
+    if (i2c_send(0, frame, timeout) != E_NO_ERR)
+        return E_NO_DEVICE;
+
+    return E_NO_ERR;
+}
+
+int route_i2c1_tx(route_packet_t * packet, uint32_t timeout)
+{
+    /*把分组信息转换成I2C帧信息*/
+    i2c_frame_t * frame = (i2c_frame_t *) packet;
+
+    /*通过路由地址查找MAC地址*/
+    if (route_find_mac(packet->dst) == ROUTE_NODE_MAC)
+    {
+        frame->dest = packet->dst;
+    }
+    else
+    {
+        frame->dest = route_find_mac(packet->dst);
+    }
+
+    /*添加路由头到I2C帧的长度字段 */
+    frame->len += 3;
+    frame->len_rx = 0;
+
+    /*添加I2C帧到发送队列*/
+    if (i2c_send(1, frame, timeout) != E_NO_ERR)
+        return E_NO_DEVICE;
+
+    return E_NO_ERR;
+}
+
+
+int router_send_to_other_node(route_packet_t *packet)
+{
 
     switch(packet->dst)
     {
         case ADCS_ROUTE_ADDR:
 
-            i2c_master_transaction(OBC_TO_ADCS_HANDLE, ADCS_ADDR, &packet->dst,
-                            packet->len + 3, NULL, 0, 0);
+            route_i2c1_tx(packet, 0);
             break;
         case GND_ROUTE_ADDR:
 
             SendDownCmd(&packet->dst, packet->len + 3);
+            qb50Free(packet);
             break;
         default:
             break;
     }
 
-    qb50Free(packet);
-
     return E_NO_ERR;
 }
 
-int router_unpacket(routing_packet_t *packet)
+
+int router_unpacket(route_packet_t *packet)
 {
     /**
      * 根据各分系统情况做相应的处理
      */
+    if(packet->src == ADCS_ROUTE_ADDR)
+    {
+        adcs_queue_wirte(packet, NULL);
+    }
+    else
+    {
+        CubeUnPacket(packet);
+        qb50Free(packet);
+    }
 
-
-    qb50Free(packet);
     return E_NO_ERR;
 }
-
 
 
 

@@ -38,23 +38,15 @@ void start_task(void *pvParameters);
 #define CONSOLE_STK_SIZE      (configMINIMAL_STACK_SIZE * 4)
 //任务句柄
 TaskHandle_t ConsoleTask_Handler;
-//任务函数
-/****************电源信息采集任务********************/
+
+/****************电源信息采集控制任务********************/
 //任务优先级
 #define EPS_TASK_PRIO     (tskIDLE_PRIORITY + 1)
 //任务堆栈大小
 #define EPS_STK_SIZE      (configMINIMAL_STACK_SIZE * 2)
 //任务句柄
 TaskHandle_t EpsTask_Handler;
-//任务函数
-/****************电量模式控制任务*********************/
-//任务优先级
-#define CONTROL_TASK_PRIO     (tskIDLE_PRIORITY + 1)
-//任务堆栈大小
-#define CONTROL_STK_SIZE      (configMINIMAL_STACK_SIZE)
-//任务句柄
-TaskHandle_t ControlTask_Handler;
-//任务函数
+
 /*****************调试上行串口解包任务*******************/
 //任务优先级
 #define USART2_REVEIVE_TASK_PRIO     (tskIDLE_PRIORITY + 3)
@@ -62,7 +54,7 @@ TaskHandle_t ControlTask_Handler;
 #define USART2_REVEIVE_STK_SIZE      (configMINIMAL_STACK_SIZE)
 //任务句柄
 TaskHandle_t Usart2ReceiveTask_Handler;
-//任务函数
+
 /****************上行ISIS通信板解包任务******************/
 //任务优先级
 #define ISIS_READ_TASK_PRIO     (tskIDLE_PRIORITY + 3)
@@ -70,15 +62,7 @@ TaskHandle_t Usart2ReceiveTask_Handler;
 #define ISIS_READ_STK_SIZE      (configMINIMAL_STACK_SIZE * 2)
 //任务句柄
 TaskHandle_t ISISReadTask_Handler;
-//任务函数
-/***************I2C1从任务*******************/
-//任务优先级
-#define RTE_SERVER_TASK_PRIO     (tskIDLE_PRIORITY + 2)
-//任务堆栈大小
-#define RTE_SERVER_STK_SIZE      (configMINIMAL_STACK_SIZE)
-//任务句柄
-TaskHandle_t RTEServerTask_Handler;
-//任务函数
+
 /***************遥测下行和保存任务*******************/
 //任务优先级
 #define DOWN_SAVE_TASK_PRIO     (tskIDLE_PRIORITY + 2)
@@ -86,15 +70,7 @@ TaskHandle_t RTEServerTask_Handler;
 #define DOWN_SAVE_STK_SIZE      (configMINIMAL_STACK_SIZE*2)
 //任务句柄
 TaskHandle_t DownSaveTask_Handler;
-//任务函数
-/***************遥测文件管理任务*********************/
-//任务优先级
-#define HK_FILE_TASK_PRIO     (tskIDLE_PRIORITY+1)
-//任务堆栈大小
-#define HK_FILE_STK_SIZE      (configMINIMAL_STACK_SIZE)
-//任务句柄
-TaskHandle_t HKFileTask_Handler;
-//任务函数
+
 /***************展电池阵任务********************/
 //任务优先级
 #define OPEN_PANEL_TASK_PRIO     (tskIDLE_PRIORITY + 3)
@@ -102,7 +78,7 @@ TaskHandle_t HKFileTask_Handler;
 #define OPEN_PANEL_STK_SIZE      (configMINIMAL_STACK_SIZE)
 //任务句柄
 TaskHandle_t OpenPanelTask_Handler;
-//任务函数
+
 /***************展天线任务************************/
 //任务优先级
 #define OPEN_ANTENNA_TASK_PRIO     (tskIDLE_PRIORITY + 4)
@@ -110,7 +86,7 @@ TaskHandle_t OpenPanelTask_Handler;
 #define OPEN_ANTENNA_STK_SIZE      (configMINIMAL_STACK_SIZE)
 //任务句柄
 TaskHandle_t OpenAntennaTask_Handler;
-//任务函数
+
 
 
 
@@ -125,16 +101,6 @@ void vWatchDogTask1( void *pvParameters __attribute__((unused)))
 //			( void * ) NULL, tskIDLE_PRIORITY + 3, ( TaskHandle_t * ) NULL );
 }
 
-void eps_task(void *pvParameters __attribute__((unused))) {
-
-	eps_start();
-
-	while (1) {
-		eps_hk();
-		vTaskDelay(1000);
-	}
-
-}
 
 int main(void)
 {
@@ -172,7 +138,7 @@ void start_task(void *pvParameters)
                 (UBaseType_t    )CONSOLE_TASK_PRIO,
                 (TaskHandle_t*  )&ConsoleTask_Handler);
 
-    //创建电源信息采集任务
+    //创建电源信息采集控制任务
     xTaskCreate((TaskFunction_t )eps_task,
                 (const char*    )"Eps",
                 (uint16_t       )EPS_STK_SIZE,
@@ -180,15 +146,8 @@ void start_task(void *pvParameters)
                 (UBaseType_t    )EPS_TASK_PRIO,
                 (TaskHandle_t*  )&EpsTask_Handler);
 
-    //创建电量模式控制任务
-    xTaskCreate((TaskFunction_t )ControlTask,
-                (const char*    )"ctrl",
-                (uint16_t       )CONTROL_STK_SIZE,
-                (void*          )NULL,
-                (UBaseType_t    )CONTROL_TASK_PRIO,
-                (TaskHandle_t*  )&ControlTask_Handler);
-
 #if USE_SERIAL_PORT_DOWNLINK_INTERFACE
+    #if USE_ROUTE_PROTOCOL
     //创建调试上行串口解包任务
     xTaskCreate((TaskFunction_t )USART2_Receive_Task,
                 (const char*    )"USART2_RX",
@@ -196,7 +155,7 @@ void start_task(void *pvParameters)
                 (void*          )NULL,
                 (UBaseType_t    )USART2_REVEIVE_TASK_PRIO,
                 (TaskHandle_t*  )&Usart2ReceiveTask_Handler);
-
+    #endif
 #else
     //创建上行ISIS通信板解包任务
     xTaskCreate((TaskFunction_t )isis_read_task,
@@ -208,13 +167,6 @@ void start_task(void *pvParameters)
 
 #endif
 
-//    //创建I2C1从任务，接收姿控计算机主发数据
-//    xTaskCreate((TaskFunction_t )route_server_task,
-//                (const char*    )"server",
-//                (uint16_t       )RTE_SERVER_STK_SIZE,
-//                (void*          )NULL,
-//                (UBaseType_t    )RTE_SERVER_TASK_PRIO,
-//                (TaskHandle_t*  )&RTEServerTask_Handler);
 
     //遥测下行和保存任务
     xTaskCreate((TaskFunction_t )down_save_task,

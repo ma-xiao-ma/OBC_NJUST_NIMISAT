@@ -16,6 +16,7 @@
 #include "error.h"
 #include "driver_debug.h"
 #include "switches.h"
+#include "adcs.h"
 #include "QB50_mem.h"
 #include "hk.h"
 #include "crc.h"
@@ -27,6 +28,7 @@
 #include "bsp_cis.h"
 #include "bsp_cpu_flash.h"
 #include "downlink_interface.h"
+#include "router_io.h"
 
 #include "csp.h"
 
@@ -34,8 +36,6 @@
 #include <time.h>
 #include <string.h>
 
-#define SLEEP_MODE 	0		//
-#define NORMAL_MODE 1		//
 
 #define OpenAntenna_Time 		(10*60)   //
 #define OpenBattery_Time 		(15*60)   //
@@ -59,7 +59,6 @@ static uint16_t down_cnt = 0; //遥测下行时间控制变量
 static uint8_t down_cmd_enable = 0;
 /////////////////////////////////////////////////////////////////////////////////
 
-QueueHandle_t adcs_obc_queue;
 
 void taskdelaytime(uint32_t *time) {
 	downtimeset = *time;
@@ -125,47 +124,88 @@ void chcontinuetimes(uint32_t *times) {
 #endif
 
 
-void NormalWorkMode(void) {
 
-	if (mode == SLEEP_MODE) {
+void NormalWorkMode(void)
+{
+
+	if (mode == SLEEP_MODE)
+	{
 		mode = NORMAL_MODE;
 	}
-	send_mode();
+
+	adcs_send_mode(mode);
 }
 
-void SleepWorkMode(void) {
+void SleepWorkMode(void)
+{
 
-	if (mode == NORMAL_MODE) {
+	if (mode == NORMAL_MODE)
+	{
 		mode = SLEEP_MODE;
 	}
-	send_mode();
+
+	adcs_send_mode(mode);
 }
 
-void ControlTask(void * pvParameters __attribute__((unused))) {
+//void ControlTask(void * pvParameters __attribute__((unused))) {
+//
+//	portTickType xLastWakeTime = xTaskGetTickCount(); //for the 10s timer task
+//
+//	vTaskDelayUntil(&xLastWakeTime, (10000 / portTICK_RATE_MS));
+//
+//	while (1)
+//	{
+//
+//		switch (Battery_Task())
+//		{
+//            case 0:
+//                SleepWorkMode();
+//                break;
+//            case 1:
+//                NormalWorkMode();
+//                break;
+//            case 2:
+//                break;
+//            default:
+//                break;
+//		}
+//
+//		vTaskDelayUntil(&xLastWakeTime, (5000 / portTICK_RATE_MS));
+//	}
+//}
 
-	portTickType xLastWakeTime = xTaskGetTickCount(); //for the 10s timer task
+void eps_task(void *pvParameters __attribute__((unused)))
+{
+    static uint8_t ctime;
 
-	vTaskDelayUntil(&xLastWakeTime, (10000 / portTICK_RATE_MS));
+    eps_start();
 
-	while (1)
-	{
+    while (1)
+    {
+        eps_hk();
 
-		switch (Battery_Task())
-		{
-            case 0:
-                SleepWorkMode();
-                break;
-            case 1:
-                NormalWorkMode();
-                break;
-            case 2:
-                break;
-            default:
-                break;
-		}
+        vTaskDelay(1000);
 
-		vTaskDelayUntil(&xLastWakeTime, (5000 / portTICK_RATE_MS));
-	}
+        if (++ctime > 5)
+        {
+
+            ctime = 0;
+
+            switch (Battery_Task())
+            {
+                case 0:
+                    SleepWorkMode();
+                    break;
+                case 1:
+                    NormalWorkMode();
+                    break;
+                case 2:
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
 }
 
 void OpenAntenna_Task(void* param __attribute__((unused))) {
@@ -554,7 +594,6 @@ void DownloadNewAudioFiles (void *para)
 	}
 }
 
-extern void obc_cmd_ack(void *ack, uint32_t length);
 
 ///* 哈工大通信机 */
 //void cmd_task(void * para) {
@@ -618,48 +657,48 @@ void ObcUnpacketTask(void *pvPara)
 //}
 
 
-void route_server_task(void *param __attribute__((unused))) {
-
-    routing_packet_t *packet = NULL;
-	uint16_t len	= 0;
-
-	while(1)
-	{
-		if((adcs_pwr_sta == 0) && (up_cmd_adcs_pwr == 1)) {
-			EpsOutSwitch(OUT_EPS_S0, ENABLE);  //enable ADCS power
-		}
-
-		if(xI2CServerReceive(packet, portMAX_DELAY) == E_NO_ERR)
-		{
-			if(packet == NULL)
-		    {
-            /*driver_debug(DEBUG_I2C,*/printf( "I2C server task error! %u\n\r");
-		        continue;
-			}
-			
-            len = packet->len;
-            /*driver_debug(DEBUG_I2C,*/printf( "I2C rx length: %u\n\r", len+3);
-
-
-            /*姿控命令应答*/
-            if(packet->dat[0] == 0xEB && packet->dat[1] == 0x53)
-            {
-                adcs_pwr_sta = 1;
-                packet->dat[0] = 0x1A;
-                obc_cmd_ack(&packet->dat[0], sizeof(cmd_ack_t));
-            }
-
-            /*遥测辅帧*/
-            if(packet->dat[0] == 0x1A && packet->dat[1] == 0x54)
-            {
-                adcs_pwr_sta = 1;
-                memcpy((uint8_t*)&(hk_frame.append_frame.adcs_hk), &packet->dat[2], sizeof(adcs805_hk_t));
-            }
-
-            qb50Free(packet);
-		}
-	}
-}
+//void route_server_task(void *param __attribute__((unused))) {
+//
+//    route_packet_t *packet = NULL;
+//	uint16_t len	= 0;
+//
+//	while(1)
+//	{
+//		if((adcs_pwr_sta == 0) && (up_cmd_adcs_pwr == 1)) {
+//			EpsOutSwitch(OUT_EPS_S0, ENABLE);  //enable ADCS power
+//		}
+//
+//		if(xI2CServerReceive(packet, portMAX_DELAY) == E_NO_ERR)
+//		{
+//			if(packet == NULL)
+//		    {
+//            /*driver_debug(DEBUG_I2C,*/printf( "I2C server task error! %u\n\r");
+//		        continue;
+//			}
+//
+//            len = packet->len;
+//            /*driver_debug(DEBUG_I2C,*/printf( "I2C rx length: %u\n\r", len+3);
+//
+//
+//            /*姿控命令应答*/
+//            if(packet->dat[0] == 0xEB && packet->dat[1] == 0x53)
+//            {
+//                adcs_pwr_sta = 1;
+//                packet->dat[0] = 0x1A;
+//                obc_cmd_ack(&packet->dat[0], sizeof(cmd_ack_t));
+//            }
+//
+//            /*遥测辅帧*/
+//            if(packet->dat[0] == 0x1A && packet->dat[1] == 0x54)
+//            {
+//                adcs_pwr_sta = 1;
+//                memcpy((uint8_t*)&(hk_frame.append_frame.adcs_hk), &packet->dat[2], sizeof(adcs805_hk_t));
+//            }
+//
+//            qb50Free(packet);
+//		}
+//	}
+//}
 
 
 void isis_read_task(void *para __attribute__((unused))) {
@@ -724,7 +763,7 @@ void isis_read_task(void *para __attribute__((unused))) {
                 /* 如果任务创建成功则在任务中释放内存，进行下一轮循环 */
                 continue;
             case 2:
-                i2c_master_transaction(OBC_I2C_HANDLE, ADCS_I2C_ADDR, &pdata->Packet.Id,
+                i2c_master_transaction(OBC_TO_ADCS_HANDLE, ADCS_I2C1_ADDR, &pdata->Packet.Id,
                         pdata->Packet.DataLength, NULL, 0, 1000);
                 break;
             default:

@@ -12,6 +12,7 @@
 #include "ctrl_cmd_types.h"
 #include "contrl.h"
 #include "task_user.h"
+#include "route.h"
 
 static uint8_t SendBuffer[USART2_MTU] __attribute__((section(".hk")));
 static uint8_t ReceiveBuffer[USART2_MTU] __attribute__((section(".hk")));
@@ -181,6 +182,7 @@ void USART2_IRQHandler(void)
 void DMA1_Stream5_IRQHandler(void)
 {
     static BaseType_t xHigherPriorityTaskWoken;
+    static route_packet_t *packet;
 
     if(DMA_GetITStatus(DMA1_Stream5, DMA_IT_TCIF5))
     {
@@ -197,8 +199,15 @@ void DMA1_Stream5_IRQHandler(void)
                 /* 组包 */
                 Rx_Trans_Obj.frame->len_rx = 65535 - DMA1_Stream5->NDTR;
                 memcpy(Rx_Trans_Obj.frame->data, ReceiveBuffer, Rx_Trans_Obj.frame->len_rx);
+                xHigherPriorityTaskWoken = 0;
                 /* 送入接收队列 */
-                xQueueSendToBackFromISR(Rx_Trans_Obj.queue, &Rx_Trans_Obj.frame, xHigherPriorityTaskWoken);
+#if USE_ROUTE_PROTOCOL
+                Rx_Trans_Obj.frame->len_rx -= 3;
+                packet = (route_packet_t *)Rx_Trans_Obj.frame;
+                route_queue_wirte(packet, &xHigherPriorityTaskWoken);
+#else
+                xQueueSendToBackFromISR(Rx_Trans_Obj.queue, &Rx_Trans_Obj.frame, &xHigherPriorityTaskWoken);
+#endif
             }
             /* 使能DMA接收 */
             DMA_Cmd(DMA1_Stream5, ENABLE);
@@ -273,44 +282,4 @@ void USART2_UnpacketTask(void *pvPara)
     vTaskDelete(NULL);
 }
 
-void USART2_Receive_Task(void *pvPara)
-{
-    usart2_frame_t *frame = NULL;
-
-    uint8_t pname[] = "CMD0";
-
-    ctrl_nopara_t *cmd = NULL;
-
-    while(1)
-    {
-        if(xSerialReceive(&frame, portMAX_DELAY) == E_NO_ERR)
-        {
-            printf("Receive data from USART2, length: %u\r\n", frame->len_rx);
-
-            cmd = (ctrl_nopara_t *)frame->data;
-
-            switch(cmd->id)
-            {
-                case 1:
-                    pname[3]++;
-                    /* 如果任务创建失败，则跳出switch语句，释放内存 */
-                    if(xTaskCreate(USART2_UnpacketTask, (const signed char*)pname, configMINIMAL_STACK_SIZE * 2,
-                            frame, tskIDLE_PRIORITY + 4, NULL) != pdPASS)
-                    {
-                        break;
-                    }
-                    /* 如果任务创建成功则在任务中释放内存，进行下一轮循环 */
-                    continue;
-                case 2:
-                    i2c_master_transaction(OBC_I2C_HANDLE, ADCS_I2C_ADDR, frame->data,
-                            frame->len_rx, NULL, 0, 1000);
-                    break;
-                default:
-                    break;
-            }
-
-            qb50Free(frame);
-        }
-    }
-}
 

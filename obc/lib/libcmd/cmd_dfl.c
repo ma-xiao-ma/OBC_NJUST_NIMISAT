@@ -206,11 +206,9 @@ static inline char *cpGetTaskRunState(uint8_t state)
     }
 }
 
-int ps_handler(struct command_context * context __attribute__((unused))) {
-//	signed char printbuffer[384];
-//
-//	vTaskList((char *)printbuffer);
-//	printf("%s", printbuffer);
+int ps_handler(struct command_context * context __attribute__((unused)))
+{
+
     uint32_t TotalRunTime,x;
     TaskStatus_t *StatusArray;
     UBaseType_t ArraySize;
@@ -239,51 +237,23 @@ int ps_handler(struct command_context * context __attribute__((unused))) {
 	return CMD_ERROR_NONE;
 }
 
-int get_boot_count(struct command_context * context __attribute__((unused))) {
+int get_boot_count(struct command_context * context __attribute__((unused)))
+{
 	printf("boot count: %u\n", obc_boot_count);
 
 	return CMD_ERROR_NONE;
 }
 
-int get_rst_time(struct command_context * context __attribute__((unused))) {
+int get_rst_time(struct command_context * context __attribute__((unused)))
+{
 	printf("boot time: %s\n", ctime(&obc_reset_time));
 
 	return CMD_ERROR_NONE;
 }
 
-int  rsh_cmd_send_command(struct command_context *ctx) {
 
-	char * args 	= command_args(ctx);
-	uint32_t len	= strlen(args);
-
-	if (args == NULL || len <= 0)
-		return CMD_ERROR_SYNTAX;
-
-	/* Command */
-	rsh_command_t * command_packet = (rsh_command_t *)qb50Malloc(100);
-
-	if(command_packet == NULL) {
-		printf("no memory\n");
-		return CMD_ERROR_NONE;
-	}
-
-	memset(command_packet, '\0', 100);
-
-	command_packet->pretag.cmd 		= INS_RSH_CMD;
-	command_packet->pretag.delay	= 0;
-	command_packet->pretag.id		= 2;
-
-	strncpy(command_packet->command, command_args(ctx), len);
-
-	i2c_master_transaction(OBC_TO_ADCS_HANDLE, ADCS_ADDR, command_packet, len+6, NULL, 0, ADCS_DELAY);
-
-	qb50Free(command_packet);
-
-	return CMD_ERROR_NONE;
-
-}
-
-int TaskGetRunTimeStats(struct command_context * context __attribute__((unused))) {
+int TaskGetRunTimeStats(struct command_context * context __attribute__((unused)))
+{
     char *RunTimeInfo;
 
     RunTimeInfo = (char *)qb50Malloc(400);
@@ -304,12 +274,13 @@ int TaskGetRunTimeStats(struct command_context * context __attribute__((unused))
 }
 
 command_t __root_command cmd_dfl[] = {
+//	{
+//		.name = "rsh",
+//		.help = "send rsh cmd",
+//		.usage = "<command>",
+//		.handler = rsh_cmd_send_command,
+//	},
 	{
-		.name = "rsh",
-		.help = "send rsh cmd",
-		.usage = "<command>",
-		.handler = rsh_cmd_send_command,
-	},{
 		.name = "time",
 		.help = "get reset time",
 		.handler = get_rst_time,

@@ -25,6 +25,7 @@
 #include "ctrl_cmd_types.h"
 #include "crc.h"
 #include "contrl.h"
+#include "adcs.h"
 
 #include "stm32f4xx.h"
 
@@ -565,7 +566,7 @@ int adcstimesync(uint32_t secs) {
 	crc.cmd = cmd;
 	crc.crc = crc32_memory((uint8_t *)&cmd, sizeof(ctrl_syntime_t));
 
-	result = i2c_master_transaction(OBC_I2C_HANDLE, ADCS_I2C_ADDR, &crc, sizeof(crc_syntime_t), NULL, 0, 200);
+	result = i2c_master_transaction(OBC_TO_ADCS_HANDLE, ADCS_I2C1_ADDR, &crc, sizeof(crc_syntime_t), NULL, 0, 200);
 
 	return result;
 }

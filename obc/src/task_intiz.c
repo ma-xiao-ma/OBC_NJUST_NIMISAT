@@ -80,10 +80,6 @@ void task_initz(void)
 	/*command initialize*/
 	command_init();
 
-	router_init(1, 10);
-	server_start_task(configMINIMAL_STACK_SIZE, tskIDLE_PRIORITY + 3);
-	router_start_task(configMINIMAL_STACK_SIZE, tskIDLE_PRIORITY + 3);
-
 extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
 	driver_debug_switch[DEBUG_HK] = 1;
 	/*Initialize SD card*/
@@ -98,12 +94,27 @@ extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
 	hk_list_recover();
 	vTelemetryFileManage(&hk_list);
 
-	/*I2C(PCA9665) initialize*/
-	PCA9665_IO_Init();
-	//driver_debug_switch[DEBUG_I2C] = 1;
-	i2c_init(0, I2C_MASTER, 0x1A, 40, 5, 5, i2c_rx_callback); //frequency = 40Kbit/s
-	i2c_init(1, I2C_MASTER, 0x08, 60, 5, 5, i2c_rx_callback);
-	pca9665_isr_init();
+#if USE_ROUTE_PROTOCOL
+
+    router_init(1, 5);
+
+    /*创建服务器任务*/
+    server_start_task(configMINIMAL_STACK_SIZE, tskIDLE_PRIORITY + 2);
+    /*创建发送处理任务*/
+    send_processing_start_task(configMINIMAL_STACK_SIZE, tskIDLE_PRIORITY + 2);
+
+    /*创建路由任务*/
+    router_start_task(configMINIMAL_STACK_SIZE*2, tskIDLE_PRIORITY + 1);
+
+#endif
+
+    /*I2C(PCA9665) initialize*/
+    PCA9665_IO_Init();
+    //driver_debug_switch[DEBUG_I2C] = 1;
+    i2c_init(0, I2C_MASTER, 0x1A, 40, 5, 5, i2c_rx_callback); //frequency = 40Kbit/s
+    i2c_init(1, I2C_MASTER, 0x08, 60, 5, 5, i2c_rx_callback);
+    pca9665_isr_init();
+
 
 	/*FSMC SRAM 初始化
 	 *  容量：2MB*/
