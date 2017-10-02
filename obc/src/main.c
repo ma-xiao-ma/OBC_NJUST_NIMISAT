@@ -1,3 +1,4 @@
+#include <if_downlink.h>
 #include "stm32f4xx.h"
 
 #include "FreeRTOS.h"
@@ -18,8 +19,6 @@
 
 #include "cube_com.h"
 #include "contrl.h"
-#include "downlink_interface.h"
-
 #include "hk.h"
 
 /***************开始任务********************/

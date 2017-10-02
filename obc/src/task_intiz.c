@@ -4,6 +4,7 @@
  *  Created on: 2015年11月16日
  *      Author: iceyuyu
  */
+#include <if_downlink.h>
 #include "bsp_usart.h"
 #include "console.h"
 #include "command.h"
@@ -35,7 +36,6 @@
 #include "contrl.h"
 #include "switches.h"
 #include "camera_805.h"
-#include "downlink_interface.h"
 #include "driver_debug.h"
 
 static FATFS fs; /* Work area (file system object) for logical drives */
@@ -111,7 +111,7 @@ extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
     /*I2C(PCA9665) initialize*/
     PCA9665_IO_Init();
     //driver_debug_switch[DEBUG_I2C] = 1;
-    i2c_init(0, I2C_MASTER, 0x1A, 40, 5, 5, i2c_rx_callback); //frequency = 40Kbit/s
+    i2c_init(0, I2C_MASTER, 0x1A, 40, 5, 5, NULL); //frequency = 40Kbit/s
     i2c_init(1, I2C_MASTER, 0x08, 60, 5, 5, i2c_rx_callback);
     pca9665_isr_init();
 

@@ -5,15 +5,15 @@
  *      Author: Ma Wenli
  */
 
+#include <if_trxvu.h>
 #include "FreeRTOS.h"
 #include "router_io.h"
 #include "route.h"
 #include "error.h"
 #include "bsp_pca9665.h"
-#include "adcs.h"
+#include "if_adcs.h"
 #include "driver_debug.h"
 #include "cube_com.h"
-#include "bsp_icd.h"
 
 
 int route_user_init(void)
@@ -48,7 +48,7 @@ uint8_t route_find_mac(uint8_t route_addr)
     {
         case TTC_ROUTE_ADDR:
 
-            return Transmitter_Address;
+            return TRANSMITTER_I2C_ADDR;
         case ADCS_ROUTE_ADDR:
 
             return ADCS_I2C1_ADDR;

@@ -25,7 +25,7 @@
 #include "ctrl_cmd_types.h"
 #include "crc.h"
 #include "contrl.h"
-#include "adcs.h"
+#include "if_adcs.h"
 
 #include "stm32f4xx.h"
 

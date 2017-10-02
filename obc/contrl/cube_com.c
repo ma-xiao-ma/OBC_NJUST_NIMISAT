@@ -1,3 +1,4 @@
+#include <if_downlink.h>
 #include <stdio.h>
 
 #include "cube_com.h"
@@ -24,7 +25,6 @@
 #include "hk.h"
 #include "driver_debug.h"
 #include "bsp_cis.h"
-#include "downlink_interface.h"
 #include "route.h"
 #include "router_io.h"
 

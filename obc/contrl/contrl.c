@@ -1,3 +1,4 @@
+#include <if_downlink.h>
 #include "contrl.h"
 
 #include "hk_arg.h"
@@ -16,7 +17,7 @@
 #include "error.h"
 #include "driver_debug.h"
 #include "switches.h"
-#include "adcs.h"
+#include "if_adcs.h"
 #include "QB50_mem.h"
 #include "hk.h"
 #include "crc.h"
@@ -27,7 +28,6 @@
 #include "bsp_pca9665.h"
 #include "bsp_cis.h"
 #include "bsp_cpu_flash.h"
-#include "downlink_interface.h"
 #include "router_io.h"
 
 #include "csp.h"

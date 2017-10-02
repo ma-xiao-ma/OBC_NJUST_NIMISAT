@@ -17,7 +17,7 @@
 /**
  * Maximum transfer length on I2C
  */
-#define I2C_MTU     245
+#define I2C_MTU     255
 
 /**
  * I2C device modes

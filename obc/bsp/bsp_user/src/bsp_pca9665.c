@@ -949,10 +949,10 @@ int i2c_master_transaction(int handle, uint8_t addr, void * txbuf, size_t txlen,
 	if (!device[handle].is_initialised)
 		return E_NO_DEVICE;
 
-	if ((txlen > I2C_MTU - 10) || (rxlen > I2C_MTU - 10))
+	if ((txlen > I2C_MTU) || (rxlen > I2C_MTU))
 		return E_INVALID_BUF_SIZE;
 
-	i2c_frame_t * frame = (i2c_frame_t *) qb50Malloc(I2C_MTU);
+	i2c_frame_t * frame = (i2c_frame_t *) qb50Malloc(sizeof(i2c_frame_t));
 	if (frame == NULL)
 		return E_NO_BUFFER;
 
