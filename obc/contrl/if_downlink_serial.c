@@ -1,5 +1,5 @@
 /*
- * if_downlink.c
+ * if_downlink_serial.c
  *
  *  Created on: 2017年8月22日
  *      Author: Ma Wenli
@@ -8,7 +8,7 @@
  *      H1A19--->USART2_TX H1A20--->USART2_RX
  */
 
-#include <if_downlink.h>
+#include <if_downlink_serial.h>
 #include "ctrl_cmd_types.h"
 #include "contrl.h"
 #include "task_user.h"

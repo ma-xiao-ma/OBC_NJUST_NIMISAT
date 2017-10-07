@@ -1,4 +1,4 @@
-#include <if_downlink.h>
+#include <if_downlink_serial.h>
 #include "contrl.h"
 
 #include "hk_arg.h"

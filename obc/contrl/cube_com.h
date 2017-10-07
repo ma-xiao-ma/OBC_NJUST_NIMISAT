@@ -127,6 +127,10 @@
 #define INS_Max_MagTorque_Set  0xA5
 #define INS_OBC_GET_ADCS_HK    0xA6
 
+#define OBC_TELEMETRY          0xE1
+#define ADCS_TELEMETRY         0xE2
+#define CAM_IMAGE              0xE3
+
 typedef struct __attribute__((packed))
 {
     uint8_t DataLength; //Id字段和Data字段的总长

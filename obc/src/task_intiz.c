@@ -4,7 +4,7 @@
  *  Created on: 2015年11月16日
  *      Author: iceyuyu
  */
-#include <if_downlink.h>
+#include <if_downlink_serial.h>
 #include "bsp_usart.h"
 #include "console.h"
 #include "command.h"

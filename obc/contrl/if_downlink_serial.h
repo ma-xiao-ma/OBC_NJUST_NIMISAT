@@ -1,12 +1,12 @@
 /*
- * if_downlink.h
+ * if_downlink_serial.h
  *
  *  Created on: 2017年8月23日
  *      Author: Ma Wenli
  */
 
-#ifndef CONTRL_IF_DOWNLINK_H_
-#define CONTRL_IF_DOWNLINK_H_
+#ifndef CONTRL_IF_DOWNLINK_SERIAL_H_
+#define CONTRL_IF_DOWNLINK_SERIAL_H_
 
 #include "stm32f4xx.h"
 #include "FreeRTOS.h"
@@ -39,4 +39,4 @@ void vSerialACK(void *pdata, uint16_t length);
 void vSerialInterfaceInit(void);
 void USART2_Receive_Task(void *pvPara);
 
-#endif /* CONTRL_IF_DOWNLINK_H_ */
+#endif /* CONTRL_IF_DOWNLINK_SERIAL_H_ */
