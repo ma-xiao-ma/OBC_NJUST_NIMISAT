@@ -205,6 +205,13 @@ int vu_receiver_get_frame_num(uint16_t *pnum);
 int vu_receiver_get_frame(rsp_frame *frame, uint8_t content_size);
 
 /**
+ * 获取接收机缓冲区最早的一帧，送入路由队列，路由协议的星地接口
+ *
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int vu_receiver_router_get_frame(void);
+
+/**
  * 从通信机接收缓冲中清除最早的一帧
  *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h

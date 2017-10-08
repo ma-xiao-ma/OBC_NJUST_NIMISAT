@@ -40,6 +40,8 @@
 #define E_NO_BUFFER -17
 #define E_OUT_OF_MEM -18
 #define E_NOT_IDLE	-19
+#define E_TRANSMIT_ERROR -20
+#define E_CRC_CHECK_ERROR -21
 
 /* ************************************************************************ */
 

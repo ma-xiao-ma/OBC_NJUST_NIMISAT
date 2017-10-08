@@ -433,6 +433,29 @@ int route_queue_send_pack(struct command_context *ctx)
     return CMD_ERROR_NONE;
 }
 
+int CubeUnPacket_test(struct command_context *ctx)
+{
+    uint8_t cmd_type;
+
+    char * args = command_args(ctx);
+    if(sscanf(args, "%u", &cmd_type) != 1)
+        return CMD_ERROR_SYNTAX;
+
+    route_packet_t *packet = (route_packet_t *)qb50Malloc(sizeof(route_packet_t)+10);
+
+    packet->len = 10;
+    packet->dst = router_get_my_address();
+    packet->src = GND_ROUTE_ADDR;
+    packet->typ = cmd_type;
+
+    for(int i=0; i<10; i++)
+        packet->dat[i] = 0;
+
+    route_queue_wirte(packet, NULL);
+
+    return CMD_ERROR_NONE;
+}
+
 struct command test_subcommands[] = {
 	{
 		.name = "wflansh",
@@ -501,6 +524,12 @@ struct command test_subcommands[] = {
         .help = "send route packet to route queue",
         .usage = "<dst><src><typ><len>",
         .handler = route_queue_send_pack,
+    },
+    {
+        .name = "cmd",
+        .help = "UnPacket function test",
+        .usage = "<typ>",
+        .handler = CubeUnPacket_test,
     }
 //    {
 //        .name = "camera",

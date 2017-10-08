@@ -5,15 +5,19 @@
  *      Author: Ma Wenli
  */
 
-#include <if_trxvu.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <stddef.h>
 
 #include "bsp_pca9665.h"
-
+#include "if_downlink_vu.h"
+#include "semphr.h"
 #include "error.h"
 #include "QB50_mem.h"
+
+#include "if_trxvu.h"
+
+extern xSemaphoreHandle i2c_lock;
 
 /**
  *  ISIS vu收发机 无参数 无响应 指令
@@ -144,6 +148,65 @@ int vu_receiver_get_frame_num(uint16_t *pnum)
 int vu_receiver_get_frame(rsp_frame *frame, uint8_t content_size)
 {
     return vu_cmd_rsp(Receiver, RECEIVER_GET_FRAME, frame, sizeof(rsp_frame)+content_size);
+}
+
+/**
+ * 获取接收机缓冲区最早的一帧，送入路由队列，路由协议的星地接口
+ *
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int vu_receiver_router_get_frame(void)
+{
+    rsp_frame * rsp;
+    i2c_frame_t * frame = (i2c_frame_t *) qb50Malloc(sizeof(i2c_frame_t));
+    if (frame == NULL)
+        return E_NO_BUFFER;
+
+    /* Take the I2C lock */
+    xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
+
+    frame->dest = RECEIVER_I2C_ADDR;
+    frame->data[0] = RECEIVER_GET_FRAME;
+    frame->len = 1;
+    frame->len_rx = MAX_UPLINK_CONTENT_SIZE;
+
+    if (i2c_send(ISIS_I2C_HANDLE, frame, 0) != E_NO_ERR)
+    {
+        qb50Free(frame);
+        xSemaphoreGive(i2c_lock);
+        return E_TIMEOUT;
+    }
+
+    if (i2c_receive(ISIS_I2C_HANDLE, &frame, ISIS_TIMEOUT) != E_NO_ERR)
+    {
+        xSemaphoreGive(i2c_lock);
+        return E_TIMEOUT;
+    }
+
+    if ((frame->len < 9) || (frame->len > I2C_MTU))
+    {
+        qb50Free(frame);
+        return E_INVALID_PARAM;
+    }
+
+    rsp = (rsp_frame *)frame->data;
+
+    /**
+     * 给多普勒和信号强度遥测变量赋值
+     */
+    if (*(uint32_t *)(&rsp->Data[rsp->DateSize-4]) != crc32_memory(rsp->Data, rsp->DateSize-4))
+    {
+        qb50Free(frame);
+        return E_CRC_CHECK_ERROR;
+    }
+
+    memcpy(rsp, rsp->Data, rsp->DateSize);
+    frame->len -= 9;
+
+    route_queue_wirte((route_packet_t *)frame, NULL);
+
+    xSemaphoreGive(i2c_lock);
+    return E_NO_ERR;
 }
 
 /**
