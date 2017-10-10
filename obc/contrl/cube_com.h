@@ -129,7 +129,8 @@
 
 #define OBC_TELEMETRY          0xE1
 #define ADCS_TELEMETRY         0xE2
-#define CAM_IMAGE              0xE3
+#define CAM_IMAGE_INFO         0xE3
+#define CAM_IMAGE              0xE4
 
 typedef struct __attribute__((packed))
 {

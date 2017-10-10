@@ -4,12 +4,15 @@
  *  Created on: 2017年10月5日
  *      Author: Ma Wenli
  */
+#include <string.h>
 
 #include "bsp_pca9665.h"
 #include "router_io.h"
 #include "error.h"
 #include "crc.h"
 #include "semphr.h"
+#include "cube_com.h"
+#include "QB50_mem.h"
 
 #include "if_downlink_vu.h"
 
@@ -24,7 +27,7 @@ extern xSemaphoreHandle i2c_lock;
  * @param type 下行消息类型
  * @param pdata 下行数据指针
  * @param len 下行数据字节数
- * @return
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
 int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len)
 {
@@ -125,6 +128,12 @@ void vu_isis_uplink(void *para __attribute__((unused)))
     }
 }
 
+/**
+ * 路由器中下行接口调用，接受一个路由包
+ *
+ * @param packet 送到路由器的待下行的数据包
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
 int vu_isis_router_downlink(route_packet_t *packet)
 {
     if (packet == NULL)
@@ -171,4 +180,65 @@ int vu_isis_router_downlink(route_packet_t *packet)
     return E_NO_ERR;
 }
 
+int vu_isis_image_downlink(void * image_data, uint32_t image_len)
+{
+    int ret;
+    uint8_t Error, TxRemainBufSize, RemainSize = image_len;
+    image_data = (uint8_t *)image_data;
 
+    route_frame_t *downlink = qb50Malloc(I2C_MTU);
+    if(downlink == NULL)
+        return E_MALLOC_FAIL;
+
+    /**组路由协议包*/
+    downlink->dst = GND_ROUTE_ADDR;
+    downlink->src = CAM_ROUTE_ADDR;
+    downlink->typ = CAM_IMAGE;
+
+    ImagePacket_t * packet = (ImagePacket_t *)downlink->dat;
+
+    packet->PacketID = 0;
+    do
+    {
+        /**组图像数据包*/
+        packet->PacketSize = (RemainSize < IMAGE_PACK_MAX_SIZE) ? RemainSize : IMAGE_PACK_MAX_SIZE;
+        memcpy(packet->ImageData, image_data, packet->PacketSize);
+
+        *(uint32_t *)(&downlink->dat[ROUTE_HEAD_SIZE+IMAGE_PACK_HEAD_SIZE+packet->PacketSize]) =
+                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE+IMAGE_PACK_HEAD_SIZE+packet->PacketSize);
+
+        ret = vu_transmitter_send_frame(downlink, packet->PacketSize+IMAGE_DOWNLINK_OVERHEAD, &TxRemainBufSize);
+
+        /**如果传输成功，且通信机成功将消息加入发送缓冲区，发送指针后移 */
+        if ((ret == E_NO_ERR) && (TxRemainBufSize != 0xFF))
+        {
+            RemainSize -= packet->PacketSize;
+            image_data += packet->PacketSize;
+
+            packet->PacketID += 1;
+        }
+        else
+        {
+            /**若发射机缓冲区已满，则等待5秒钟*/
+            if(TxRemainBufSize == 0)
+                vTaskDelay(5000 / portTICK_PERIOD_MS);
+
+            Error++;
+        }
+
+        if (RemainSize != 0)
+            vTaskDelay(1 / portTICK_PERIOD_MS);
+
+     /**若发送完成或者错误次数超过五次，则跳出循环 */
+    }while ((RemainSize > 0) && (Error < 5));
+
+    qb50Free(downlink);
+
+    if (RemainSize == 0)
+        return E_NO_ERR;
+    else
+    {   /**如果错误超过五次，则复位发射机*/
+        vu_transmitter_software_reset();
+        return E_TRANSMIT_ERROR;
+    }
+}

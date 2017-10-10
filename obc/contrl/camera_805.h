@@ -20,6 +20,9 @@
 #define TX_BUFFER_SIZE              6
 #define RX_BUFFER_SIZE              (3*64*1024)
 
+#define IMAGE_PACK_MAX_SIZE         220
+#define IMAGE_PACK_HEAD_SIZE        3
+
 #define CAM_PACK_SIZE               400
 #define CAM_PACK_HEAD_SIZE          6
 #define IMAGE_FLASH_STORE_BASE      32768
@@ -95,7 +98,12 @@ typedef struct __attribute__((__packed__))
     unsigned short LastPacketSize;
 } ImageHead_t;
 
-
+typedef struct __attribute__((__packed__))
+{
+    uint16_t PacketID;
+    uint8_t PacketSize;
+    uint8_t ImageData[IMAGE_PACK_MAX_SIZE];
+} ImagePacket_t;
 
 
 void Camera_805_Init(void);

@@ -313,9 +313,11 @@ command_t __root_command cmd_dfl[] = {
 		.help = "Reset now",
 		.handler = cpu_reset_handler,
 	},{
+#if configUSE_STATS_FORMATTING_FUNCTIONS
 		.name = "ps",
 		.help = "List tasks",
 		.handler = ps_handler,
+#endif
 	},{
 #if configGENERATE_RUN_TIME_STATS
         .name = "rts",

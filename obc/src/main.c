@@ -167,13 +167,13 @@ void start_task(void *pvParameters)
 #endif
 
 
-    //遥测下行和保存任务
-    xTaskCreate((TaskFunction_t )down_save_task,
-                (const char*    )"down",
-                (uint16_t       )DOWN_SAVE_STK_SIZE,
-                (void*          )NULL,
-                (UBaseType_t    )DOWN_SAVE_TASK_PRIO,
-                (TaskHandle_t*  )&DownSaveTask_Handler);
+//    //遥测下行和保存任务
+//    xTaskCreate((TaskFunction_t )down_save_task,
+//                (const char*    )"down",
+//                (uint16_t       )DOWN_SAVE_STK_SIZE,
+//                (void*          )NULL,
+//                (UBaseType_t    )DOWN_SAVE_TASK_PRIO,
+//                (TaskHandle_t*  )&DownSaveTask_Handler);
 
 //    //展电池阵任务
 //    xTaskCreate((TaskFunction_t )OpenPanel_Task,

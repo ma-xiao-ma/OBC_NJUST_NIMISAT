@@ -13,6 +13,9 @@
 
 #define OBC_TO_ADCS_HANDLE      0x01
 #define ADCS_DELAY              1000U
+
+#define ADCS_I2C_ADDR           ADCS_I2C1_ADDR
+
 #define ADCS_I2C0_ADDR          0x06
 #define ADCS_I2C1_ADDR          0x05
 

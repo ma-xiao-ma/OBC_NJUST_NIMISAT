@@ -51,7 +51,7 @@ uint8_t route_find_mac(uint8_t route_addr)
             return TRANSMITTER_I2C_ADDR;
         case ADCS_ROUTE_ADDR:
 
-            return ADCS_I2C1_ADDR;
+            return ADCS_I2C_ADDR;
         default:
 
             return ROUTE_NODE_MAC;

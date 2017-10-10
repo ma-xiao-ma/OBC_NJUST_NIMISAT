@@ -342,10 +342,15 @@ int dtb_tm(struct command_context * context __attribute__((unused)))
 {
     static uint8_t tm_data[17];
 
-    if(xDTBTelemetryGet(tm_data, 1000) > 0)
-    {
+    if (xDTBTelemetryGet(tm_data, 1000) > 0)
         printf("DTB tm receive success!\r\n");
-    }
+    else
+        printf("DTB tm receive fail!\r\n");
+
+    if (tm_data[5] & 0x08)
+        printf("Transmitter Open!!\r\n");
+    else
+        printf("Transmitter Close!!\r\n");
 
     return CMD_ERROR_NONE;
 }

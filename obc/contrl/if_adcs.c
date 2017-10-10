@@ -162,7 +162,7 @@ int adcs_transaction_direct(uint8_t type, void * txbuf, size_t txlen, void * rxb
     else
         rlen = 0;
 
-    ret = i2c_master_transaction(OBC_TO_ADCS_HANDLE, ADCS_I2C1_ADDR, frame,
+    ret = i2c_master_transaction(OBC_TO_ADCS_HANDLE, ADCS_I2C_ADDR, frame,
             txlen + ROUTE_HEAD_SIZE, frame, rlen, timeout);
 
     if ((rxlen != 0) && (ret == E_NO_ERR))

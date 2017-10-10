@@ -186,10 +186,10 @@ void eps_task(void *pvParameters __attribute__((unused)))
 
         vTaskDelay(1000);
 
-        if (++ctime > 5)
-        {
-
-            ctime = 0;
+//        if (ctime++ > 10)
+//        {
+//
+//            ctime = 0;
 
             switch (Battery_Task())
             {
@@ -204,7 +204,7 @@ void eps_task(void *pvParameters __attribute__((unused)))
                 default:
                     break;
             }
-        }
+//        }
     }
 }
 
