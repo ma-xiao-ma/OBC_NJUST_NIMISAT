@@ -109,3 +109,51 @@ int xDTBTeleControlSend(uint8_t Cmd, uint16_t Timeout)
     qb50Free(pBuffer);
     return 0;
 }
+
+void dtb_tm_print(dtb_tm_pack *tm)
+{
+    printf("Item\t\tValue\r\n");
+    printf("****************************\r\n");
+    printf("TM_STA\t\t0x%02X\r\n", tm->TM_STA);
+    printf("AF_PWR\t\t%u\r\n", tm->AF_PWR);
+    printf("AF_TEMP\t\t%u\r\n", tm->AF_TEMP);
+
+    printf("IS_CAN\t\t%u\r\n", tm->IS_CAN);
+    printf("WD_CNT\t\t%u\r\n", tm->WD_CNT);
+    printf("RS_CNT\t\t%u\r\n", tm->RS_CNT);
+
+    printf("CAN_RS_CNT\t\t%u\r\n", tm->CAN_RS_CNT);
+    printf("IIC_RS_CNT\t\t%u\r\n", tm->IIC_RS_CNT);
+
+    printf("RX_INS_CNT\t\t%u\r\n", tm->RX_INS_CNT);
+    printf("TRANS_ON\t\t%u\r\n", tm->TRANS_ON);
+    printf("DOWN_RATE\t\t%u\r\n", tm->DOWN_RATE);
+
+    printf("PWR_3V3_ON\t\t%u\r\n", tm->PWR_3V3_ON);
+    printf("PSD_CODE_ON\t\t%u\r\n", tm->PSD_CODE_ON);
+    printf("BACK_CORRECT\t\t%u\r\n", tm->BACK_CORRECT);
+    printf("RECORD_CORRECT\t\t%u\r\n", tm->RECORD_CORRECT);
+    printf("WORK_MODE\t\t%u\r\n", tm->WORK_MODE);
+    printf("PADDING\t\t%u\r\n", tm->PADDING);
+
+    printf("MEM1_STA\t\t%u\r\n", tm->MEM1_STA);
+    printf("MEM2_STA\t\t%u\r\n", tm->MEM2_STA);
+    printf("MEM3_STA\t\t%u\r\n", tm->MEM3_STA);
+    printf("MEM4_STA\t\t%u\r\n", tm->MEM4_STA);
+
+    printf("MEM1_MARGIN\t\t%u\r\n", tm->MEM1_MARGIN);
+    printf("MEM2_MARGIN\t\t%u\r\n", tm->MEM2_MARGIN);
+    printf("MEM3_MARGIN\t\t%u\r\n", tm->MEM3_MARGIN);
+    printf("MEM4_MARGIN\t\t%u\r\n", tm->MEM4_MARGIN);
+
+    printf("MEM1_RECORD_CNT\t\t%u\r\n", tm->MEM1_RECORD_CNT);
+    printf("MEM2_RECORD_CNT\t\t%u\r\n", tm->MEM2_RECORD_CNT);
+    printf("MEM3_RECORD_CNT\t\t%u\r\n", tm->MEM3_RECORD_CNT);
+    printf("MEM4_RECORD_CNT\t\t%u\r\n", tm->MEM4_RECORD_CNT);
+
+    printf("MEM1_BACK_CNT\t\t%u\r\n", tm->MEM1_BACK_CNT);
+    printf("MEM2_BACK_CNT\t\t%u\r\n", tm->MEM2_BACK_CNT);
+    printf("MEM3_BACK_CNT\t\t%u\r\n", tm->MEM3_BACK_CNT);
+    printf("MEM4_BACK_CNT\t\t%u\r\n", tm->MEM4_BACK_CNT);
+
+}

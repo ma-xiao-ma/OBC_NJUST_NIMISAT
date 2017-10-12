@@ -284,26 +284,31 @@ command_t __root_command cmd_dfl[] = {
 		.name = "time",
 		.help = "get reset time",
 		.handler = get_rst_time,
-	},{
+	},
+	{
 		.name = "boot",
 		.help = "get boot count",
 		.handler = get_boot_count,
-	},{
+	},
+	{
 		.name = "help",
 		.help = "Show help",
 		.usage = "<command>",
 		.handler = help_handler,
-	},{
+	},
+	{
 		.name = "sleep",
 		.help = "Sleep X ms",
 		.usage = "<time>",
 		.handler = sleep_handler,
-	},{
+	},
+	{
 		.name = "watch",
 		.help = "Run cmd at intervals, abort with key",
 		.usage = "<n(ms)> <command>",
 		.handler = watch_handler,
-	},{
+	},
+	{
 		.name = "batch",
 		.help = "Run multiple commands",
 		.handler = batch_handler,
@@ -312,20 +317,26 @@ command_t __root_command cmd_dfl[] = {
 		.name = "reset",
 		.help = "Reset now",
 		.handler = cpu_reset_handler,
-	},{
+	},
+
 #if configUSE_STATS_FORMATTING_FUNCTIONS
+	{
 		.name = "ps",
 		.help = "List tasks",
 		.handler = ps_handler,
+	},
 #endif
-	},{
+
 #if configGENERATE_RUN_TIME_STATS
+	{
         .name = "rts",
         .help = "Task Runing Time State",
         .handler = TaskGetRunTimeStats,
+    },
 #endif
-    },{
+
 #if CONFIG_DRIVER_DEBUG
+    {
 	.name = "tdebug",
 	.help = "Toggle driver debug",
 	.usage = "<level>",

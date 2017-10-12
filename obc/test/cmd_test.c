@@ -18,6 +18,7 @@
 #include "bsp_cpu_flash.h"
 #include "crc.h"
 //#include "bsp_camera.h"
+#include "switches.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -340,17 +341,30 @@ int dtb_tc(struct command_context *ctx )
 
 int dtb_tm(struct command_context * context __attribute__((unused)))
 {
-    static uint8_t tm_data[17];
+//    static uint8_t tm_data[17];
 
-    if (xDTBTelemetryGet(tm_data, 1000) > 0)
-        printf("DTB tm receive success!\r\n");
-    else
-        printf("DTB tm receive fail!\r\n");
+    dtb_tm_pack * tm = qb50Malloc(sizeof(dtb_tm_pack));
+    if (tm == NULL)
+        return CMD_ERROR_NONE;
 
-    if (tm_data[5] & 0x08)
-        printf("Transmitter Open!!\r\n");
+    if (xDTBTelemetryGet((uint8_t *)tm, 200) > 0)
+    {
+        printf("DTB tm receive success!\r\n\r\n");
+        dtb_tm_print(tm);
+    }
     else
-        printf("Transmitter Close!!\r\n");
+        printf("DTB tm receive fail!\r\n\r\n");
+
+//    memcpy(tm_data, tm, 17);
+
+//    if (tm->TRANS_ON == 1)
+//    if (tm_data[5] & 0x80)
+//        printf("Transmitter Open!!\r\n");
+//    else
+//        printf("Transmitter Close!!\r\n");
+
+
+    qb50Free(tm);
 
     return CMD_ERROR_NONE;
 }

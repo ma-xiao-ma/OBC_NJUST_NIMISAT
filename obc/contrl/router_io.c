@@ -79,7 +79,10 @@ int route_i2c0_tx(route_packet_t * packet, uint32_t timeout)
 
     /*添加I2C帧到发送队列*/
     if (i2c_send(0, frame, timeout) != E_NO_ERR)
+    {
+        qb50Free(frame);
         return E_NO_DEVICE;
+    }
 
     return E_NO_ERR;
 }
@@ -105,7 +108,10 @@ int route_i2c1_tx(route_packet_t * packet, uint32_t timeout)
 
     /*添加I2C帧到发送队列*/
     if (i2c_send(1, frame, timeout) != E_NO_ERR)
+    {
+        qb50Free(frame);
         return E_NO_DEVICE;
+    }
 
     return E_NO_ERR;
 }
@@ -126,6 +132,7 @@ int router_send_to_other_node(route_packet_t *packet)
             qb50Free(packet);
             break;
         default:
+            qb50Free(packet);
             break;
     }
 

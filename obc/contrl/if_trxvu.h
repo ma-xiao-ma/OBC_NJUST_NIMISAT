@@ -95,6 +95,12 @@ typedef  struct __attribute__((packed)) {
     uint16_t RSSI;
 } rsp_rx_tm;
 
+/*接收机收到上行数据时的遥测*/
+typedef  struct __attribute__((packed)) {
+    uint16_t DopplerOffset;
+    uint16_t RSSI;
+} receiving_tm;
+
 /*发送新呼号数据帧 命令结构体 */
 typedef  struct __attribute__((packed)) {
     char	DstCall[7];
@@ -146,11 +152,14 @@ typedef enum {
 
 /*获取发射单元遥测响应结构体*/
 typedef  struct __attribute__((packed)) {
-    uint8_t padding:4;
-    uint8_t BitRate:2;
-    uint8_t BeaconAct:1;
-    uint8_t IdleState:1;
+    uint8_t IdleState: 1;    // bit0
+    uint8_t BeaconAct: 1;    // bit1
+    uint8_t BitRate: 2;      // bit2~bit3
+    uint8_t FM_On: 1;        // bit4
+    uint8_t padding: 3;
 } rsp_transmitter_state;
+
+
 
 #define STATE_IDLE_MASK     0x01 //0000 000x
 #define STATE_BEACON_MASK   0x02 //0000 00x0

@@ -98,11 +98,18 @@ void route_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken)
 {
     int result;
 
-    if (route_queue == NULL)
-        printf("route queue not initialized!\r\n");
-
     if(packet == NULL)
+    {
         printf("route_queue_wirte called with NULL packet\r\n");
+        return;
+    }
+
+    if (route_queue == NULL)
+    {
+        printf("route queue not initialized!\r\n");
+        qb50Free(packet);
+        return;
+    }
 
     if(pxTaskWoken == NULL)
         result = xQueueSendToBack(route_queue, &packet, 0);
@@ -195,11 +202,18 @@ void server_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken)
 {
     int result;
 
-    if (server_queue == NULL)
-        printf("server queue not initialized!\r\n");
-
     if(packet == NULL)
+    {
         printf("server_queue_wirte called with NULL packet\r\n");
+        return;
+    }
+
+    if (server_queue == NULL)
+    {
+        printf("server queue not initialized!\r\n");
+        qb50Free(packet);
+        return;
+    }
 
     if(pxTaskWoken == NULL)
         result = xQueueSendToBack(server_queue, &packet, 0);
@@ -284,18 +298,25 @@ void send_processing_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWo
 {
     int result;
 
-    if (send_processing_queue == NULL)
-        printf("send processing queue not initialized!\r\n");
-
-    if(packet == NULL)
+    if (packet == NULL)
+    {
         printf("send_processing_queue_wirte called with NULL packet\r\n");
+        return;
+    }
 
-    if(pxTaskWoken == NULL)
+    if (send_processing_queue == NULL)
+    {
+        printf("send processing queue not initialized!\r\n");
+        qb50Free(packet);
+        return;
+    }
+
+    if (pxTaskWoken == NULL)
         result = xQueueSendToBack(send_processing_queue, &packet, 0);
     else
         result = xQueueSendToBackFromISR(send_processing_queue, &packet, pxTaskWoken);
 
-    if(result != pdTRUE)
+    if (result != pdTRUE)
     {
         printf("ERROR: Send processing queue is FULL. Dropping packet.\r\n");
         qb50Free(packet);

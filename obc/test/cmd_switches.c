@@ -148,13 +148,13 @@ int cmd_switch_status(struct command_context *ctx __attribute__((unused))) {
 		printf("ants_en close\r\n");
 	}
 
-	if(status[1] & DIGI_TRAN_5V_EN) {
+	if(status[1] & DTB_5V_EN) {
 		printf("tran_5v_en open\r\n");
 	}else{
 		printf("tran_5v_en close\r\n");
 	}
 
-	if(status[1] & DIGI_TRAN_12V_EN) {
+	if(status[1] & DTB_12V_EN) {
 		printf("tran_12v_en open\r\n");
 	}else{
 		printf("tran_12v_en close\r\n");

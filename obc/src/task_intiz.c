@@ -151,6 +151,8 @@ extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
 	cmd_test_setup();
 	extern void cmd_isis_setup(void);
 	cmd_isis_setup();
+	extern void cmd_vu_setup(void);
+	cmd_vu_setup();
 	extern void cmd_norflash_setup(void);
 	cmd_norflash_setup();
 	extern void cmd_camera_setup(void);

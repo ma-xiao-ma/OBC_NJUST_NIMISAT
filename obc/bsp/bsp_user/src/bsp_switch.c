@@ -23,7 +23,7 @@ void bsp_InitSwitch(void) {
 			RCC_SOLAR_EN_PORT |
 			RCC_USB_EN_PORT   |
 			RCC_EPS_S0_PORT   | RCC_EPS_S1_PORT   | RCC_EPS_S2_PORT   | RCC_EPS_S3_PORT|
-			RCC_DIGI_TRAN_5V_PORT|RCC_DIGI_TRAN_12V_PORT|RCC_CAMERA_10W_PORT|RCC_CAMERA_5W_PORT|
+			RCC_DTB_5V_PORT|RCC_DTB_12V_PORT|RCC_CAMERA_10W_PORT|RCC_CAMERA_5W_PORT|
 			RCC_CAMERA_HEAT_1_PORT|RCC_CAMERA_HEAT_2_PORT
 			, ENABLE);
 
@@ -69,11 +69,11 @@ void bsp_InitSwitch(void) {
 	GPIO_InitStructure.GPIO_Pin = GPIO_EPS_S3_PIN;
 	GPIO_Init(GPIO_EPS_S3_PORT, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_DIGI_TRAN_5V_PIN;
-	GPIO_Init(GPIO_DIGI_TRAN_5V_PORT, &GPIO_InitStructure);
+	GPIO_InitStructure.GPIO_Pin = GPIO_DTB_5V_PIN;
+	GPIO_Init(GPIO_DTB_5V_PORT, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_DIGI_TRAN_12V_PIN;
-	GPIO_Init(GPIO_DIGI_TRAN_12V_PORT, &GPIO_InitStructure);
+	GPIO_InitStructure.GPIO_Pin = GPIO_DTB_12V_PIN;
+	GPIO_Init(GPIO_DTB_12V_PORT, &GPIO_InitStructure);
 
 	GPIO_InitStructure.GPIO_Pin = GPIO_CAMERA_10W_PIN;
 	GPIO_Init(GPIO_CAMERA_10W_PORT, &GPIO_InitStructure);
@@ -282,11 +282,11 @@ uint8_t EpsOutSwitch(uint8_t ch, uint8_t status) {
 		}
 		break;
 
-	case OUT_DIGI_TRAN_5V://PF6 数传5V电使能
-		if (status ^ OUT_SW_DIGI_TRAN_5V_PIN()) {
-			status == ENABLE ? SW_DIGITAL_TRAN_5V_ENABLE : SW_DIGITAL_TRAN_5V_DISABLE;
-			while ((status ^ OUT_SW_DIGI_TRAN_5V_PIN()) && --time) {
-				status == ENABLE ? SW_DIGITAL_TRAN_5V_ENABLE : SW_DIGITAL_TRAN_5V_DISABLE;
+	case OUT_DTB_5V://PF6 数传5V电使能
+		if (status ^ OUT_SW_DTB_5V_PIN()) {
+			status == ENABLE ? SW_DTB_5V_ENABLE : SW_DTB_5V_DISABLE;
+			while ((status ^ OUT_SW_DTB_5V_PIN()) && --time) {
+				status == ENABLE ? SW_DTB_5V_ENABLE : SW_DTB_5V_DISABLE;
 			}
 			if (time)
 				res = EPS_OK;
@@ -297,11 +297,11 @@ uint8_t EpsOutSwitch(uint8_t ch, uint8_t status) {
 		}
 		break;
 
-	case OUT_DIGI_TRAN_12V://PF7 数传12V电使能
-		if (status ^ OUT_SW_DIGI_TRAN_12V_PIN()) {
-			status == ENABLE ? SW_DIGITAL_TRAN_12V_ENABLE : SW_DIGITAL_TRAN_12V_DISABLE;
-			while ((status ^ OUT_SW_DIGI_TRAN_12V_PIN()) && --time) {
-				status == ENABLE ? SW_DIGITAL_TRAN_12V_ENABLE : SW_DIGITAL_TRAN_12V_DISABLE;
+	case OUT_DTB_12V://PF7 数传12V电使能
+		if (status ^ OUT_SW_DTB_12V_PIN()) {
+			status == ENABLE ? SW_DTB_12V_ENABLE : SW_DTB_12V_DISABLE;
+			while ((status ^ OUT_SW_DTB_12V_PIN()) && --time) {
+				status == ENABLE ? SW_DTB_12V_ENABLE : SW_DTB_12V_DISABLE;
 			}
 			if (time)
 				res = EPS_OK;
@@ -388,8 +388,8 @@ uint8_t EpsOutSwitch(uint8_t ch, uint8_t status) {
 			SW_EPS_S1_ENABLE;
 			SW_EPS_S2_ENABLE;
 			SW_EPS_S3_ENABLE;
-			SW_DIGITAL_TRAN_5V_ENABLE;
-			SW_DIGITAL_TRAN_12V_ENABLE;
+			SW_DTB_5V_ENABLE;
+			SW_DTB_12V_ENABLE;
 			SW_CAMERA_10W_ENABLE;
 			SW_CAMERA_5W_ENABLE;
 			SW_CAMERA_HEAT_1_ENABLE;
@@ -410,8 +410,8 @@ uint8_t EpsOutSwitch(uint8_t ch, uint8_t status) {
 			SW_EPS_S1_DISABLE;
 			SW_EPS_S2_DISABLE;
 			SW_EPS_S3_DISABLE;
-			SW_DIGITAL_TRAN_5V_DISABLE;
-			SW_DIGITAL_TRAN_12V_DISABLE;
+			SW_DTB_5V_DISABLE;
+			SW_DTB_12V_DISABLE;
 			SW_CAMERA_10W_DISABLE;
 			SW_CAMERA_5W_DISABLE;
 			SW_CAMERA_HEAT_1_DISABLE;
@@ -421,19 +421,6 @@ uint8_t EpsOutSwitch(uint8_t ch, uint8_t status) {
 		}
 	}
 
-	return res;
-}
-
-int judge_pal_status()
-{
-	u8 res1;
-	u8 res2;
-	u16 res;
-	res1=SW_PAL_STATUS_1_PIN();
-
-	res2=SW_PAL_STATUS_2_PIN();
-
-	res=((u16)res1<<8)|((u16)res2);
 	return res;
 }
 

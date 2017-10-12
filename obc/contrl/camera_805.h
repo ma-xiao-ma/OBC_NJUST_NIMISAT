@@ -66,6 +66,36 @@ typedef struct __attribute__((__packed__))
         uint8_t LastPacketSize; //尾包大小
 } ImageInfo_t;
 
+/**传输方式*/
+typedef enum {
+    TransOff = 0,
+    LVDS,
+    TTL
+} trans_mode;
+
+/**工作模式*/
+typedef enum {
+    ImageRaw = 0,
+    Image1fps,
+    Video,
+    Backup
+} work_mode;
+
+/**曝光模式*/
+typedef enum {
+    AutoExpoOn = 0,
+    AutoExpoOff
+} expo_mode;
+
+/**相机模式*/
+typedef struct __attribute__((__packed__))
+{
+    uint8_t expo_mode :1; //bit0
+    uint8_t work_mode :2; //bit1~bit2
+    uint8_t trans_mode :2; //bit3~bit4
+    uint8_t padding :3; //bit5~bit7
+} cam_mode_t;
+
 typedef struct __attribute__((__packed__))
 {
         uint8_t SendBuffer[TX_BUFFER_SIZE];/* 相机指令发送缓冲区 */

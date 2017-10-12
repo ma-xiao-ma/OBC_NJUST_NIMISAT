@@ -5,11 +5,12 @@
  *      Author: Ma Wenli
  */
 
-#include "camera_805.h"
 #include "driver_debug.h"
 #include "bsp_nor_flash.h"
 #include "error.h"
 #include "contrl.h"
+
+#include "camera_805.h"
 
 
 static int ImagStoreInFlash(void);
@@ -158,7 +159,6 @@ void Camera_805_Init(void)
     Camera_805_USART_Init();
     Cam.AccessMutexSem = xSemaphoreCreateMutex();
     Cam.SynchBinSem = xSemaphoreCreateBinary();
-
 }
 
 void CAMERA_TX_ISR_HANDLER(void)

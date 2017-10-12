@@ -492,7 +492,7 @@ void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
             break;
         case TR_5V_ON:
 
-            if(EpsOutSwitch(OUT_DIGI_TRAN_5V, ENABLE) == EPS_OK)
+            if(EpsOutSwitch(OUT_DTB_5V, ENABLE) == EPS_OK)
                 result = 1;
             else
                 result = 0;
@@ -502,7 +502,7 @@ void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 
         case TR_5V_OFF:
 
-            if(EpsOutSwitch(OUT_DIGI_TRAN_5V, DISABLE) == EPS_OK)
+            if(EpsOutSwitch(OUT_DTB_5V, DISABLE) == EPS_OK)
                 result = 1;
             else
                 result = 0;
@@ -512,7 +512,7 @@ void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 
         case TR_12V_ON:
 
-            if(EpsOutSwitch(OUT_DIGI_TRAN_12V, ENABLE) == EPS_OK)
+            if(EpsOutSwitch(OUT_DTB_12V, ENABLE) == EPS_OK)
                 result = 1;
             else
                 result = 0;
@@ -522,7 +522,7 @@ void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 
         case TR_12V_OFF:
 
-            if(EpsOutSwitch(OUT_DIGI_TRAN_12V, DISABLE) == EPS_OK)
+            if(EpsOutSwitch(OUT_DTB_12V, DISABLE) == EPS_OK)
                 result = 1;
             else
                 result = 0;

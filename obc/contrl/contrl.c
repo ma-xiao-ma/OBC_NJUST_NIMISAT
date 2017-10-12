@@ -191,19 +191,19 @@ void eps_task(void *pvParameters __attribute__((unused)))
 //
 //            ctime = 0;
 
-            switch (Battery_Task())
-            {
-                case 0:
-                    SleepWorkMode();
-                    break;
-                case 1:
-                    NormalWorkMode();
-                    break;
-                case 2:
-                    break;
-                default:
-                    break;
-            }
+//            switch (Battery_Task())
+//            {
+//                case 0:
+//                    SleepWorkMode();
+//                    break;
+//                case 1:
+//                    NormalWorkMode();
+//                    break;
+//                case 2:
+//                    break;
+//                default:
+//                    break;
+//            }
 //        }
     }
 }

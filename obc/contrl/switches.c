@@ -76,16 +76,16 @@ int get_switch_status(uint8_t * pstatus) {
 	    pstatus[1] &= ~ANTS_EN;
 
 	/*数传5V电开关*/
-    if(OUT_SW_DIGI_TRAN_5V_PIN())
-        pstatus[1] |= DIGI_TRAN_5V_EN;
+    if(OUT_SW_DTB_5V_PIN())
+        pstatus[1] |= DTB_5V_EN;
     else
-        pstatus[1] &= ~DIGI_TRAN_5V_EN;
+        pstatus[1] &= ~DTB_5V_EN;
 
     /*数传12V电开关*/
-    if(OUT_SW_DIGI_TRAN_12V_PIN())
-        pstatus[1] |= DIGI_TRAN_12V_EN;
+    if(OUT_SW_DTB_12V_PIN())
+        pstatus[1] |= DTB_12V_EN;
     else
-        pstatus[1] &= ~DIGI_TRAN_12V_EN;
+        pstatus[1] &= ~DTB_12V_EN;
 
     /*相机10W电开关*/
     if(OUT_SW_CAMERA_10W_PIN())
@@ -282,8 +282,8 @@ int obc_closeall(uint32_t delay, uint32_t data __attribute__((unused)))
 	DISABLE_ADCS_7V;
 	DISABLE_ANTS_3V;
 	DISABLE_PANEL_7V;
-    SW_DIGITAL_TRAN_5V_DISABLE;
-    SW_DIGITAL_TRAN_12V_DISABLE;
+    SW_DTB_5V_DISABLE;
+    SW_DTB_12V_DISABLE;
     SW_CAMERA_10W_DISABLE;
     SW_CAMERA_5W_DISABLE;
     SW_CAMERA_HEAT_1_DISABLE;

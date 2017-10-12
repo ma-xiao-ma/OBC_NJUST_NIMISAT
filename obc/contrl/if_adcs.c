@@ -55,11 +55,18 @@ void adcs_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken)
 {
     int result;
 
-    if (adcs_queue == NULL)
-        printf("ADCS queue not initialized!\r\n");
-
     if(packet == NULL)
+    {
         printf("adcs_queue_wirte called with NULL packet\r\n");
+        return;
+    }
+
+    if (adcs_queue == NULL)
+    {
+        qb50Free(packet);
+        printf("ADCS queue not initialized!\r\n");
+        return;
+    }
 
     if(pxTaskWoken == NULL)
         result = xQueueSendToBack(adcs_queue, &packet, 0);

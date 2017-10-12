@@ -19,6 +19,9 @@
 #include "semphr.h"
 
 #include "ff.h"
+#include "if_trxvu.h"
+#include "dtb_805.h"
+#include "camera_805.h"
 
 #define HK_SDCARD					0x00
 #define HK_SRAM						0x01
@@ -69,6 +72,104 @@ typedef struct __attribute__((packed)) {
 	unsigned int 	front ;
 	unsigned int 	rear ;
 } HK_Fifo_t;
+
+
+/*星务计算机本地遥测，23 Byte*/
+typedef struct __attribute__((packed))
+{
+    /**卫星号*/
+    uint8_t         sat_id;                 //1
+    /**软件版本号*/
+    uint8_t         soft_id;                //1
+    /**重启计数*/
+    uint16_t        reboot_count;           //2
+    /**上行本地指令计数*/
+    uint16_t        rec_cmd_count;          //2
+    /**遥测帧总计数（存储+下行）*/
+    uint16_t        down_count;             //2
+    /**上次复位时间*/
+    uint32_t        last_reset_time;        //4
+    /**工作模式*/
+    uint8_t         work_mode;              //1
+    /**UTC时间*/
+    uint32_t        utc_time;               //4
+    /**CPU片内温度*/
+    uint16_t        tmep_hk;                //2
+    /**开关状态*/
+    uint32_t        on_off_status;          //4
+    /**RAM延时遥测主帧索引*/
+    uint8_t         mindex;                 //1
+    /**RAM延时遥测辅帧索引*/
+    uint8_t         aindex;                 //1
+} obc_hk_t;
+
+
+/*电源分系统遥测，64 Byte*/
+typedef struct __attribute__((packed))
+{
+    /**两路电池板温度*/
+    int16_t         temp_batt_board[2];     //4
+    /**四路电源控制板温度*/
+    int16_t         temp_eps[4];            //8
+    /**六路光电流*/
+    uint16_t        sun_c[6];               //12
+    /**六路光电压*/
+    uint16_t        sun_v[6];               //12
+    /**输出母线电流*/
+    uint16_t        out_BusC;               //2
+    /**输出母线电压*/
+    uint16_t        out_BusV;               //2
+    /**通信板电流*/
+    uint16_t        UV_board_C;             //2
+    /**六路可控输出的电流遥测*/
+    uint16_t        Vol_5_C[6];             //12
+    /**五路母线保护输出电流遥测*/
+    uint16_t        Bus_c[5];               //10
+} eps_hk_t;
+
+
+/*ISISvu通信机遥测，46 Byte*/
+typedef struct __attribute__((packed))
+{
+    /**接收单元自上次复位以来的运行时间*/
+    uint32_t        RU_uptime;              //4
+    /**接收单元当前所有遥测*/
+    rsp_rx_tm       RU_curt;                //12
+    /**接收单元收到上行数据时遥测*/
+    receiving_tm    RU_last;                //2
+    /**发射单元自上次复位以来的运行时间*/
+    uint32_t        TU_uptime;              //4
+    /**发射单元当前所有遥测*/
+    rsp_tx_tm       TU_curt;                //12
+    /**发射单元上次下行数据时所有遥测*/
+    rsp_tx_tm       TU_last;                //12
+} vu_isis_hk_t;
+
+/*数传机遥测，17 Byte*/
+typedef struct __attribute__((packed))
+{
+    dtb_tm_pack dtb_hk;
+} dtb_805_hk_t;
+
+/*遥感相机遥测，16 Byte*/
+typedef struct __attribute__((packed))
+{
+    /**相机采温点1温度*/
+    uint16_t        point_1_temp;           //2
+    /**相机采温点2温度*/
+    uint16_t        point_2_temp;           //2
+    /**相机采温点3温度*/
+    uint16_t        point_3_temp;           //2
+    /**曝光时间*/
+    uint32_t        exposure_time;          //4
+    /**增益*/
+    uint8_t         gain;                   //1
+    /**相机模式*/
+    cam_mode_t      work_mode;              //1
+    /**当前最新的备份图像ID*/
+    uint32_t        currt_image_id;          //4
+} cam_805_hk_t;
+
 
 			/* total of 94 byte	*/
 typedef struct __attribute__((packed)) {

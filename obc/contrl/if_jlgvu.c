@@ -1,10 +1,9 @@
 /*
- * if_trxvu.C
+ * if_jlgvu.c
  *
- *  Created on: 2017年10月02日
+ *  Created on: 2017年10月12日
  *      Author: Ma Wenli
  */
-
 #include <stdint.h>
 #include <inttypes.h>
 #include <stddef.h>
@@ -15,9 +14,8 @@
 #include "semphr.h"
 #include "error.h"
 #include "QB50_mem.h"
-#include "crc.h"
 
-#include "if_trxvu.h"
+#include "if_jlgvu.h"
 
 extern xSemaphoreHandle i2c_lock;
 extern QueueHandle_t rx_tm_queue;
@@ -29,9 +27,9 @@ extern QueueHandle_t rx_tm_queue;
  * @param cmd   指令在if_trxvu.h中定义
  * @return      E_NO_ERR（-1）说明传输成功
  */
-static int vu_cmd( vu_i2c_addr addr, uint8_t cmd )
+static int vu_cmd( uint8_t cmd )
 {
-	return i2c_master_transaction(ISIS_I2C_HANDLE, addr, &cmd,  1, NULL, 0, 0);
+    return i2c_master_transaction(JLG_VU_I2C_HANDLE, JLG_VU_I2C_ADDR, &cmd,  1, NULL, 0, 0);
 }
 
 
@@ -44,9 +42,9 @@ static int vu_cmd( vu_i2c_addr addr, uint8_t cmd )
  * @param rsplen 响应字节数
  * @return      E_NO_ERR（-1）说明传输成功
  */
-static int vu_cmd_rsp( vu_i2c_addr addr, uint8_t cmd, void * rsp, size_t rsplen )
+static int vu_cmd_rsp( uint8_t cmd, void * rsp, size_t rsplen )
 {
-    return i2c_master_transaction(ISIS_I2C_HANDLE, addr, &cmd,  1, rsp, rsplen, ISIS_TIMEOUT);
+    return i2c_master_transaction(JLG_VU_I2C_HANDLE, JLG_VU_I2C_ADDR, &cmd,  1, rsp, rsplen, JLG_VU_TIMEOUT);
 }
 
 /**
@@ -58,7 +56,7 @@ static int vu_cmd_rsp( vu_i2c_addr addr, uint8_t cmd, void * rsp, size_t rsplen 
  * @param paralen 参数字节数
  * @return      E_NO_ERR（-1）说明传输成功
  */
-static int vu_cmd_par(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen)
+static int vu_cmd_par( uint8_t cmd, void * para, size_t paralen )
 {
     cmd_with_para *dat = qb50Malloc(sizeof(cmd_with_para) + paralen);
 
@@ -66,10 +64,10 @@ static int vu_cmd_par(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen
     if (paralen > 0)
         memcpy(dat->parameter, para, paralen);
 
-    int ret = i2c_master_transaction(ISIS_I2C_HANDLE, addr, dat, sizeof(cmd_with_para)+paralen, NULL, 0, 0);
+    int ret = i2c_master_transaction(JLG_VU_I2C_HANDLE, JLG_VU_I2C_ADDR, dat, sizeof(cmd_with_para)+paralen, NULL, 0, 0);
 
     qb50Free(dat);
-	return ret;
+    return ret;
 }
 
 /**
@@ -83,7 +81,7 @@ static int vu_cmd_par(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen
  * @param rsplen 响应字节数
  * @return      E_NO_ERR（-1）说明传输成功
  */
-static int vu_cmd_par_rsp(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen, void * rsp, size_t rsplen)
+static int vu_cmd_par_rsp( uint8_t cmd, void * para, size_t paralen, void * rsp, size_t rsplen )
 {
     cmd_with_para *dat = qb50Malloc(sizeof(cmd_with_para) + paralen);
 
@@ -91,12 +89,11 @@ static int vu_cmd_par_rsp(vu_i2c_addr addr, uint8_t cmd, void * para, size_t par
     if (paralen > 0)
         memcpy(dat->parameter, para, paralen);
 
-    int ret = i2c_master_transaction(ISIS_I2C_HANDLE, addr, dat, sizeof(cmd_with_para)+paralen, rsp, rsplen, ISIS_TIMEOUT);
+    int ret = i2c_master_transaction(JLG_VU_I2C_HANDLE, JLG_VU_I2C_ADDR, dat, sizeof(cmd_with_para)+paralen, rsp, rsplen, JLG_VU_TIMEOUT);
 
     qb50Free(dat);
     return ret;
 }
-
 
 /**************************接收单元指令函数****************************/
 
@@ -105,9 +102,9 @@ static int vu_cmd_par_rsp(vu_i2c_addr addr, uint8_t cmd, void * para, size_t par
  *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_receiver_watchdog_reset(void)
+int vu_watchdog_reset(void)
 {
-    return vu_cmd(Receiver, RECEIVER_WATCHDOG_RESET);
+    return vu_cmd( WATCHDOG_RESET );
 }
 
 /**
@@ -115,20 +112,11 @@ int vu_receiver_watchdog_reset(void)
  *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_receiver_software_reset(void)
+int vu_software_reset(void)
 {
-    return vu_cmd(Receiver, RECEIVER_SOFTWARE_RESET);
+    return vu_cmd( SOFTWARE_RESET);
 }
 
-/**
- * 接收单元硬件复位
- *
- * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
- */
-int vu_receiver_hardware_reset(void)
-{
-    return vu_cmd(Receiver, RECEIVER_HARDWARE_RESET);
-}
 
 /**
  * 获取通信机射频接收缓冲区，帧计数
@@ -136,9 +124,9 @@ int vu_receiver_hardware_reset(void)
  * @param pnum 帧计数指针
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_receiver_get_frame_num(uint16_t *pnum)
+int vu_get_frame_num(uint16_t *pnum)
 {
-    return vu_cmd_rsp(Receiver, RECEIVER_GET_FRAME_NUM, pnum, sizeof(uint16_t));
+    return vu_cmd_rsp( GET_FRAME_NUM, pnum, sizeof(uint16_t));
 }
 
 /**
@@ -148,9 +136,9 @@ int vu_receiver_get_frame_num(uint16_t *pnum)
  * @param content_size 带获取数据帧中帧内容字节数
  * @return  E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_receiver_get_frame(rsp_frame *frame, uint8_t content_size)
+int vu_get_frame(rsp_frame *frame, uint8_t content_size)
 {
-    return vu_cmd_rsp(Receiver, RECEIVER_GET_FRAME, frame, sizeof(rsp_frame)+content_size);
+    return vu_cmd_rsp( GET_FRAME, frame, sizeof(rsp_frame)+content_size);
 }
 
 /**
@@ -158,7 +146,7 @@ int vu_receiver_get_frame(rsp_frame *frame, uint8_t content_size)
  *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_receiver_router_get_frame(void)
+int vu_router_get_frame(void)
 {
     rsp_frame * rsp;
 
@@ -169,19 +157,19 @@ int vu_receiver_router_get_frame(void)
     /* Take the I2C lock */
     xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
 
-    frame->dest = RECEIVER_I2C_ADDR;
-    frame->data[0] = RECEIVER_GET_FRAME;
+    frame->dest = JLG_VU_I2C_ADDR;
+    frame->data[0] = GET_FRAME;
     frame->len = 1;
     frame->len_rx = MAX_UPLINK_CONTENT_SIZE;
 
-    if (i2c_send(ISIS_I2C_HANDLE, frame, 0) != E_NO_ERR)
+    if (i2c_send(JLG_VU_I2C_HANDLE, frame, 0) != E_NO_ERR)
     {
         qb50Free(frame);
         xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;
     }
 
-    if (i2c_receive(ISIS_I2C_HANDLE, &frame, ISIS_TIMEOUT) != E_NO_ERR)
+    if (i2c_receive(JLG_VU_I2C_HANDLE, &frame, ISIS_TIMEOUT) != E_NO_ERR)
     {
         xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;
@@ -219,7 +207,7 @@ int vu_receiver_router_get_frame(void)
     memcpy(rsp, rsp->Data, rsp->DateSize);
     frame->len -= 9;
 
-    route_queue_wirte((route_packet_t *)frame, NULL);
+    route_queue_wirte( (route_packet_t *)frame, NULL );
 
     xSemaphoreGive(i2c_lock);
     return E_NO_ERR;
@@ -230,64 +218,31 @@ int vu_receiver_router_get_frame(void)
  *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_receiver_remove_frame(void)
+int vu_remove_frame(void)
 {
-    return vu_cmd(Receiver, RECEIVER_REMOVE_FRAME);
+    return vu_cmd( REMOVE_FRAME );
 }
 
 /**
- * 获取接收单元所有遥测
+ * 获取vu所有遥测
  *
  * @param receiver_tm 遥测数据指针
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_receiver_measure_tm(rsp_rx_tm *receiver_tm)
+int vu_measure_all_tm(rsp_vu_tm *receiver_tm)
 {
-    return vu_cmd_rsp(Receiver, MEASURE_RECEIVER_TELEMETRY, receiver_tm, sizeof(rsp_rx_tm));
+    return vu_cmd_rsp( MEASURE_ALL_TELEMETRY, receiver_tm, sizeof(rsp_vu_tm));
 }
 
 /**
- * 获取接收单元自上次复位以来运行时间
+ * 获取vu自上次复位以来运行时间
  *
  * @param uptime 运行时间指针
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_receiver_get_uptime(uint32_t *uptime)
+int vu_get_uptime(uint32_t *uptime)
 {
-    return vu_cmd_rsp(Receiver, REPORT_RECEIVER_UPTIME, uptime, sizeof(uint32_t));
-}
-
-
-/**************************发射单元指令函数****************************/
-
-/**
- * 发射单元看门狗复位
- *
- * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
- */
-int vu_transmitter_watchdog_reset(void)
-{
-    return vu_cmd(Transmitter, TRANSMITTER_WATCHDOG_RESET);
-}
-
-/**
- * 发射单元软件复位
- *
- * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
- */
-int vu_transmitter_software_reset(void)
-{
-    return vu_cmd(Transmitter, TRANSMITTER_SOFTWARE_RESET);
-}
-
-/**
- * 发射单元硬件复位
- *
- * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
- */
-int vu_transmitter_hardware_reset(void)
-{
-    return vu_cmd(Transmitter, TRANSMITTER_HARDWARE_RESET);
+    return vu_cmd_rsp( REPORT_UPTIME, uptime, sizeof(uint32_t));
 }
 
 
@@ -299,12 +254,12 @@ int vu_transmitter_hardware_reset(void)
  * @param rsp 发射机缓冲区剩余空间
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_transmitter_send_frame(void *frame, uint8_t framelen, uint8_t *rsp)
+int vu_send_frame(void *frame, uint8_t framelen, uint8_t *rsp)
 {
     if(framelen < 1 || framelen > ISIS_MTU)
         return E_INVALID_BUF_SIZE;
 
-    return vu_cmd_par_rsp(Transmitter, TRANSMITTER_SEND_FRAME_DEFAULT, frame, framelen, rsp, sizeof(uint8_t));
+    return vu_cmd_par_rsp( SEND_FRAME_DEFAULT, frame, framelen, rsp, sizeof(uint8_t));
 }
 
 /**
@@ -315,12 +270,12 @@ int vu_transmitter_send_frame(void *frame, uint8_t framelen, uint8_t *rsp)
  * @param rsp 发射机缓冲区剩余空间
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_transmitter_send_frame_new_callsigns(par_frame_new_call *frame, uint8_t content_len, uint8_t *rsp)
+int vu_send_frame_new_callsigns(par_frame_new_call *frame, uint8_t content_len, uint8_t *rsp)
 {
     if(content_len < 1 || content_len > ISIS_MTU)
         return E_INVALID_BUF_SIZE;
 
-    return vu_cmd_par_rsp(Transmitter, SEND_FRAME_NEW_CALLSIGN, frame, sizeof(par_frame_new_call)+content_len,
+    return vu_cmd_par_rsp( SEND_FRAME_NEW_CALLSIGN, frame, sizeof(par_frame_new_call)+content_len,
             rsp, sizeof(uint8_t));
 }
 
@@ -331,12 +286,12 @@ int vu_transmitter_send_frame_new_callsigns(par_frame_new_call *frame, uint8_t c
  * @param content_len 信标内容字节数
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_transmitter_beacon_set(par_beacon_set *beacon, uint8_t content_len)
+int vu_beacon_set(par_beacon_set *beacon, uint8_t content_len)
 {
     if(content_len < 1 || content_len > ISIS_MTU)
         return E_INVALID_BUF_SIZE;
 
-    return vu_cmd_par(Transmitter, TRANSMITTER_SET_BEACON, beacon, sizeof(par_beacon_set)+content_len);
+    return vu_cmd_par( TRANSMITTER_SET_BEACON, beacon, sizeof(par_beacon_set)+content_len );
 }
 
 /**
@@ -346,12 +301,12 @@ int vu_transmitter_beacon_set(par_beacon_set *beacon, uint8_t content_len)
  * @param content_len 信标内容字节数
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_transmitter_beacon_new_call_set(par_beacon_new_call_set *beacon, uint8_t content_len)
+int vu_beacon_new_call_set(par_beacon_new_call_set *beacon, uint8_t content_len)
 {
     if(content_len < 1 || content_len > ISIS_MTU)
         return E_INVALID_BUF_SIZE;
 
-    return vu_cmd_par(Transmitter, SET_BEACON_NEW_CALLSIGN, beacon, sizeof(par_beacon_new_call_set)+content_len);
+    return vu_cmd_par( SET_BEACON_NEW_CALLSIGN, beacon, sizeof(par_beacon_new_call_set)+content_len);
 }
 
 /**
@@ -359,9 +314,9 @@ int vu_transmitter_beacon_new_call_set(par_beacon_new_call_set *beacon, uint8_t 
  *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_transmitter_clear_beacon(void)
+int vu_clear_beacon(void)
 {
-    return vu_cmd(Transmitter, TRANSMITTER_CLEAR_BEACON);
+    return vu_cmd( CLEAR_BEACON );
 }
 
 /**
@@ -370,12 +325,12 @@ int vu_transmitter_clear_beacon(void)
  * @param callsigns 呼号设置结构体指针
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_transmitter_set_callsigns(par_default_call_set *callsigns)
+int vu_set_callsigns(par_default_call_set *callsigns)
 {
-    int ret = vu_cmd_par(Transmitter, SET_DEFAULT_TO_CALLSIGN, callsigns, 7);
+    int ret = vu_cmd_par( SET_DEFAULT_TO_CALL, callsigns, 7);
 
     vTaskDelay(10/portTICK_PERIOD_MS);
-    ret = vu_cmd_par(Transmitter, SET_DEFAULT_FROM_CALLSIGN, (uint8_t *)SET_DEFAULT_FROM_CALLSIGN+7, 7);
+    ret = vu_cmd_par( SET_DEFAULT_FROM_CALL, (uint8_t *)SET_DEFAULT_FROM_CALLSIGN+7, 7);
 
     return ret;
 }
@@ -386,32 +341,11 @@ int vu_transmitter_set_callsigns(par_default_call_set *callsigns)
  * @param state 空闲状态，枚举数据类型，应为TurnOff或RemainOn其中之一
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_transmitter_set_idle_state(par_idle_state state)
+int vu_set_idle_state(par_idle_state state)
 {
-    return vu_cmd_par(Transmitter, SET_TRANSMITTER_DILE_STATE, &state, sizeof(uint8_t));
+    return vu_cmd_par( SET_DILE_STATE, &state, sizeof(uint8_t));
 }
 
-/**
- * 发射单元获取所有遥测
- *
- * @param transmitter_tm 发送单元遥测结构体指针
- * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
- */
-int vu_transmitter_measure_tm(rsp_tx_tm *transmitter_tm)
-{
-    return vu_cmd_rsp(Transmitter, MEASURE_TRANSMITTER_TELEMETRY, transmitter_tm, sizeof(rsp_tx_tm));
-}
-
-/**
- * 发射单元获取上次发射时遥测
- *
- * @param last_tm 发送单元遥测结构体指针
- * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
- */
-int vu_transmitter_get_last_tm(rsp_tx_tm *last_tm)
-{
-    return vu_cmd_rsp(Transmitter, GET_TRANSMITTER_TELEMETRY_LAST, last_tm, sizeof(rsp_tx_tm));
-}
 
 /**
  * 设置发射机波特率
@@ -419,20 +353,9 @@ int vu_transmitter_get_last_tm(rsp_tx_tm *last_tm)
  * @param bitrate 发射波特率，枚举类型bps1200，bps2400，bps4800，bps9600其中之一
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_transmitter_set_bitrate(par_transmission_bitrate bitrate)
+int vu_set_bitrate(par_transmission_bitrate bitrate)
 {
-    return vu_cmd_par(Transmitter, SET_TRANSMISSION_BITRATE, &bitrate, sizeof(uint8_t));
-}
-
-/**
- * 获取发射单元自上次复位以来运行时间
- *
- * @param uptime 运行时间指针
- * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
- */
-int vu_transmitter_get_uptime(uint32_t *uptime)
-{
-    return vu_cmd_rsp(Transmitter, REPORT_TRANSMITTER_UPTIME, uptime, sizeof(uint32_t));
+    return vu_cmd_par( SET_BITRATE, &bitrate, sizeof(uint8_t));
 }
 
 /**
@@ -441,8 +364,7 @@ int vu_transmitter_get_uptime(uint32_t *uptime)
  * @param state 工作状态结构体指针
  * @return
  */
-int vu_transmitter_get_state(rsp_transmitter_state *state)
+int vu_get_state(rsp_transmitter_state *state)
 {
-    return vu_cmd_rsp(Transmitter, REPORT_TRANSMITTER_STATE, state, sizeof(rsp_transmitter_state));
+    return vu_cmd_rsp( TRANSMITTER_STATE, state, sizeof(rsp_transmitter_state));
 }
-
