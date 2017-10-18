@@ -16,6 +16,7 @@
 #include "error.h"
 #include "QB50_mem.h"
 #include "crc.h"
+#include "queue.h"
 
 #include "if_trxvu.h"
 
@@ -439,10 +440,9 @@ int vu_transmitter_get_uptime(uint32_t *uptime)
  * 获取发射机工作状态
  *
  * @param state 工作状态结构体指针
- * @return
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
 int vu_transmitter_get_state(rsp_transmitter_state *state)
 {
     return vu_cmd_rsp(Transmitter, REPORT_TRANSMITTER_STATE, state, sizeof(rsp_transmitter_state));
 }
-

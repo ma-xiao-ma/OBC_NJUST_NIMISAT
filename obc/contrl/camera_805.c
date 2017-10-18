@@ -17,10 +17,10 @@ static int ImagStoreInFlash(void);
 static int ImagStoreInSD(uint16_t ImagId);
 
 /*相机数据传输信息*/
-static CamTrans_t Cam __attribute__((section(".hk")));
+static CamTrans_t Cam __attribute__((section(".bss.hk")));
 
 /*当前图像信息*/
-static ImageInfo_t CurrentImage __attribute__((section(".hk")));
+static ImageInfo_t CurrentImage __attribute__((section(".bss.hk")));
 
 static FIL FileHandle;      //文件句柄
 static UINT nByteWritten;   //f_write()函数写入检测值
@@ -481,7 +481,7 @@ uint32_t Camera_Work_Mode_Get(void)
     }
 
     uint32_t data_receive = *(uint32_t *)&Cam.ReceiveBuffer[2];
-    data_receive &= (uint32_t)0x0fffffff;
+    data_receive &= (uint32_t)0x00ffffff;
     xSemaphoreGive(Cam.AccessMutexSem);
 
     return data_receive;

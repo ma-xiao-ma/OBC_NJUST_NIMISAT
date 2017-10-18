@@ -115,10 +115,6 @@ extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
     i2c_init(1, I2C_MASTER, 0x08, 60, 5, 5, i2c_rx_callback);
     pca9665_isr_init();
 
-
-	/*FSMC SRAM 初始化
-	 *  容量：2MB*/
-	bsp_InitExtSRAM();
 	/*FSMC NorFlash 初始化
 	 * 容量：4MB*/
 	bsp_InitNorFlash();

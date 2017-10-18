@@ -7,6 +7,9 @@
 #include "QB50_mem.h"
 #include "crc.h"
 #include "error.h"
+#include "bsp_pca9665.h"
+#include "math.h"
+
 #include "dtb_805.h"
 
 #define DTB_I2C_ADDR    0x4C
@@ -110,17 +113,27 @@ int xDTBTeleControlSend(uint8_t Cmd, uint16_t Timeout)
     return 0;
 }
 
+float dtb_temp_conversion(uint8_t temp_raw)
+{
+    float A = 298.15, B = 4100.0, C = 5013.9, R;
+
+    R = 10000.0 * (0.125 + (float)temp_raw) / (255.875 - (float)temp_raw);
+
+    return 1 / (1/A + log(R/C)/B) - 273.15;
+}
+
 void dtb_tm_print(dtb_tm_pack *tm)
 {
-    printf("Item\t\tValue\r\n");
-    printf("****************************\r\n");
-    printf("TM_STA\t\t0x%02X\r\n", tm->TM_STA);
-    printf("AF_PWR\t\t%u\r\n", tm->AF_PWR);
-    printf("AF_TEMP\t\t%u\r\n", tm->AF_TEMP);
+    printf("Item\t\t\tValue\r\n");
+    printf("*******************************\r\n");
+    printf("TM_STA\t\t\t0x%02X\r\n", tm->TM_STA);
+    printf("AF_PWR\t\t\t%u\r\n", tm->AF_PWR);
+    printf("AF_TEMP_RAW\t\t%u\r\n", tm->AF_TEMP);
+    printf("AF_TEMP\t\t\t%5f C\r\n", dtb_temp_conversion(tm->AF_TEMP));
 
-    printf("IS_CAN\t\t%u\r\n", tm->IS_CAN);
-    printf("WD_CNT\t\t%u\r\n", tm->WD_CNT);
-    printf("RS_CNT\t\t%u\r\n", tm->RS_CNT);
+    printf("IS_CAN\t\t\t%u\r\n", tm->IS_CAN);
+    printf("WD_CNT\t\t\t%u\r\n", tm->WD_CNT);
+    printf("RS_CNT\t\t\t%u\r\n", tm->RS_CNT);
 
     printf("CAN_RS_CNT\t\t%u\r\n", tm->CAN_RS_CNT);
     printf("IIC_RS_CNT\t\t%u\r\n", tm->IIC_RS_CNT);
@@ -134,7 +147,7 @@ void dtb_tm_print(dtb_tm_pack *tm)
     printf("BACK_CORRECT\t\t%u\r\n", tm->BACK_CORRECT);
     printf("RECORD_CORRECT\t\t%u\r\n", tm->RECORD_CORRECT);
     printf("WORK_MODE\t\t%u\r\n", tm->WORK_MODE);
-    printf("PADDING\t\t%u\r\n", tm->PADDING);
+    printf("PADDING\t\t\t%u\r\n", tm->PADDING);
 
     printf("MEM1_STA\t\t%u\r\n", tm->MEM1_STA);
     printf("MEM2_STA\t\t%u\r\n", tm->MEM2_STA);
@@ -157,3 +170,4 @@ void dtb_tm_print(dtb_tm_pack *tm)
     printf("MEM4_BACK_CNT\t\t%u\r\n", tm->MEM4_BACK_CNT);
 
 }
+

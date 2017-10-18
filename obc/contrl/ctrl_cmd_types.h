@@ -97,7 +97,7 @@ typedef struct __attribute__((packed))
         uint32_t    CamPara;
         struct __attribute__((__packed__))
         {
-            uint8_t /*reserve*/;
+            uint8_t reserved;
             uint8_t TransMode;
             uint8_t WorkMode;
             uint8_t AutoExpo;

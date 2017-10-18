@@ -11,6 +11,8 @@
 #include "bsp_adc.h"
 #include "command.h"
 #include "bsp_switch.h"
+#include "FreeRTOS.h"
+#include "queue.h"
 
 ////////////////////////////////////本地函数定义///////////////////////////////////
 void InitSPI1(void);
@@ -20,7 +22,7 @@ void ObcAdStart(void);
 void EpsAdStart(void);
 void TempAdStart(void);
 
-uint8_t EpsAdUpdate(uint8_t chip);
+
 uint8_t ObcAdUpdate(void);
 uint8_t TempAdUpdate(void);
 
@@ -29,8 +31,6 @@ void ObcDataProcess(uint16_t data);
 uint16_t ObcSendByte(uint16_t _ucValue);
 uint16_t EpsSendByte(uint16_t _ucValue, uint8_t _chipNum);
 
-void AdDataFliter(uint16_t ad_table[][5], uint16_t* ad_aver_table,
-		uint8_t channel_num);
 
 ObcAdcValue_t* ObcAdToReal(uint16_t* rec, ObcAdcValue_t* tar);
 
@@ -131,6 +131,7 @@ CaliFactor_t EpsCaliMap[] = { { 1.0, 0 }, { 1.0, 0 }, { 1.0, 0 }, { 1.0, 0 }, {
 
 uint8_t EpsAdCorrectEnable = 1;
 EpsAdcValue_t EpsHouseKeeping;
+extern QueueHandle_t eps_hk_queue;
 uint16_t EpsTranOTCnt = 0;	//发送超时计数
 uint16_t EpsRevOTCnt = 0;   //接收超时计数
 
@@ -500,42 +501,42 @@ ObcAdcValue_t* ObcAdToReal(uint16_t* rec, ObcAdcValue_t* tar) {
 	return tar;
 }
 
-void EpsAdCalibration(void) {
-	uint8_t i;
-	static uint8_t EpsCaliTime = 0;
-	if (!(EpsCaliFlag == EPS_FLAG_IDLE || EpsCaliFlag == EPS_FLAG_OK)) {
-		if (EpsCaliFlag & EPS_FLAG_ENTER) // 第一次进入
-		{
-			EpsOutSwitch(OUT_ALL, DISABLE);
-
-			for (i = 0; i < REG_NUM + UREG_NUM; i++) {
-				EpsCaliTable[i] = EpsHouseKeeping.Out_BranchC[i];
-			}
-			EpsCaliTime = 0;
-			EpsCaliFlag = EPS_FLAG_DOING;
-		} else //第N次进入
-		{
-			for (i = 0; i < REG_NUM + UREG_NUM; i++) {
-				EpsCaliTable[i] = (EpsHouseKeeping.Out_BranchC[i]
-						+ EpsCaliTable[i]) / 2;
-			}
-
-			if (EpsCaliTime++ > CALIBRATION_TIME) {
-				EpsCaliFlag = EPS_FLAG_OK;
-				for (i = 0; i < REG_NUM + UREG_NUM; i++) {
-					EpsCaliMap[i + 15].b = EpsCaliMap[i + 15].b
-							- EpsCaliTable[i];
-				}
-
-//				EpsOutSwitch(OUT_MTQ, ENABLE);
-//				EpsOutSwitch(OUT_MAG, ENABLE);
-//				EpsOutSwitch(OUT_RES, ENABLE);
-			}
-		}
-	} else if (EpsCaliFlag == EPS_FLAG_OK) {
-		EpsCaliFlag = EPS_FLAG_IDLE;
-	}
-}
+//void EpsAdCalibration(void) {
+//	uint8_t i;
+//	static uint8_t EpsCaliTime = 0;
+//	if (!(EpsCaliFlag == EPS_FLAG_IDLE || EpsCaliFlag == EPS_FLAG_OK)) {
+//		if (EpsCaliFlag & EPS_FLAG_ENTER) // 第一次进入
+//		{
+//			EpsOutSwitch(OUT_ALL, DISABLE);
+//
+//			for (i = 0; i < REG_NUM + UREG_NUM; i++) {
+//				EpsCaliTable[i] = EpsHouseKeeping.Out_BranchC[i];
+//			}
+//			EpsCaliTime = 0;
+//			EpsCaliFlag = EPS_FLAG_DOING;
+//		} else //第N次进入
+//		{
+//			for (i = 0; i < REG_NUM + UREG_NUM; i++) {
+//				EpsCaliTable[i] = (EpsHouseKeeping.Out_BranchC[i]
+//						+ EpsCaliTable[i]) / 2;
+//			}
+//
+//			if (EpsCaliTime++ > CALIBRATION_TIME) {
+//				EpsCaliFlag = EPS_FLAG_OK;
+//				for (i = 0; i < REG_NUM + UREG_NUM; i++) {
+//					EpsCaliMap[i + 15].b = EpsCaliMap[i + 15].b
+//							- EpsCaliTable[i];
+//				}
+//
+////				EpsOutSwitch(OUT_MTQ, ENABLE);
+////				EpsOutSwitch(OUT_MAG, ENABLE);
+////				EpsOutSwitch(OUT_RES, ENABLE);
+//			}
+//		}
+//	} else if (EpsCaliFlag == EPS_FLAG_OK) {
+//		EpsCaliFlag = EPS_FLAG_IDLE;
+//	}
+//}
 
 EpsAdcValue_t* EpsAdCorrect(EpsAdcValue_t* p) //EPS通道相关量修正
 {
@@ -667,32 +668,43 @@ void eps_start(void) {
 	TempAdStart();
 	EpsCaliFlag = EPS_FLAG_ENTER;
 }
-void eps_hk(void) {
-	uint8_t kc = 0;
-	for (kc = 0; kc < 16; kc++) {
-		EpsAdUpdate(EPS_AD_CS1);
-		EpsAdUpdate(EPS_AD_CS2);
-//		ObcAdUpdate();
-//		TempAdUpdate();  //没有用到
-	}
 
-	AdDataFliter(EpsAdValue, EpsAdValueAver, 32);
-	EpsAdToReal(EpsAdValueAver, &EpsHouseKeeping);
-	//EpsAdToReal2(EpsAdValueAver, &EpsHouseKeeping);
+//void eps_hk(void)
+//{
+//	uint8_t kc = 0;
+//
+//	for (kc = 0; kc < 16; kc++)
+//	{
+//		EpsAdUpdate(EPS_AD_CS1);
+//		EpsAdUpdate(EPS_AD_CS2);
+////		ObcAdUpdate();
+////		TempAdUpdate();  //没有用到
+//	}
+//
+//	AdDataFliter(EpsAdValue, EpsAdValueAver, 32);
+//	EpsAdToReal(EpsAdValueAver, &EpsHouseKeeping);
+//	//EpsAdToReal2(EpsAdValueAver, &EpsHouseKeeping);
+//
+//
+//
+////	AdDataFliter(ObcAdValue, ObcAdValueAver, 16);
+////	ObcAdToReal(ObcAdValueAver, &ObcAdData);
+////	AdDataFliter(TempAdValue, TempAdValueAver, 16);
+//
+////  EpsAdCalibration();
+//
+//}
 
-
-
-//	AdDataFliter(ObcAdValue, ObcAdValueAver, 16);
-//	ObcAdToReal(ObcAdValueAver, &ObcAdData);
-//	AdDataFliter(TempAdValue, TempAdValueAver, 16);
-
-	//EpsAdCalibration();
-
-}
 
 int cmd_eps_read(struct command_context *ctx) {
 
 	char *temp;
+
+    if (eps_hk_queue == NULL)
+        return CMD_ERROR_SYNTAX;
+
+    if (xQueuePeek(eps_hk_queue, &EpsHouseKeeping, 0) != pdTRUE)
+        return CMD_ERROR_SYNTAX;
 
 	printf("\r\n************* EPS total infomation ************\r\n");
 	printf("*             Bus Voltage: %04dmV             *\r\n",

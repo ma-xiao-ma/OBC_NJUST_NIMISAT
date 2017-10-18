@@ -16,20 +16,6 @@ __IO int32_t g_iRunTime = 0;
 
 static void bsp_SoftTimerDec(SOFT_TMR *_tmr);
 
-/* FreeRTOS时间统计所用的节拍计数器 */
-volatile unsigned long long FreeRTOSRunTimeTicks;
-
-/*
-    初始化TIM3使其为FreeRTOS的时间统计提供时基
- */
-void ConfigureTimeForRunTimeStats(void)
-{
-    /* 定时器3初始化，定时器时钟为84M，分频系数为84-1，所以定时器3的频率
-     * 为84M/84=1M，自动重载值为50-1，那么定时器周期就是50us */
-    FreeRTOSRunTimeTicks=0;
-    TIM3_Int_Init(50-1,84-1);   //初始化TIM3
-}
-
 /*通用定时器3中断初始化
  * arr:自动重载值
  * psc:时钟预分频数
@@ -59,6 +45,20 @@ void TIM3_Int_Init(u16 arr,u16 psc)
     NVIC_InitStructure.NVIC_IRQChannelSubPriority=0x00; //子优先级0
     NVIC_InitStructure.NVIC_IRQChannelCmd=ENABLE;
     NVIC_Init(&NVIC_InitStructure);
+}
+
+/* FreeRTOS时间统计所用的节拍计数器 */
+volatile unsigned long long FreeRTOSRunTimeTicks;
+
+/*
+    初始化TIM3使其为FreeRTOS的时间统计提供时基
+ */
+void ConfigureTimeForRunTimeStats(void)
+{
+    /* 定时器3初始化，定时器时钟为84M，分频系数为84-1，所以定时器3的频率
+     * 为84M/84=1M，自动重载值为50-1，那么定时器周期就是50us */
+    FreeRTOSRunTimeTicks=0;
+    TIM3_Int_Init(50-1, 84-1);   //初始化TIM3
 }
 
 /*

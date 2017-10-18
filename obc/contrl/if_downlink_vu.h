@@ -32,5 +32,4 @@ typedef struct
     uint32_t data_len;
 } downlink_request;
 
-
 #endif /* CONTRL_IF_DOWNLINK_VU_H_ */

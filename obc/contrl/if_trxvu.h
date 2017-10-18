@@ -161,6 +161,7 @@ typedef  struct __attribute__((packed)) {
 
 
 
+
 #define STATE_IDLE_MASK     0x01 //0000 000x
 #define STATE_BEACON_MASK   0x02 //0000 00x0
 #define STATE_RATE_MASK     0x0C //0000 xx00
@@ -234,6 +235,14 @@ int vu_receiver_remove_frame(void);
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
 int vu_receiver_measure_tm(rsp_rx_tm *receiver_tm);
+
+/**
+ * 获取接收单元接收上一帧时的遥测
+ *
+ * @param tm 接收缓冲区指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int vu_isis_get_receiving_tm(receiving_tm *tm);
 
 /**
  * 获取接收单元自上次复位以来运行时间

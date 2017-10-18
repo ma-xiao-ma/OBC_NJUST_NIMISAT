@@ -20,7 +20,7 @@ static uint8_t qb50nobuff = 0;
 static void qb50HeapInit( void );
 
 /* Allocate the memory for the heap. */
-static uint8_t qb50Heap[ configTOTAL_QB50_HEAP_SIZE ] __attribute__((section(".hk")));
+static uint8_t qb50Heap[ configTOTAL_QB50_HEAP_SIZE ] __attribute__((section(".bss.hk")));
 
 /* Define the linked list structure.  This is used to link free blocks in order
 of their size. */

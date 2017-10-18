@@ -92,14 +92,17 @@ typedef struct EpsAdcValue_t
 	uint16_t 	Out_BusC;
 	uint16_t 	Out_BusV;
 	uint16_t 	Out_BranchC[REG_NUM+UREG_NUM];
-	int16_t 	EpsTemp[EPS_TEMP_NUM];
-	int16_t 	BatTemp[BAT_TEMP_NUM];
+	int16_t     	EpsTemp[EPS_TEMP_NUM];
+	int16_t 	    BatTemp[BAT_TEMP_NUM];
 } EpsAdcValue_t;
 
 
 extern EpsAdcValue_t	EpsHouseKeeping;
 
 void bsp_InitSPI1(void);
+uint8_t EpsAdUpdate(uint8_t chip);
+void AdDataFliter(uint16_t ad_table[][5], uint16_t* ad_aver_table,
+        uint8_t channel_num);
 EpsAdcValue_t* EpsAdToReal(uint16_t* rec, EpsAdcValue_t* tar);
 void EpsAdToReal2(uint16_t* rec, EpsAdcValue_t* tar);
 void EpsAdCalibration(void);

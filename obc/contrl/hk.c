@@ -23,17 +23,26 @@
 
 #include "bsp_intadc.h"
 #include "bsp_ds1302.h"
-
-#include "hk.h"
+#include "error.h"
 #include "hk_arg.h"
 #include "cube_com.h"
 #include "contrl.h"
 #include "switches.h"
+#include "camera_805.h"
+#include "dtb_805.h"
+
+#include "hk.h"
+
 
 FIL fd = {0};
 static unsigned int fd_timestamp = 0;
 static int fs_ok = 0;
 static int fd_count = 0;
+
+QueueHandle_t ttc_hk_queue;
+QueueHandle_t eps_hk_queue;
+QueueHandle_t dtb_hk_queue;
+QueueHandle_t cam_hk_queue;
 
 uint8_t 		hk_select = 0;
 uint16_t		hk_sram_index = 0;
@@ -48,13 +57,13 @@ HK_Store_t		hk_old_frame;
 
 uint16_t  hk_frame_index = 0;      //used for up down index from here to start
 
-HK_Fifo_t hk_main_fifo 		__attribute__((section(".hk")));
-HK_Fifo_t hk_append_fifo 	__attribute__((section(".hk")));
+HK_Fifo_t hk_main_fifo 		__attribute__((section(".bss.hk")));
+HK_Fifo_t hk_append_fifo 	__attribute__((section(".bss.hk")));
 hkList_t  hk_list = {0};
 
 uint32_t down_cmd_cnt = 0;
 
-static HK_Store_t hk_store 	__attribute__((section(".hk")));
+static HK_Store_t hk_store 	__attribute__((section(".bss.hk")));
 
 /*列表项是从大到小排列的，尾项End是最小项*/
 void hk_list_init(hkList_t * pxList)
@@ -303,11 +312,11 @@ uint16_t hk_fifo_find(const HK_Fifo_t *Q, uint32_t timevalue)
 
 	while(low <= high)
 	{
-		if(timevalue < ((HK_Main_t *)&(Q->frame[mid]))->utc_time)
+		if(timevalue < ((HK_Main_t *)&(Q->frame[mid]))->obc.utc_time)
 		{
 			high = mid - 1;
 		}
-		else if(timevalue > ((HK_Main_t *)&(Q->frame[mid]))->utc_time)
+		else if(timevalue > ((HK_Main_t *)&(Q->frame[mid]))->obc.utc_time)
 		{
 			low = mid + 1;
 		}
@@ -331,17 +340,57 @@ int hk_collect_no_store(void) {
 
 	down_cmd_cnt ++;
 
-	hk_frame.main_frame.header[0] 					= 0x1A;
-	hk_frame.main_frame.header[1] 					= 0x50;
-	hk_frame.main_frame.sat_id						= 0x05;
-	hk_frame.main_frame.soft_id						= 0x03;
+	/*星务计算机本地遥测*/
+	hk_frame.main_frame.obc.sat_id = 0x05;
+	hk_frame.main_frame.obc.soft_id = 0x05;
+	hk_frame.main_frame.obc.reboot_count = obc_boot_count;
+	hk_frame.main_frame.obc.rec_cmd_count = rec_cmd_cnt;
+	hk_frame.main_frame.obc.down_count = down_cmd_cnt;
+	hk_frame.main_frame.obc.last_reset_time = obc_reset_time;
+	hk_frame.main_frame.obc.work_mode = mode;
+	hk_frame.main_frame.obc.utc_time = clock_get_time_nopara();
+	Get_Adc((uint8_t)ADC1_CPU_CHANNEL, &hk_frame.main_frame.obc.tmep_mcu, ADC_DELAY);
+    get_switch_status((uint8_t *)&hk_frame.main_frame.obc.on_off_status);
+    hk_frame.main_frame.obc.mindex = hk_main_fifo.rear;
+    hk_frame.main_frame.obc.aindex = hk_append_fifo.rear;
 
-	hk_frame.main_frame.reboot_count				= obc_boot_count;
-	hk_frame.main_frame.rec_cmd_count				= rec_cmd_cnt;
-	hk_frame.main_frame.down_count					= down_cmd_cnt;  //星务遥测统计次数 下行+存储
-	hk_frame.main_frame.last_reset_time				= obc_reset_time;
-    hk_frame.main_frame.work_mode                   = mode;
-	hk_frame.main_frame.utc_time					= clock_get_time_nopara();
+
+    /*电源系统遥测获取*/
+    eps_hk_get_peek(&hk_frame.main_frame.eps);
+
+    /*测控分系统遥测获取*/
+    ttc_hk_get_peek(&hk_frame.main_frame.ttc);
+
+//    hk_frame.main_frame.eps.temp_batt_board[0] = EpsHouseKeeping.BatTemp[0];
+//    hk_frame.main_frame.eps.temp_batt_board[1] = EpsHouseKeeping.BatTemp[1];
+//    for(kc=0;kc<4;kc++)
+//        hk_frame.main_frame.eps.temp_eps[kc] = EpsHouseKeeping.EpsTemp[kc];
+//    for(kc=0;kc<6;kc++)
+//    {
+//        hk_frame.main_frame.eps.sun_c[kc] = EpsHouseKeeping.In_SunC[kc];
+//        hk_frame.main_frame.eps.sun_v[kc] = EpsHouseKeeping.In_SunV[kc];
+//    }
+//    hk_frame.main_frame.eps.out_BusC = EpsHouseKeeping.Out_BusC;
+//    hk_frame.main_frame.eps.out_BusV = EpsHouseKeeping.Out_BusV;
+//    hk_frame.main_frame.eps.UV_board_C = EpsHouseKeeping.Out_ComC;
+//    for(kc =0;kc<6;kc++)
+//        hk_frame.main_frame.eps.Vol_5_C[kc] = EpsHouseKeeping.Out_BranchC[kc];
+//    for(kc =0;kc<5;kc++)
+//        hk_frame.main_frame.eps.Bus_c[kc] = EpsHouseKeeping.Out_BranchC[kc+6];
+
+    /*测控分系统遥测*/
+
+//	hk_frame.main_frame.header[0] 					= 0x1A;
+//	hk_frame.main_frame.header[1] 					= 0x50;
+//	hk_frame.main_frame.sat_id						= 0x05;
+//	hk_frame.main_frame.soft_id						= 0x03;
+//
+//	hk_frame.main_frame.reboot_count				= obc_boot_count;
+//	hk_frame.main_frame.rec_cmd_count				= rec_cmd_cnt;
+//	hk_frame.main_frame.down_count					= down_cmd_cnt;  //星务遥测统计次数 下行+存储
+//	hk_frame.main_frame.last_reset_time				= obc_reset_time;
+//    hk_frame.main_frame.work_mode                   = mode;
+//	hk_frame.main_frame.utc_time					= clock_get_time_nopara();
 
 //	hk_frame.main_frame.status_sensor_on_off 		= 0;
 
@@ -352,45 +401,45 @@ int hk_collect_no_store(void) {
 //	if(PANELB_PIN_STATUS())
 //		hk_frame.main_frame.status_sensor_on_off |= PANELB;
 
-	Get_Adc((uint8_t)ADC1_CPU_CHANNEL, &hk_frame.main_frame.tmep_hk, ADC_DELAY);
+//	Get_Adc((uint8_t)ADC1_CPU_CHANNEL, &hk_frame.main_frame.tmep_hk, ADC_DELAY);
+//
+//    get_switch_status((uint8_t *)&hk_frame.main_frame.obc.on_off_status);
 
-    get_switch_status((uint8_t *)&hk_frame.main_frame.on_off_status);
-
-    hk_frame.main_frame.mindex              = hk_main_fifo.rear;
-    hk_frame.main_frame.aindex              = hk_append_fifo.rear;
-
-
-
-	hk_frame.main_frame.temp_batt_board[0] 	= EpsHouseKeeping.BatTemp[0];
-	hk_frame.main_frame.temp_batt_board[1] 	= EpsHouseKeeping.BatTemp[1];
-
-	for(kc=0;kc<4;kc++)
-		hk_frame.main_frame.temp_eps[kc] 	= EpsHouseKeeping.EpsTemp[kc];
-
-	for(kc=0;kc<6;kc++)
-	{
-		hk_frame.main_frame.sun_c[kc] 		= EpsHouseKeeping.In_SunC[kc];
-		hk_frame.main_frame.sun_v[kc] 		= EpsHouseKeeping.In_SunV[kc];
-	}
-
-	hk_frame.main_frame.out_BusC 			= EpsHouseKeeping.Out_BusC;
-	hk_frame.main_frame.out_BusV 			= EpsHouseKeeping.Out_BusV;
-	hk_frame.main_frame.UV_board_C 			= EpsHouseKeeping.Out_ComC;
-
-	for(kc =0;kc<6;kc++)
-		hk_frame.main_frame.Vol_5_C[kc] 	= EpsHouseKeeping.Out_BranchC[kc];
-	for(kc =0;kc<5;kc++)
-		hk_frame.main_frame.Bus_c[kc] 		= EpsHouseKeeping.Out_BranchC[kc+6];
+//    hk_frame.main_frame.mindex              = hk_main_fifo.rear;
+//    hk_frame.main_frame.aindex              = hk_append_fifo.rear;
 
 
-	memset(hk_frame.main_frame.others, 0, 66);
-//	hk_frame.main_frame.endbit 				= '*';  //'*'
-//	hk_frame.main_frame.crc 				= 0;
-
-
-	/* get adcs hk */
-	hk_frame.append_frame.header[0] 		= 0x1A;
-	hk_frame.append_frame.header[1] 		= 0x51;
+//
+//	hk_frame.main_frame.temp_batt_board[0] 	= EpsHouseKeeping.BatTemp[0];
+//	hk_frame.main_frame.temp_batt_board[1] 	= EpsHouseKeeping.BatTemp[1];
+//
+//	for(kc=0;kc<4;kc++)
+//		hk_frame.main_frame.temp_eps[kc] 	= EpsHouseKeeping.EpsTemp[kc];
+//
+//	for(kc=0;kc<6;kc++)
+//	{
+//		hk_frame.main_frame.sun_c[kc] 		= EpsHouseKeeping.In_SunC[kc];
+//		hk_frame.main_frame.sun_v[kc] 		= EpsHouseKeeping.In_SunV[kc];
+//	}
+//
+//	hk_frame.main_frame.out_BusC 			= EpsHouseKeeping.Out_BusC;
+//	hk_frame.main_frame.out_BusV 			= EpsHouseKeeping.Out_BusV;
+//	hk_frame.main_frame.UV_board_C 			= EpsHouseKeeping.Out_ComC;
+//
+//	for(kc =0;kc<6;kc++)
+//		hk_frame.main_frame.Vol_5_C[kc] 	= EpsHouseKeeping.Out_BranchC[kc];
+//	for(kc =0;kc<5;kc++)
+//		hk_frame.main_frame.Bus_c[kc] 		= EpsHouseKeeping.Out_BranchC[kc+6];
+//
+//
+//	memset(hk_frame.main_frame.others, 0, 66);
+////	hk_frame.main_frame.endbit 				= '*';  //'*'
+////	hk_frame.main_frame.crc 				= 0;
+//
+//
+//	/* get adcs hk */
+//	hk_frame.append_frame.header[0] 		= 0x1A;
+//	hk_frame.append_frame.header[1] 		= 0x51;
 
 
 	//get_adcs_hk(&hk_frame.append_frame.adcs_hk);
@@ -404,72 +453,72 @@ int hk_collect(void) {
 
 	uint8_t kc =0;
 
-	down_cmd_cnt ++;
-
-	hk_frame.main_frame.header[0] 					= 0x1A;
-	hk_frame.main_frame.header[1] 					= 0x50;
-
-
-	hk_frame.main_frame.sat_id						= 0x05;
-	hk_frame.main_frame.soft_id						= 0x03;
-
-	hk_frame.main_frame.reboot_count				= obc_boot_count;
-	hk_frame.main_frame.rec_cmd_count				= rec_cmd_cnt;
-	hk_frame.main_frame.down_count					= down_cmd_cnt;
-	hk_frame.main_frame.last_reset_time				= obc_reset_time;
-	hk_frame.main_frame.utc_time					= clock_get_time_nopara();
-	hk_frame.main_frame.work_mode					= mode;
-
-//	get_antenna_status(&hk_frame.main_frame.status_sensor_on_off);   //ants[0-4] panel[5-6]
-//	hk_frame.main_frame.status_sensor_on_off 		= hk_frame.main_frame.status_sensor_on_off & ANTSMSK;
-//	if(PANELA_PIN_STATUS())
-//		hk_frame.main_frame.status_sensor_on_off |= PANELA;
-//	if(PANELB_PIN_STATUS())
-//		hk_frame.main_frame.status_sensor_on_off |= PANELB;
-
-	Get_Adc((uint8_t)ADC1_CPU_CHANNEL, &hk_frame.main_frame.tmep_hk, ADC_DELAY);
-
-	hk_frame.main_frame.temp_batt_board[0] 	= EpsHouseKeeping.BatTemp[0];
-	hk_frame.main_frame.temp_batt_board[1] 	= EpsHouseKeeping.BatTemp[1];
-
-	for(kc=0;kc<4;kc++)
-		hk_frame.main_frame.temp_eps[kc] 	= EpsHouseKeeping.EpsTemp[kc];
-
-
-	for(kc=0;kc<6;kc++)
-	{
-		hk_frame.main_frame.sun_c[kc] 		= EpsHouseKeeping.In_SunC[kc];
-		hk_frame.main_frame.sun_v[kc] 		= EpsHouseKeeping.In_SunV[kc];
-	}
-
-	hk_frame.main_frame.out_BusC 			= EpsHouseKeeping.Out_BusC;
-	hk_frame.main_frame.out_BusV 			= EpsHouseKeeping.Out_BusV;
-
-	hk_frame.main_frame.UV_board_C 			= EpsHouseKeeping.Out_ComC;
-
-	for(kc =0;kc<6;kc++)
-		hk_frame.main_frame.Vol_5_C[kc] 	= EpsHouseKeeping.Out_BranchC[kc];
-	for(kc =0;kc<5;kc++)
-		hk_frame.main_frame.Bus_c[5] 		= EpsHouseKeeping.Out_BranchC[kc+6];
-
-	get_switch_status((uint8_t *)&hk_frame.main_frame.on_off_status);
-
-	hk_frame.main_frame.mindex				= hk_main_fifo.rear;
-	hk_frame.main_frame.aindex				= hk_append_fifo.rear;
-
-//	hk_frame.main_frame.endbit 				= '*';  //'*'
-//	hk_frame.main_frame.crc 				= 0;
-
-
-	/* get adcs hk */
-	hk_frame.append_frame.header[0] 		= 0x1A;
-	hk_frame.append_frame.header[0] 		= 0x51;
-
-
-	HK_fifoIn(&hk_main_fifo, (unsigned char *)&hk_frame.main_frame, (uint8_t)HK_FRAME_MAIN);
-	HK_fifoIn(&hk_append_fifo, (unsigned char *)&hk_frame.append_frame, (uint8_t)HK_FRAME_APPEND);
-
-	return result;
+//	down_cmd_cnt ++;
+//
+//	hk_frame.main_frame.header[0] 					= 0x1A;
+//	hk_frame.main_frame.header[1] 					= 0x50;
+//
+//
+//	hk_frame.main_frame.sat_id						= 0x05;
+//	hk_frame.main_frame.soft_id						= 0x03;
+//
+//	hk_frame.main_frame.reboot_count				= obc_boot_count;
+//	hk_frame.main_frame.rec_cmd_count				= rec_cmd_cnt;
+//	hk_frame.main_frame.down_count					= down_cmd_cnt;
+//	hk_frame.main_frame.last_reset_time				= obc_reset_time;
+//	hk_frame.main_frame.utc_time					= clock_get_time_nopara();
+//	hk_frame.main_frame.work_mode					= mode;
+//
+////	get_antenna_status(&hk_frame.main_frame.status_sensor_on_off);   //ants[0-4] panel[5-6]
+////	hk_frame.main_frame.status_sensor_on_off 		= hk_frame.main_frame.status_sensor_on_off & ANTSMSK;
+////	if(PANELA_PIN_STATUS())
+////		hk_frame.main_frame.status_sensor_on_off |= PANELA;
+////	if(PANELB_PIN_STATUS())
+////		hk_frame.main_frame.status_sensor_on_off |= PANELB;
+//
+//	Get_Adc((uint8_t)ADC1_CPU_CHANNEL, &hk_frame.main_frame.tmep_hk, ADC_DELAY);
+//
+//	hk_frame.main_frame.temp_batt_board[0] 	= EpsHouseKeeping.BatTemp[0];
+//	hk_frame.main_frame.temp_batt_board[1] 	= EpsHouseKeeping.BatTemp[1];
+//
+//	for(kc=0;kc<4;kc++)
+//		hk_frame.main_frame.temp_eps[kc] 	= EpsHouseKeeping.EpsTemp[kc];
+//
+//
+//	for(kc=0;kc<6;kc++)
+//	{
+//		hk_frame.main_frame.sun_c[kc] 		= EpsHouseKeeping.In_SunC[kc];
+//		hk_frame.main_frame.sun_v[kc] 		= EpsHouseKeeping.In_SunV[kc];
+//	}
+//
+//	hk_frame.main_frame.out_BusC 			= EpsHouseKeeping.Out_BusC;
+//	hk_frame.main_frame.out_BusV 			= EpsHouseKeeping.Out_BusV;
+//
+//	hk_frame.main_frame.UV_board_C 			= EpsHouseKeeping.Out_ComC;
+//
+//	for(kc =0;kc<6;kc++)
+//		hk_frame.main_frame.Vol_5_C[kc] 	= EpsHouseKeeping.Out_BranchC[kc];
+//	for(kc =0;kc<5;kc++)
+//		hk_frame.main_frame.Bus_c[5] 		= EpsHouseKeeping.Out_BranchC[kc+6];
+//
+//	get_switch_status((uint8_t *)&hk_frame.main_frame.on_off_status);
+//
+//	hk_frame.main_frame.mindex				= hk_main_fifo.rear;
+//	hk_frame.main_frame.aindex				= hk_append_fifo.rear;
+//
+////	hk_frame.main_frame.endbit 				= '*';  //'*'
+////	hk_frame.main_frame.crc 				= 0;
+//
+//
+//	/* get adcs hk */
+//	hk_frame.append_frame.header[0] 		= 0x1A;
+//	hk_frame.append_frame.header[0] 		= 0x51;
+//
+//
+//	HK_fifoIn(&hk_main_fifo, (unsigned char *)&hk_frame.main_frame, (uint8_t)HK_FRAME_MAIN);
+//	HK_fifoIn(&hk_append_fifo, (unsigned char *)&hk_frame.append_frame, (uint8_t)HK_FRAME_APPEND);
+//
+//	return result;
 }
 
 
@@ -670,83 +719,222 @@ void vTelemetryFileManage(void * paragram)
     }
 }
 
+/**
+ *获取电源系统遥测值，由采集任务调用
+ *
+ * @param eps_hk 采集接收缓冲区
+ */
+void eps_get_hk(EpsAdcValue_t *eps_hk)
+{
+    uint8_t kc = 0;
 
+    for (kc = 0; kc < 16; kc++)
+    {
+        EpsAdUpdate(EPS_AD_CS1);
+        EpsAdUpdate(EPS_AD_CS2);
+    }
 
-int hk_collect_test(void) {
+    AdDataFliter(EpsAdValue, EpsAdValueAver, 32);
+    EpsAdToReal(EpsAdValueAver, eps_hk);
+}
 
+/**
+ * 通过eps_hk_queue队列获取EPS遥测值
+ *
+ * @param tm 接收缓冲区指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int eps_hk_get_peek(eps_hk_t *eps)
+{
+    EpsAdcValue_t eps_hk;
+    if (eps_hk_queue == NULL)
+        return pdFALSE;
 
-	int result = 0;
+    if (xQueuePeek(eps_hk_queue, &eps_hk, 0) != pdTRUE)
+        return pdFALSE;
 
-	uint8_t kc =0;
+    /*电源系统遥测*/
+    eps->temp_batt_board[0] = eps_hk.BatTemp[0];
+    eps->temp_batt_board[1] = eps_hk.BatTemp[1];
+    for(int i=0; i < 4; i++)
+        eps->temp_eps[i] = eps_hk.EpsTemp[i];
+    for(int i=0; i < 6; i++)
+    {
+        eps->sun_c[i] = eps_hk.In_SunC[i];
+        eps->sun_v[i] = eps_hk.In_SunV[i];
+    }
+    eps->out_BusC = eps_hk.Out_BusC;
+    eps->out_BusV = eps_hk.Out_BusV;
+    eps->UV_board_C = eps_hk.Out_ComC;
+    for(int i=0; i < 6; i++)
+        eps->Vol_5_C[i] = eps_hk.Out_BranchC[i];
+    for(int i=0; i < 5; i++)
+        eps->Bus_c[i] = eps_hk.Out_BranchC[i+6];
+}
 
-                  /* 2 byte */
-	hk_frame.main_frame.header[0] 					= 0x1A; //1
-	hk_frame.main_frame.header[1] 					= 0x50; //1
+/**
+ * 电源系统遥测采集任务，采集数值放入eps_hk_queue队列中
+ *
+ */
+void eps_hk(void)
+{
+    EpsAdcValue_t eps_hk;
+    if (eps_hk_queue == NULL)
+        eps_hk_queue = xQueueCreate(1, sizeof( EpsAdcValue_t ));
 
-				/* 2 byte */
-	hk_frame.main_frame.sat_id						= 0xCA; //1
-	hk_frame.main_frame.soft_id						= 0x03; //1
+    eps_get_hk(&eps_hk);
 
-	hk_frame.main_frame.reboot_count				= 1;	//2
-	hk_frame.main_frame.rec_cmd_count				= 2;	//2
-	hk_frame.main_frame.down_count					= 3;	//2
-	hk_frame.main_frame.last_reset_time				= 1478585710;//obc_reset_time;	//4
-	hk_frame.main_frame.work_mode					= 4;	//1
-//	hk_frame.main_frame.status_sensor_on_off 		= 5;	//1
-	hk_frame.main_frame.utc_time					= 6;//clock_get_time_nopara();	//4
-	hk_frame.main_frame.tmep_hk						= 7;	//2
+    if (eps_hk_queue == NULL)
+        return;
 
+    xQueueOverwrite(eps_hk_queue, &eps_hk);
+}
 
-//	get_antenna_status(&hk_frame.main_frame.status_sensor_on_off);   //ants[0-4] panel[5-6]
-//	hk_frame.main_frame.status_sensor_on_off 		= hk_frame.main_frame.status_sensor_on_off & ANTSMSK;
-//	if(PANELA_PIN_STATUS())
-//		hk_frame.main_frame.status_sensor_on_off |= PANELA;
-//	if(PANELB_PIN_STATUS())
-//		hk_frame.main_frame.status_sensor_on_off |= PANELB;
-//
-//	Get_Adc((uint8_t)ADC1_CPU_CHANNEL, &hk_frame.main_frame.tmep_hk, ADC_DELAY);
+/**
+ * TTC遥测采集函数，直接采集数据到接收缓冲区指针
+ *
+ * @param ttc 接收缓冲区指针
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+static int ttc_get_hk(vu_isis_hk_t *ttc)
+{
+    int ret;
 
-	hk_frame.main_frame.temp_batt_board[0] 	= 11;	//2
-	hk_frame.main_frame.temp_batt_board[1] 	= 12;	//2
+    ret = vu_receiver_get_uptime(&ttc->ru_uptime);
+    if (ret != E_NO_ERR)
+        return ret;
 
-	for(kc=0;kc<4;kc++)
-		hk_frame.main_frame.temp_eps[kc] 	= 13;	//8
+    ret = vu_receiver_measure_tm(&ttc->ru_curt);
+    if (ret != E_NO_ERR)
+        return ret;
 
+    ret = vu_isis_get_receiving_tm(&ttc->ru_last);
+    if (ret != E_NO_ERR)
+        return ret;
 
-	for(kc=0;kc<6;kc++)
-	{
-		hk_frame.main_frame.sun_c[kc] 		= 14;	//12
-		hk_frame.main_frame.sun_v[kc] 		= 15;	//12
-	}
+    ret = vu_transmitter_get_uptime(&ttc->tu_uptime);
+    if (ret != E_NO_ERR)
+        return ret;
 
-	hk_frame.main_frame.out_BusC 			= 0;	//2
-	hk_frame.main_frame.out_BusV 			= 1;	//2
+    ret = vu_transmitter_measure_tm(&ttc->tu_curt);
+    if (ret != E_NO_ERR)
+        return ret;
 
-	hk_frame.main_frame.UV_board_C 			= 2;	//2
+    ret = vu_transmitter_get_last_tm(&ttc->tu_last);
+    if (ret != E_NO_ERR)
+        return ret;
 
-	for(kc =0;kc<6;kc++)
-		hk_frame.main_frame.Vol_5_C[kc] 	= 3;	//12
-	for(kc =0;kc<5;kc++)
-		hk_frame.main_frame.Bus_c[kc] 		= 4;	//10
+    ret = vu_transmitter_get_state(&ttc->tx_state);
+    if (ret != E_NO_ERR)
+        return ret;
 
-	//get_switch_status((uint8_t *)&hk_frame.main_frame.on_off_status);
-	hk_frame.main_frame.on_off_status		= 5;	//4
+    return E_NO_ERR;
+}
 
+/**
+ * 通过队列获取TTC遥测值
+ *
+ * @param tm 接收缓冲区指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int ttc_hk_get_peek(vu_isis_hk_t *ttc)
+{
+    if (ttc_hk_queue == NULL)
+        return pdFALSE;
+    return xQueuePeek(ttc_hk_queue, ttc, 0);
+}
 
-	//printf("switch = %u \r\n",hk_frame.main_frame.on_off_status);
+/**
+ * TTC遥测采集任务，采集到的数据送入ttc_hk_queue队列
+ *
+ */
+void ttc_hk(void)
+{
+    static vu_isis_hk_t ttc_hk;
+    if (ttc_hk_queue == NULL)
+        ttc_hk_queue = xQueueCreate(1, sizeof( vu_isis_hk_t ));
 
-	hk_frame.main_frame.mindex				= 6;	//2
-	hk_frame.main_frame.aindex				= 7;	//2
+    ttc_get_hk(&ttc_hk);
 
-//	hk_frame.main_frame.endbit 				= '*';  //'*'
-//	hk_frame.main_frame.crc 				= 0;
+    if (ttc_hk_queue == NULL)
+        return;
 
+    xQueueOverwrite(ttc_hk_queue, &ttc_hk);
+}
 
-//	/* get adcs hk */
-//	hk_frame.append_frame.header[0] 		= 0xEB;
-//	hk_frame.append_frame.header[1] 		= 0x51;
-//
-//	get_adcs_hk(&hk_frame.append_frame.adcs_hk);
+/**
+ * 通过队列获取dtb遥测值
+ *
+ * @param tm 接收缓冲区指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int dtb_hk_get_peek(dtb_805_hk_t *dtb)
+{
+    if (dtb_hk_queue == NULL)
+        return pdFALSE;
+    return xQueuePeek(dtb_hk_queue, dtb, 0);
+}
+/**
+ * 数传机数据采集任务，采集数值放入eps_hk_queue中
+ *
+ */
+void dtb_hk(void)
+{
+    dtb_805_hk_t eps_hk;
+    if (dtb_hk_queue == NULL)
+        dtb_hk_queue = xQueueCreate(1, sizeof( dtb_805_hk_t ));
 
-	return result;
+    xDTBTelemetryGet((uint8_t *)&eps_hk, 500);
+
+    if (dtb_hk_queue == NULL)
+        return;
+
+    xQueueOverwrite(dtb_hk_queue, &eps_hk);
+}
+
+/**
+ * 通过队列获取TTC遥测值
+ *
+ * @param tm 接收缓冲区指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int cam_hk_get_peek(cam_805_hk_t *cam)
+{
+    if (cam_hk_queue == NULL)
+        return pdFALSE;
+    return xQueuePeek(cam_hk_queue, cam, 0);
+}
+
+/**
+ * 组相机遥测帧
+ *
+ * @param cam_hk 接收缓冲区
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+static int cam_get_hk(cam_805_hk_t *cam_hk)
+{
+    /**
+     * 需要完成相机驱动后添加对应的
+     * 遥测获取指令
+     */
+    return E_NO_ERR;
+}
+
+/**
+ * 相机遥测采集任务，采集到的遥测放入cam_hk_queue队列中
+ *
+ * 遥测值获取调用int cam_hk_get_peek(cam_805_hk_t *cam)函数
+ */
+void cam_hk(void)
+{
+    cam_805_hk_t cam_hk;
+    if (cam_hk_queue == NULL)
+        cam_hk_queue = xQueueCreate(1, sizeof( dtb_805_hk_t ));
+
+    cam_get_hk(&cam_hk);
+
+    if (cam_hk_queue == NULL)
+        return;
+
+    xQueueOverwrite(cam_hk_queue, &eps_hk);
 }

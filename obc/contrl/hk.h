@@ -19,9 +19,9 @@
 #include "semphr.h"
 
 #include "ff.h"
-#include "if_trxvu.h"
 #include "dtb_805.h"
 #include "camera_805.h"
+#include "if_trxvu.h"
 
 #define HK_SDCARD					0x00
 #define HK_SRAM						0x01
@@ -29,16 +29,17 @@
 #define HK_FIFO_EMPTY 				0x00
 #define HK_FIFO_FULL 				0x01
 #define HK_FIFO_OK 					0x02
-#define HK_FIFO_BUFFER_SIZE 		200U
+
+#define HK_FIFO_BUFFER_SIZE 		    255U
 #define HK_FIFO_BUFFER_CNT	 		20U
 
 #define HK_FRAME_MAIN				0x01
 #define HK_FRAME_APPEND				0x02
 
-#define HK_MAIN_LENGTH				168U
-#define HK_APPEND_LENGTH			185U
+#define HK_MAIN_LENGTH			    sizeof(HK_Main_t)
+#define HK_APPEND_LENGTH			    sizeof(HK_Append_t)
 
-#define HK_LIST_NODE_CNT			(1000U+1)
+#define HK_LIST_NODE_CNT			    (1000U+1)
 #define HK_STORAGE_INTERVAL         15
 #define HK_OFFSET_H_MS				(uint32_t)(HK_STORAGE_INTERVAL * HK_FILE_MAX_COUNT / 2)
 
@@ -94,7 +95,7 @@ typedef struct __attribute__((packed))
     /**UTC时间*/
     uint32_t        utc_time;               //4
     /**CPU片内温度*/
-    uint16_t        tmep_hk;                //2
+    uint16_t        tmep_mcu;               //2
     /**开关状态*/
     uint32_t        on_off_status;          //4
     /**RAM延时遥测主帧索引*/
@@ -127,22 +128,24 @@ typedef struct __attribute__((packed))
     uint16_t        Bus_c[5];               //10
 } eps_hk_t;
 
-
 /*ISISvu通信机遥测，46 Byte*/
 typedef struct __attribute__((packed))
 {
     /**接收单元自上次复位以来的运行时间*/
-    uint32_t        RU_uptime;              //4
+    uint32_t        ru_uptime;              //4
     /**接收单元当前所有遥测*/
-    rsp_rx_tm       RU_curt;                //12
+    rsp_rx_tm       ru_curt;                //12
     /**接收单元收到上行数据时遥测*/
-    receiving_tm    RU_last;                //2
+    receiving_tm    ru_last;                //2
     /**发射单元自上次复位以来的运行时间*/
-    uint32_t        TU_uptime;              //4
+    uint32_t        tu_uptime;              //4
     /**发射单元当前所有遥测*/
-    rsp_tx_tm       TU_curt;                //12
+    rsp_tx_tm       tu_curt;                //12
     /**发射单元上次下行数据时所有遥测*/
-    rsp_tx_tm       TU_last;                //12
+    rsp_tx_tm       tu_last;                //12
+    /**发射机工作状态*/
+    rsp_transmitter_state tx_state;
+
 } vu_isis_hk_t;
 
 /*数传机遥测，17 Byte*/
@@ -170,105 +173,14 @@ typedef struct __attribute__((packed))
     uint32_t        currt_image_id;          //4
 } cam_805_hk_t;
 
-
-			/* total of 94 byte	*/
-typedef struct __attribute__((packed)) {
-	// header 2
-	unsigned char 			header[2];  //0xeb 0x50         //2
-
-	//obc  23
-	unsigned char 			sat_id;                         //1
-	unsigned char 			soft_id;                        //1
-	unsigned short int 		reboot_count;                 	//2
-	unsigned short int 		rec_cmd_count;             	    //2
-	unsigned short int 		down_count;                    	//2
-	unsigned int    		last_reset_time;                //4
-	unsigned char 			work_mode;                      //1
-//	unsigned char 			status_sensor_on_off;           //1
-	unsigned int 			utc_time;                       //4
-	unsigned short int 		tmep_hk;                        //2
-    unsigned int            on_off_status;                  //4
-    unsigned char           mindex;                         //1
-    unsigned char           aindex;                         //1
-//    unsigned short int      mindex;                         //2
-//    unsigned short int      aindex;                         //2
-
-
-//	//uv    41
-//	unsigned short int 		rec_buffer_cnt;                 //2
-//	unsigned char   		rec_status[14];                 //14
-//	unsigned char   		rec_time[4];                    //4
-//
-//	unsigned char 			send_status_cur[8];             //8
-//	unsigned char 			send_status_pre[8];             //8
-//	unsigned char 			send_time[4];                   //4
-//	unsigned char 			send_work_status;               //1
-
-	//eps 64
-	short int 				temp_batt_board[2];             //4
-	short int 				temp_eps[4];                    //8
-	unsigned short int 				sun_c[6];               //12
-	unsigned short int 				sun_v[6];               //12
-
-	unsigned short int 				out_BusC;               //2
-	unsigned short int 				out_BusV;               //2
-	unsigned short int 				UV_board_C;             //2
-	unsigned short int 				Vol_5_C[6];             //12
-	unsigned short int 				Bus_c[5];               //10
-	unsigned char                   others[66];
-	//gps   28
-//	unsigned short int 		gps_week;                       //2
-//	unsigned short int 		gps_pdop;                       //2
-//	float 					gps_posi[3];                    //12    3*4
-//	short int  				gps_vel[3];                     //6     3*2
-//	float 					gps_time;                       //4
-//	unsigned char 			gps_status;                     //1
-//	unsigned char 			gps_star_num;                   //1
-
-
-	//tail 2
-//	unsigned char 			endbit;                         //'*'
-//	uint32_t				crc;							//1
-}HK_Main_t;
-
-//typedef  struct __attribute__((packed)) {
-//	uint8_t 		adcs_ctrl_mode;           //downAdcsmagDotDmpFlg downAdcspitFltComFlg downAdcsattStaFlg
-//	uint16_t		downAdcscntDmp;
-//	uint16_t        downAdcscntPitcom;
-//	uint16_t		downAdcscntAttSta;
-//
-//	int16_t			downAdcsPitAngle;
-//	int16_t			downAdcsPitFltState[2];
-//	float			downAdcsPitFltNormP;
-//
-//	int16_t			downAdcsMagnetometer[3];	//double to int16_t  原始值个位不要 除以10取整
-//
-//	int16_t			downAdcsMagInO[3];			//double to int16_t  原始值个位不要 除以10取整
-//
-//	uint16_t		downAdcsWheelSpeed_Meas;	//取整
-//
-//	int16_t			downAdcsMTQOut[3];			// *1000
-//
-//	float			downAdcsOrbPos[3]; 			// 位置downAdcsOrb[0-2]  速度downAdcsOrb[3-5]
-//	int16_t			downAdcsOrbVel[3];			//取整
-//
-//}adcs_info_t;
-//
-//typedef  struct __attribute__((packed)) {
-//	//uint8_t			header[2];
-//	uint16_t		rst_cnt;
-//	uint16_t		rcv_cnt;
-//	uint16_t		ack_cnt;
-//	uint32_t		rst_time;
-//	uint16_t		sw_status;
-//	uint32_t		utc_time;
-//	uint16_t		cpu_temp;
-//	adcs_info_t		adcs_info;
-//	int16_t			adc[10];
-//	uint8_t 		error;
-////	uint8_t			index;
-////	uint32_t		crc;
-//}adcs_hk_t;
+typedef struct __attribute__((packed))
+{
+    obc_hk_t        obc;
+    eps_hk_t        eps;
+    vu_isis_hk_t    ttc;
+    dtb_805_hk_t    dtb;
+    cam_805_hk_t    cam;
+} HK_Main_t;
 
 typedef struct __attribute__((packed)) {
     uint16_t        rst_cnt;
@@ -339,9 +251,9 @@ typedef struct __attribute__((packed)) {
 }adcs805_hk_t;
 
 typedef struct __attribute__((packed)) {
-        uint8_t		 	header[2];   //0x1a 0x51
 	adcs805_hk_t		adcs_hk;
 }HK_Append_t;
+
 
 typedef struct __attribute__((packed)) {
 	HK_Main_t 	main_frame;
@@ -360,8 +272,8 @@ extern UINT				hkrbytes;
 extern uint32_t			hkleek;
 
 extern uint16_t  hk_frame_index;
-extern HK_Fifo_t hk_main_fifo __attribute__((section(".hk")));
-extern HK_Fifo_t hk_append_fifo __attribute__((section(".hk")));
+extern HK_Fifo_t hk_main_fifo;
+extern HK_Fifo_t hk_append_fifo;
 extern hkList_t  hk_list;
 
 void hk_list_init(hkList_t * pxList);
@@ -381,8 +293,62 @@ int hk_store_add(void);
 void hk_file_task(void * paragram);
 void vTelemetryFileManage(void * paragram);
 
+/**
+ * 电源系统遥测采集任务，采集数值放入eps_hk_queue队列中
+ *
+ */
+void eps_hk(void);
 
-int hk_collect_test(void);
+/**
+ * 通过eps_hk_queue队列获取EPS遥测值
+ *
+ * @param tm 接收缓冲区指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int eps_hk_get_peek(eps_hk_t *eps);
+
+/**
+ * TTC遥测采集任务，采集到的数据送入ttc_hk_queue队列
+ *
+ */
+void ttc_hk(void);
+
+/**
+ * 通过队列获取TTC遥测值
+ *
+ * @param tm 接收缓冲区指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int ttc_hk_get_peek(vu_isis_hk_t *ttc);
+
+/**
+ * 数传机数据采集任务，采集数值放入eps_hk_queue中
+ *
+ */
+void dtb_hk(void);
+
+/**
+ * 通过队列获取dtb遥测值
+ *
+ * @param tm 接收缓冲区指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int dtb_hk_get_peek(dtb_805_hk_t *dtb);
+
+/**
+ * 相机遥测采集任务，采集到的遥测放入cam_hk_queue队列中
+ *
+ * 遥测值获取调用int cam_hk_get_peek(cam_805_hk_t *cam)函数
+ */
+void cam_hk(void);
+
+/**
+ * 通过队列获取TTC遥测值
+ *
+ * @param tm 接收缓冲区指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int cam_hk_get_peek(cam_805_hk_t *cam);
 
 
 #endif /* SRC_HK_H_ */

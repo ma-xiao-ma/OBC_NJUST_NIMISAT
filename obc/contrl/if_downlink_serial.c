@@ -14,8 +14,8 @@
 #include "task_user.h"
 #include "route.h"
 
-static uint8_t SendBuffer[USART2_MTU] __attribute__((section(".hk")));
-static uint8_t ReceiveBuffer[USART2_MTU] __attribute__((section(".hk")));
+static uint8_t SendBuffer[USART2_MTU] __attribute__((section(".bss.hk")));
+static uint8_t ReceiveBuffer[USART2_MTU] __attribute__((section(".bss.hk")));
 
 /* 接收结构体 */
 static usart2_transmission_object_t Rx_Trans_Obj;

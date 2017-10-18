@@ -26,6 +26,30 @@
 #include "router_io.h"
 #include "dtb_805.h"
 
+//static uint32_t my_test_ccrram __attribute__((section(".ram_persist"))) = 5;
+
+extern char __ram_persist_start;
+extern char __ram_persist_end;
+extern char __vectors_start;
+extern char __exidx_start;
+extern char __exidx_end;
+extern char __etext;
+extern char _hk_absolute;
+extern char _hk_lma;
+extern char __hk_start__;
+extern char __hk_end__;
+extern char _data_lma;
+extern char __data_start__;
+extern char __data_end__;
+extern char _ccr_lma;
+extern char __ccr_start__;
+extern char __ccr_end__;
+extern char __bss_start__;
+extern char __bss_end__;
+extern char _noinit;
+extern char _end_noinit;
+extern char __heap_start__;
+
 
 //static uint8_t array_myfiles[64*1024] = {0};
 //
@@ -292,6 +316,28 @@ int ts_cam(struct command_context * context __attribute__((unused))){
     test[2] = 0x56;
     test[3] = 0x78;
     printf("%#08x\n", *(uint32_t *)test);
+
+    printf("ram_persist_start :\t%010p\r\n", &__ram_persist_start);
+    printf("ram_persist_end :\t%010p\r\n", &__ram_persist_end);
+    printf("__vectors_start :\t%010p\r\n", &__vectors_start);
+    printf("__exidx_start :\t\t%010p\r\n", &__exidx_start);
+    printf("__exidx_end :\t\t%010p\r\n", &__exidx_end);
+    printf("__etext :\t\t%010p\r\n", &__etext);
+//    printf("_hk_absolute :\t\t%010p\r\n", &_hk_absolute);
+//    printf("_hk_lma :\t\t%010p\r\n", &_hk_lma);
+//    printf("__hk_start__ :\t\t%010p\r\n", &__hk_start__);
+//    printf("__hk_end__ :\t\t%010p\r\n", &__hk_end__);
+//    printf("_data_lma :\t\t%010p\r\n", &_data_lma);
+    printf("__data_start__ :\t%010p\r\n", &__data_start__);
+    printf("__data_end__ :\t\t%010p\r\n", &__data_end__);
+//    printf("_ccr_lma :\t\t%010p\r\n", &_ccr_lma);
+//    printf("__ccr_start__ :\t\t%010p\r\n", &__ccr_start__);
+//    printf("__ccr_end__ :\t\t%010p\r\n", &__ccr_end__);
+    printf("__bss_start__ :\t\t%010p\r\n", &__bss_start__);
+    printf("__bss_end__ :\t\t%010p\r\n", &__bss_end__);
+    printf("_noinit :\t\t%010p\r\n", &_noinit);
+    printf("_end_noinit :\t\t%010p\r\n", &_end_noinit);
+    printf("__heap_start__ :\t%010p\r\n", &__heap_start__);
 
     return CMD_ERROR_NONE;
 }

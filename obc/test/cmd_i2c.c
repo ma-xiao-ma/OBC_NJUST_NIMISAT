@@ -54,9 +54,9 @@ int i2c_csp(struct command_context * context) {
 //		pbuf->buf[i] = i;
 //	}
 
-	hk_collect_test();
+//	hk_collect_test();
 
-	memcpy(&(pbuf->buf[0]),(uint8_t *)&(hk_frame.main_frame.header[0]),sizeof(HK_Main_t));
+//	memcpy(&(pbuf->buf[0]),(uint8_t *)&(hk_frame.main_frame.header[0]),sizeof(HK_Main_t));
 
 
 	printf("addr:%d flags:%d sport:%d dport:%d dst:%d src:%d pri:%d\n",

@@ -183,6 +183,7 @@ void eps_task(void *pvParameters __attribute__((unused)))
     while (1)
     {
         eps_hk();
+        ttc_hk();
 
         vTaskDelay(1000);
 
@@ -737,7 +738,7 @@ void isis_read_task(void *para __attribute__((unused))) {
         /* 清空ICD接收缓冲区，为接收下一包数据做准备 */
         I2C_ICD_sweep_butter();
 
-        pCRC = &pdata->Packet;
+        pCRC = (uint8_t *)&pdata->Packet;
         data_len = pdata->Packet.DataLength - 5; //除了4字节的CRC本身和1字节的Tail,其他数据都参与
 
         /*CRC校验*/
