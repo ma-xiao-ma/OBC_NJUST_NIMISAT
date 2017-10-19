@@ -182,8 +182,14 @@ void eps_task(void *pvParameters __attribute__((unused)))
 
     while (1)
     {
+
         eps_hk();
+
         ttc_hk();
+
+        dtb_hk();
+
+        cam_hk();
 
         vTaskDelay(1000);
 
@@ -291,7 +297,8 @@ void OpenPanel_Task(void* param __attribute__((unused))) {
 	}
 }
 
-int Battery_Task(void) {
+int Battery_Task(void)
+{
 
 	float BatteryVoltage = 0.0;
 

@@ -25,16 +25,17 @@
 
 
 /*测试发射速率*/
-int isis_send_handler(struct command_context * context) {
+int isis_send_handler(struct command_context * context)
+{
 
-    uint8_t num_of_frame = 0;
-    uint16_t interval_ms = 0;
+    static uint32_t num_of_frame = 0;
+    static uint32_t interval_ms = 0;
+    int ret, errors = 0, times = 0;
 
     char * args = command_args(context);
 
     if (sscanf(args, "%u %u", &num_of_frame, &interval_ms) != 2)
         return CMD_ERROR_SYNTAX;
-
 
 	uint8_t *frame = qb50Malloc(ISIS_MTU);
 	if(frame == NULL)
@@ -45,17 +46,31 @@ int isis_send_handler(struct command_context * context) {
 
 	uint8_t rest_of_frame;
 
-	printf("TRXVU send %u frame, interval %u ms.\r\n", num_of_frame, interval_ms);
+	printf("VU Send %u frame, Interval %u ms.\r\n", num_of_frame, interval_ms);
 
 	do {
 
-	    vu_transmitter_send_frame(frame, ISIS_MTU, &rest_of_frame);
+	    ret = vu_transmitter_send_frame(frame, ISIS_MTU, &rest_of_frame);
+
+        if (ret != E_NO_ERR || rest_of_frame == 0xFF)
+            errors++;
+        else
+        {
+            num_of_frame--;
+            /**若发射机缓冲区已满，则等待50毫秒*/
+            if(rest_of_frame == 0)
+            {
+                times++;
+                vTaskDelay(50 / portTICK_PERIOD_MS);
+            }
+        }
+
 	    if(interval_ms)
 	        vTaskDelay(interval_ms);
-	    num_of_frame--;
-	} while((rest_of_frame != 0) && (rest_of_frame!= 0xFF) && (num_of_frame != 0));
 
-	printf("Transmitter buffer slots %u,this transmission remain %u frame", rest_of_frame, num_of_frame);
+	} while((num_of_frame > 0) && (errors < 5));
+
+	printf("Slots %u, Remain %u, Error %u, Delay %u\r\n", rest_of_frame, num_of_frame, errors, times);
 
 	qb50Free(frame);
 	return CMD_ERROR_NONE;
@@ -96,7 +111,8 @@ int isis_tx_uptime_handler(struct command_context * context __attribute__((unuse
 	return CMD_ERROR_NONE;
 }
 
-int isis_recetime_handler(struct command_context * context __attribute__((unused))) {
+int isis_recetime_handler(struct command_context * context __attribute__((unused)))
+{
 
     uint32_t RX_time = 0;
 
@@ -107,7 +123,8 @@ int isis_recetime_handler(struct command_context * context __attribute__((unused
 }
 
 
-int isis_rate_handler(struct command_context * context __attribute__((unused))) {
+int isis_rate_handler(struct command_context * context __attribute__((unused)))
+{
 
 	uint32_t rate = 0;
 	par_transmission_bitrate para;

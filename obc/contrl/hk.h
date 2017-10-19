@@ -350,5 +350,19 @@ void cam_hk(void);
  */
 int cam_hk_get_peek(cam_805_hk_t *cam);
 
+/**
+ * 姿控系统数据采集任务，采集数值放入adcs_hk_queue中
+ *
+ */
+void adcs_hk(void);
+
+/**
+ * 通过队列获取ADCS遥测值
+ *
+ * @param tm 接收缓冲区指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int adcs_hk_get_peek(adcs805_hk_t *adcs);
+
 
 #endif /* SRC_HK_H_ */

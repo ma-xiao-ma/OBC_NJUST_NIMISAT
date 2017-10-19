@@ -692,6 +692,34 @@ void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 
             obc_cmd_ack(cmd_id, result);
             break;
+
+        case CAM_HEAT2_ON:
+
+            if(EpsOutSwitch(OUT_CAMERA_HEAT_2, ENABLE) == EPS_OK)
+            {
+                result = 1;
+            }
+            else
+            {
+                result = 0;
+            }
+
+            obc_cmd_ack(cmd_id, result);
+            break;
+
+        case CAM_HEAT2_OFF:
+
+            if(EpsOutSwitch(OUT_CAMERA_HEAT_2, DISABLE) == EPS_OK)
+            {
+                result = 1;
+            }
+            else
+            {
+                result = 0;
+            }
+
+            obc_cmd_ack(cmd_id, result);
+            break;
         default:
             break;
 	}

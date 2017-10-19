@@ -14,7 +14,7 @@ __Main_Stack_Size = 1024 ; 	/* 栈大小为1024 Byte */
 
 __stack = ORIGIN(RAM) + LENGTH(RAM);
 
-_estack = __stack; 	/* STM specific definition */
+_estack = __stack; 	/* STM specific definition 此处栈顶指针为0x2002 0000 */
 
 SECTIONS
 {
@@ -107,7 +107,7 @@ SECTIONS
     
     .data : 
     { 
-        	FILL(0xFF)
+    	FILL(0xFF)
         _sdata = .; 
         __data_start__ = . ;
         
@@ -115,20 +115,20 @@ SECTIONS
         . = ALIGN(4); 
         
         PROVIDE (__command_start = .);
-    		*(.commands);
-    		PROVIDE (__command_end = .);
-    		. = ALIGN(4);
+		*(.commands);
+		PROVIDE (__command_end = .);
+		. = ALIGN(4);
     		
-    		__ram_persist_start = .;
-    		*(.ram_persist);
-    		__ram_persist_end = .;
+		__ram_persist_start = .;
+		*(.ram_persist);
+		__ram_persist_end = .;
         . = ALIGN(4); 
         
         _edata = . ; 
         __data_end__ = . ; 
     } > RAM AT >FLASH
     
-    	.bss_CCMRAM (NOLOAD) : ALIGN(4)
+	.bss_CCMRAM (NOLOAD) : ALIGN(4)
 	{
 		*(.bss.ccmram .bss.ccmram.*)
 	} > CCMRAM
@@ -140,7 +140,7 @@ SECTIONS
 
     .bss (NOLOAD) : 
     { 
-    	 	__bss_start__ = .; 
+	 	__bss_start__ = .; 
         _sbss = . ; 
         
         *(.bss .bss.*) 

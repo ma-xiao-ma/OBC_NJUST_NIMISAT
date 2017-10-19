@@ -67,7 +67,8 @@
 #define DOWN_IMAGE_TF_SINGLE    0x39
 #define CAM_POWER_ON            0x3A
 #define CAM_POWER_OFF           0x3B
-
+#define CAM_HEAT2_ON            0x3C
+#define CAM_HEAT2_OFF           0x3D
 
 
 /*GROUP4*/

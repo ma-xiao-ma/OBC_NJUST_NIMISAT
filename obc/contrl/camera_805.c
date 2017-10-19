@@ -9,6 +9,7 @@
 #include "bsp_nor_flash.h"
 #include "error.h"
 #include "contrl.h"
+#include "bsp_switch.h"
 
 #include "camera_805.h"
 
@@ -159,6 +160,9 @@ void Camera_805_Init(void)
     Camera_805_USART_Init();
     Cam.AccessMutexSem = xSemaphoreCreateMutex();
     Cam.SynchBinSem = xSemaphoreCreateBinary();
+
+    /*开启相机加热常开的一路*/
+    EpsOutSwitch(OUT_CAMERA_HEAT_1, ENABLE);
 }
 
 void CAMERA_TX_ISR_HANDLER(void)

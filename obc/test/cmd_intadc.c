@@ -15,17 +15,12 @@
 
 #include "bsp_intadc.h"
 
-int intadc_read_cmd(struct command_context * ctx) {
+int intadc_read_cmd(struct command_context * ctx __attribute__((unused)))
+{
+	short temp = 0;
+	temp = get_mcu_temp();
 
-	double data = 0;
-
-	char * args = command_args(ctx);
-
-//	Get_Adc((uint8_t)16, &data, ADC_DELAY);
-
-//	printf("temperature: %f\n", (data/4096.0*2.05-0.76)/0.0025+25);
-	data = Get_Temprate();
-	printf("Temperature: %f\n", data);
+	printf("Temperature: %.2f\r\n", temp / 100.0);
 	return CMD_ERROR_NONE;
 }
 

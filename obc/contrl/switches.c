@@ -44,10 +44,11 @@ int get_switch_status(uint8_t * pstatus) {
 		pstatus[0] |= ANTS2;
 		pstatus[0] |= ANTS3;
 		pstatus[0] |= ANTS4;
+		result = 1;
 	}
 	else
 	{
-		get_antenna_status(&pstatus[0]);   //ants[0-4] panel[5-6]
+	    result = get_antenna_status(&pstatus[0]);   //ants[0-4] panel[5-6]
 	}
 
 	pstatus[0] = pstatus[0] & ANTSMSK;

@@ -31,7 +31,7 @@ int vu_send_handler(struct command_context * context) {
 
     static uint32_t num_of_frame = 0;
     static uint16_t interval_ms = 0;
-    int ret, Error;
+    int ret, errors = 0, times = 0;
 
     char * args = command_args(context);
 
@@ -48,28 +48,31 @@ int vu_send_handler(struct command_context * context) {
 
     uint8_t rest_of_frame;
 
-    printf("TRXVU send %u frame, interval %u ms.\r\n", num_of_frame, interval_ms);
+    printf("VU Send %u frame, Interval %u ms.\r\n", num_of_frame, interval_ms);
 
     do {
 
         ret = vu_send_frame(frame, ISIS_MTU, &rest_of_frame);
 
         if (ret != E_NO_ERR || rest_of_frame == 0xFF)
-            Error++;
+            errors++;
         else
         {
             num_of_frame--;
-            /**若发射机缓冲区已满，则等待5秒钟*/
+            /**若发射机缓冲区已满，则等待50毫秒*/
             if(rest_of_frame == 0)
+            {
+                times++;
                 vTaskDelay(50 / portTICK_PERIOD_MS);
+            }
         }
 
         if(interval_ms)
             vTaskDelay(interval_ms);
 
-    } while((num_of_frame > 0) && (Error < 5));
+    } while((num_of_frame > 0) && (errors < 5));
 
-    printf("Slots %u, Remain %u, Error %u\r\n", rest_of_frame, num_of_frame, Error);
+    printf("Slots %u, Remain %u, Error %u, Delay %u\r\n", rest_of_frame, num_of_frame, errors, times);
 
     qb50Free(frame);
     return CMD_ERROR_NONE;

@@ -45,6 +45,8 @@ static FATFS fs; /* Work area (file system object) for logical drives */
 //void task_initz(void *pvParameters __attribute__((unused)))
 void task_initz(void)
 {
+    /*控制开关IO口初始化*/
+    bsp_InitSwitch();
 
 	Console_Usart_init(115200);
 
@@ -54,6 +56,9 @@ void task_initz(void)
 
 #endif
 
+	/*姿控上电*/
+	EpsOutSwitch(OUT_EPS_S0, ENABLE);
+
 	Camera_805_Init();
 
 	int_adc_init();
@@ -62,7 +67,7 @@ void task_initz(void)
 //	AD7490_Init();
 	/*power related and switches*/
 	bsp_InitSPI1();
-	bsp_InitSwitch();
+
 	/*on-chip clock RTC*/
 	bsp_InitDS1302();
 	/* Initialise RTC */

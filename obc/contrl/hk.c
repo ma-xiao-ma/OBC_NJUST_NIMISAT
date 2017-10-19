@@ -30,6 +30,7 @@
 #include "switches.h"
 #include "camera_805.h"
 #include "dtb_805.h"
+#include "if_adcs.h"
 
 #include "hk.h"
 
@@ -43,6 +44,7 @@ QueueHandle_t ttc_hk_queue;
 QueueHandle_t eps_hk_queue;
 QueueHandle_t dtb_hk_queue;
 QueueHandle_t cam_hk_queue;
+QueueHandle_t adcs_hk_queue;
 
 uint8_t 		hk_select = 0;
 uint16_t		hk_sram_index = 0;
@@ -349,7 +351,7 @@ int hk_collect_no_store(void) {
 	hk_frame.main_frame.obc.last_reset_time = obc_reset_time;
 	hk_frame.main_frame.obc.work_mode = mode;
 	hk_frame.main_frame.obc.utc_time = clock_get_time_nopara();
-	Get_Adc((uint8_t)ADC1_CPU_CHANNEL, &hk_frame.main_frame.obc.tmep_mcu, ADC_DELAY);
+	hk_frame.main_frame.obc.tmep_mcu = get_mcu_temp();
     get_switch_status((uint8_t *)&hk_frame.main_frame.obc.on_off_status);
     hk_frame.main_frame.obc.mindex = hk_main_fifo.rear;
     hk_frame.main_frame.obc.aindex = hk_append_fifo.rear;
@@ -938,3 +940,66 @@ void cam_hk(void)
 
     xQueueOverwrite(cam_hk_queue, &eps_hk);
 }
+
+///**
+// * 通过队列获取dtb遥测值
+// *
+// * @param tm 接收缓冲区指针
+// * @return pdTRUE为正常，pdFALSE不正常
+// */
+//int dtb_hk_get_peek(dtb_805_hk_t *dtb)
+//{
+//    if (dtb_hk_queue == NULL)
+//        return pdFALSE;
+//    return xQueuePeek(dtb_hk_queue, dtb, 0);
+//}
+/**
+ * 数传机数据采集任务，采集数值放入eps_hk_queue中
+ *
+ */
+//void dtb_hk(void)
+//{
+//    dtb_805_hk_t eps_hk;
+//    if (dtb_hk_queue == NULL)
+//        dtb_hk_queue = xQueueCreate(1, sizeof( dtb_805_hk_t ));
+//
+//    xDTBTelemetryGet((uint8_t *)&eps_hk, 500);
+//
+//    if (dtb_hk_queue == NULL)
+//        return;
+//
+//    xQueueOverwrite(dtb_hk_queue, &eps_hk);
+//}
+
+/**
+ * 通过队列获取ADCS遥测值
+ *
+ * @param tm 接收缓冲区指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int adcs_hk_get_peek(adcs805_hk_t *adcs)
+{
+    if (adcs_hk_queue == NULL)
+        return pdFALSE;
+    return xQueuePeek(adcs_hk_queue, adcs, 0);
+}
+
+/**
+ * 姿控系统数据采集任务，采集数值放入adcs_hk_queue中
+ *
+ */
+void adcs_hk(void)
+{
+    adcs805_hk_t adcs_hk;
+    if (adcs_hk_queue == NULL)
+        adcs_hk_queue = xQueueCreate(1, sizeof( adcs805_hk_t ));
+
+    adcs_get_hk(&adcs_hk, 1000);
+
+    if (adcs_hk_queue == NULL)
+        return;
+
+    xQueueOverwrite(adcs_hk_queue, &adcs_hk);
+}
+
+

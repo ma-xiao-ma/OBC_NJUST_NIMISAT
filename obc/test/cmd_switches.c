@@ -63,68 +63,70 @@ int cmd_switch_status(struct command_context *ctx __attribute__((unused))) {
 
 	uint8_t status[4] = {0};
 
+
 	result = get_switch_status((uint8_t *)status);
 
-	if(result != -1)
-		printf("get status from adcs error\r\n");
+    printf("Item\t\tStatus\r\n");
+    printf("**********************\r\n");
 
+    /*第一个字节*/
+//  #define ANTS1
+//  #define ANTS2
+//  #define ANTS3
+//  #define ANTS4
+//  #define ARM
+//  #define ANTSMSK
+//  #define PANELA
+//  #define PANELB
+	if(result == 1)
+	{
+	    if(status[0] & ANTS1) {
+	        printf("ants1\t\topen\r\n");
+	    }else{
+	        printf("ants1\t\tclose\r\n");
+	    }
 
-	/*第一个字节*/
-//	#define ANTS1
-//	#define ANTS2
-//	#define ANTS3
-//	#define ANTS4
-//	#define ARM
-//	#define ANTSMSK
-//	#define PANELA
-//	#define PANELB
+	    if(status[0] & ANTS2) {
+	        printf("ants2\t\topen\r\n");
+	    }else{
+	        printf("ants2\t\tclose\r\n");
+	    }
 
-	if(status[0] & ANTS1) {
-		printf("ants1 open\r\n");
-	}else{
-		printf("ants1 close\r\n");
+	    if(status[0] & ANTS3) {
+	        printf("ants3\t\topen\r\n");
+	    }else{
+	        printf("ants3\t\tclose\r\n");
+	    }
+
+	    if(status[0] & ANTS4) {
+	        printf("ants4\t\topen\r\n");
+	    }else{
+	        printf("ants4\t\tclose\r\n");
+	    }
+
+	    if(status[0] & ARM) {
+	        printf("arm\t\topen\r\n");
+	    }else{
+	        printf("arm\t\tclose\r\n");
+	    }
 	}
 
-	if(status[0] & ANTS2) {
-		printf("ants2 open\r\n");
-	}else{
-		printf("ants2 close\r\n");
-	}
-
-	if(status[0] & ANTS3) {
-		printf("ants3 open\r\n");
-	}else{
-		printf("ants3 close\r\n");
-	}
-
-	if(status[0] & ANTS4) {
-		printf("ants4 open\r\n");
-	}else{
-		printf("ants4 close\r\n");
-	}
-
-	if(status[0] & ARM) {
-		printf("arm open\r\n");
-	}else{
-		printf("arm close\r\n");
-	}
-
-	if(status[0] & ANTSMSK) {
-		printf("antsmsk open\r\n");
-	}else{
-		printf("antsmsk close\r\n");
-	}
+//	if(status[0] & ANTSMSK) {
+//		printf("antsmsk open\r\n");
+//	}else{
+//		printf("antsmsk close\r\n");
+//	}
 
 	if(status[0] & PANELA) {
-		printf("panela open\r\n");
+		printf("panela\t\topen\r\n");
 	}else{
-		printf("panela close\r\n");
+		printf("panela\t\tclose\r\n");
 	}
 
 	if(status[0] & PANELB) {
-		printf("panelb open\r\n");
+		printf("panelb\t\topen\r\n");
 	}else{
-		printf("panelb close\r\n");
+		printf("panelb\t\tclose\r\n");
 	}
 
 	/*第二个字节*/
@@ -137,51 +139,51 @@ int cmd_switch_status(struct command_context *ctx __attribute__((unused))) {
 //	#define HEAT_EN
 
 	if(status[1] & ADCS_EN) {
-		printf("adcs_en open\r\n");
+		printf("adcs\t\topen\r\n");
 	}else{
-		printf("adcs_en close\r\n");
+		printf("adcs\t\tclose\r\n");
 	}
 
 	if(status[1] & ANTS_EN) {
-		printf("ants_en open\r\n");
+		printf("ants\t\topen\r\n");
 	}else{
-		printf("ants_en close\r\n");
+		printf("ants\t\tclose\r\n");
 	}
 
 	if(status[1] & DTB_5V_EN) {
-		printf("tran_5v_en open\r\n");
+		printf("dtb_5v\t\topen\r\n");
 	}else{
-		printf("tran_5v_en close\r\n");
+		printf("dtb_5v\t\tclose\r\n");
 	}
 
 	if(status[1] & DTB_12V_EN) {
-		printf("tran_12v_en open\r\n");
+		printf("dtb_12v\t\topen\r\n");
 	}else{
-		printf("tran_12v_en close\r\n");
+		printf("dtb_12v\t\tclose\r\n");
 	}
 
 	if(status[1] & CAMERA_10W_5V_EN) {
-		printf("cam_10w_en open\r\n");
+		printf("cam_10w\t\topen\r\n");
 	}else{
-		printf("cam_10w_en close\r\n");
+		printf("cam_10w\t\tclose\r\n");
 	}
 
 	if(status[1] & CAMERA_5W_5V_EN) {
-		printf("cam_5w_en open\r\n");
+		printf("cam_5w\t\topen\r\n");
 	}else{
-		printf("cam_5w_en close\r\n");
+		printf("cam_5w\t\tclose\r\n");
 	}
 
 	if(status[1] & CAMERA_HEAT1_EN) {
-		printf("cam_heat1_en open\r\n");
+		printf("cam_heat1\topen\r\n");
 	}else{
-		printf("cam_heat1_en close\r\n");
+		printf("cam_heat1\tclose\r\n");
 	}
 
     if(status[1] & CAMERA_HEAT2_EN) {
-        printf("cam_heat2_en open\r\n");
+        printf("cam_heat2\topen\r\n");
     }else{
-        printf("cam_heat2_en close\r\n");
+        printf("cam_heat2\tclose\r\n");
     }
 
 	/*第三个字节*/
@@ -194,54 +196,54 @@ int cmd_switch_status(struct command_context *ctx __attribute__((unused))) {
 //	#define MAG_POWER_MASK
 //	#define GPS_POWER_MASK
 
-	if(status[2] & M1_POWER_MASK) {
-		printf("m1_power_mask open\r\n");
-	}else{
-		printf("m1_power_mask close\r\n");
-	}
-
-
-	if(status[2] & M2_POWER_MASK) {
-		printf("m2_power_mask open\r\n");
-	}else{
-		printf("m2_power_mask close\r\n");
-	}
-
-	if(status[2] & M3_POWER_MASK) {
-		printf("m3_power_mask open\r\n");
-	}else{
-		printf("m3_power_mask close\r\n");
-	}
-
-	if(status[2] & M4_POWER_MASK) {
-		printf("m4_power_mask open\r\n");
-	}else{
-		printf("m4_power_mask close\r\n");
-	}
-
-	if(status[2] & OUT_EN_5V) {
-		printf("out_en_5v open\r\n");
-	}else{
-		printf("out_en_5v close\r\n");
-	}
-
-	if(status[2] & GR_POWER_MASK) {
-		printf("gr_power_mask open\r\n");
-	}else{
-		printf("gr_power_mask close\r\n");
-	}
-
-	if(status[2] & MAG_POWER_MASK) {
-		printf("mag_power_mask open\r\n");
-	}else{
-		printf("mag_power_mask close\r\n");
-	}
-
-	if(status[2] & GPS_POWER_MASK) {
-		printf("gps_power_mask open\r\n");
-	}else{
-		printf("gps_power_mask close\r\n");
-	}
+//	if(status[2] & M1_POWER_MASK) {
+//		printf("m1_power_mask open\r\n");
+//	}else{
+//		printf("m1_power_mask close\r\n");
+//	}
+//
+//
+//	if(status[2] & M2_POWER_MASK) {
+//		printf("m2_power_mask open\r\n");
+//	}else{
+//		printf("m2_power_mask close\r\n");
+//	}
+//
+//	if(status[2] & M3_POWER_MASK) {
+//		printf("m3_power_mask open\r\n");
+//	}else{
+//		printf("m3_power_mask close\r\n");
+//	}
+//
+//	if(status[2] & M4_POWER_MASK) {
+//		printf("m4_power_mask open\r\n");
+//	}else{
+//		printf("m4_power_mask close\r\n");
+//	}
+//
+//	if(status[2] & OUT_EN_5V) {
+//		printf("out_en_5v open\r\n");
+//	}else{
+//		printf("out_en_5v close\r\n");
+//	}
+//
+//	if(status[2] & GR_POWER_MASK) {
+//		printf("gr_power_mask open\r\n");
+//	}else{
+//		printf("gr_power_mask close\r\n");
+//	}
+//
+//	if(status[2] & MAG_POWER_MASK) {
+//		printf("mag_power_mask open\r\n");
+//	}else{
+//		printf("mag_power_mask close\r\n");
+//	}
+//
+//	if(status[2] & GPS_POWER_MASK) {
+//		printf("gps_power_mask open\r\n");
+//	}else{
+//		printf("gps_power_mask close\r\n");
+//	}
 
 	/*第四个字节*/
 //	#define MAGA_EN_MASK
@@ -249,35 +251,35 @@ int cmd_switch_status(struct command_context *ctx __attribute__((unused))) {
 //	#define GPSA_EN_MASK
 //	#define GPSB_EN_MASK
 
-	if(status[3] & MAGA_EN_MASK) {
-		printf("maga_en_mask open\r\n");
-	}else{
-		printf("maga_en_mask close\r\n");
-	}
-
-	if(status[3] & MAGB_EN_MASK) {
-		printf("magb_en_mask open\r\n");
-	}else{
-		printf("magb_en_mask close\r\n");
-	}
-
-	if(status[3] & GPSA_EN_MASK) {
-		printf("gpsa_en_mask open\r\n");
-	}else{
-		printf("gpsa_en_mask close\r\n");
-	}
-
-	if(status[3] & GPSB_EN_MASK) {
-		printf("gpsb_en_mask open\r\n");
-	}else{
-		printf("gpsb_en_mask close\r\n");
-	}
-
-	if(status[3] & MAGBAR_EN_MASK) {
-		printf("magbar_en_mask open\r\n");
-	}else{
-		printf("magbar_en_mask close\r\n");
-	}
+//	if(status[3] & MAGA_EN_MASK) {
+//		printf("maga_en_mask open\r\n");
+//	}else{
+//		printf("maga_en_mask close\r\n");
+//	}
+//
+//	if(status[3] & MAGB_EN_MASK) {
+//		printf("magb_en_mask open\r\n");
+//	}else{
+//		printf("magb_en_mask close\r\n");
+//	}
+//
+//	if(status[3] & GPSA_EN_MASK) {
+//		printf("gpsa_en_mask open\r\n");
+//	}else{
+//		printf("gpsa_en_mask close\r\n");
+//	}
+//
+//	if(status[3] & GPSB_EN_MASK) {
+//		printf("gpsb_en_mask open\r\n");
+//	}else{
+//		printf("gpsb_en_mask close\r\n");
+//	}
+//
+//	if(status[3] & MAGBAR_EN_MASK) {
+//		printf("magbar_en_mask open\r\n");
+//	}else{
+//		printf("magbar_en_mask close\r\n");
+//	}
 
 	return CMD_ERROR_NONE;
 }
