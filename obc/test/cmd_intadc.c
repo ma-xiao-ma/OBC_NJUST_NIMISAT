@@ -20,7 +20,7 @@ int intadc_read_cmd(struct command_context * ctx __attribute__((unused)))
 	short temp = 0;
 	temp = get_mcu_temp();
 
-	printf("Temperature: %.2f\r\n", temp / 100.0);
+	printf("Temperature: %.2f C\r\n", temp / 100.0);
 	return CMD_ERROR_NONE;
 }
 

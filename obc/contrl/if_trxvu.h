@@ -11,8 +11,10 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <stddef.h>
+#include <math.h>
 
 #include "stm32f4xx.h"
+
 
 /*设备定义*/
 #define ISIS_I2C_HANDLE		        0
@@ -70,6 +72,26 @@ typedef enum {
 #define SET_TRANSMISSION_BITRATE	    0x28
 #define REPORT_TRANSMITTER_UPTIME	    0x40
 #define REPORT_TRANSMITTER_STATE	    0x41
+
+/*Power bus voltage*/
+#define VU_PBV_V(n) (float)( n * 0.00488 )
+/*Total current consumption*/
+#define VU_TCC_mA(n) (float)( n * 0.16643964 )
+/*Power amplifier temperature*/
+#define VU_PAT_C(n) (float)( n * (-0.07669) + 195.6037 )
+/*Local oscillator temperature*/
+#define VU_LOT_C(n) (float)( n * (-0.07669) + 195.6037 )
+/*Received signal Doppler offset*/
+#define VU_SDO_Hz(n) (float)( n * 13.352 - 22300.0 )
+/*Received signal strength*/
+#define VU_RSS_dBm(n) (float)( n * 0.03 - 152.0 )
+/*RF reflected power*/
+#define VU_RRP_dBm(n) (float)( 20.0 * log10( n * 0.00767 ) )
+#define VU_RRP_mW(n) (float)( n * n * 5.887E-5 )
+/*RF forward power*/
+#define VU_RFP_dBm(n) (float)( 20.0 * log10( n * 0.00767 ) )
+#define VU_RFP_mW(n) (float)( n * n * 5.887E-5 )
+
 
 /*带参数命令结构体*/
 typedef  struct __attribute__((packed)) {

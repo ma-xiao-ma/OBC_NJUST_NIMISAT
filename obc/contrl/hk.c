@@ -741,6 +741,25 @@ void eps_get_hk(EpsAdcValue_t *eps_hk)
 }
 
 /**
+ * 电源系统遥测采集任务，采集数值放入eps_hk_queue队列中
+ *
+ */
+void eps_hk_task(void)
+{
+    EpsAdcValue_t eps_hk = {0};
+
+    if (eps_hk_queue == NULL)
+        eps_hk_queue = xQueueCreate(1, sizeof( EpsAdcValue_t ));
+
+    eps_get_hk(&eps_hk);
+
+    if (eps_hk_queue == NULL)
+        return;
+
+    xQueueOverwrite(eps_hk_queue, &eps_hk);
+}
+
+/**
  * 通过eps_hk_queue队列获取EPS遥测值
  *
  * @param tm 接收缓冲区指针
@@ -772,24 +791,6 @@ int eps_hk_get_peek(eps_hk_t *eps)
         eps->Vol_5_C[i] = eps_hk.Out_BranchC[i];
     for(int i=0; i < 5; i++)
         eps->Bus_c[i] = eps_hk.Out_BranchC[i+6];
-}
-
-/**
- * 电源系统遥测采集任务，采集数值放入eps_hk_queue队列中
- *
- */
-void eps_hk(void)
-{
-    EpsAdcValue_t eps_hk;
-    if (eps_hk_queue == NULL)
-        eps_hk_queue = xQueueCreate(1, sizeof( EpsAdcValue_t ));
-
-    eps_get_hk(&eps_hk);
-
-    if (eps_hk_queue == NULL)
-        return;
-
-    xQueueOverwrite(eps_hk_queue, &eps_hk);
 }
 
 /**
@@ -834,6 +835,25 @@ static int ttc_get_hk(vu_isis_hk_t *ttc)
 }
 
 /**
+ * TTC遥测采集任务，采集到的数据送入ttc_hk_queue队列
+ *
+ */
+void ttc_hk_task(void)
+{
+    vu_isis_hk_t ttc_hk = {0};
+
+    if (ttc_hk_queue == NULL)
+        ttc_hk_queue = xQueueCreate(1, sizeof( vu_isis_hk_t ));
+
+    ttc_get_hk(&ttc_hk);
+
+    if (ttc_hk_queue == NULL)
+        return;
+
+    xQueueOverwrite(ttc_hk_queue, &ttc_hk);
+}
+
+/**
  * 通过队列获取TTC遥测值
  *
  * @param tm 接收缓冲区指针
@@ -847,21 +867,22 @@ int ttc_hk_get_peek(vu_isis_hk_t *ttc)
 }
 
 /**
- * TTC遥测采集任务，采集到的数据送入ttc_hk_queue队列
+ * 数传机数据采集任务，采集数值放入eps_hk_queue中
  *
  */
-void ttc_hk(void)
+void dtb_hk_task(void)
 {
-    static vu_isis_hk_t ttc_hk;
-    if (ttc_hk_queue == NULL)
-        ttc_hk_queue = xQueueCreate(1, sizeof( vu_isis_hk_t ));
+    dtb_805_hk_t dtb_hk = {0};
 
-    ttc_get_hk(&ttc_hk);
+    if (dtb_hk_queue == NULL)
+        dtb_hk_queue = xQueueCreate(1, sizeof( dtb_805_hk_t ));
 
-    if (ttc_hk_queue == NULL)
+    xDTBTelemetryGet((uint8_t *)&dtb_hk, 500);
+
+    if (dtb_hk_queue == NULL)
         return;
 
-    xQueueOverwrite(ttc_hk_queue, &ttc_hk);
+    xQueueOverwrite(dtb_hk_queue, &dtb_hk);
 }
 
 /**
@@ -875,36 +896,6 @@ int dtb_hk_get_peek(dtb_805_hk_t *dtb)
     if (dtb_hk_queue == NULL)
         return pdFALSE;
     return xQueuePeek(dtb_hk_queue, dtb, 0);
-}
-/**
- * 数传机数据采集任务，采集数值放入eps_hk_queue中
- *
- */
-void dtb_hk(void)
-{
-    dtb_805_hk_t eps_hk;
-    if (dtb_hk_queue == NULL)
-        dtb_hk_queue = xQueueCreate(1, sizeof( dtb_805_hk_t ));
-
-    xDTBTelemetryGet((uint8_t *)&eps_hk, 500);
-
-    if (dtb_hk_queue == NULL)
-        return;
-
-    xQueueOverwrite(dtb_hk_queue, &eps_hk);
-}
-
-/**
- * 通过队列获取TTC遥测值
- *
- * @param tm 接收缓冲区指针
- * @return pdTRUE为正常，pdFALSE不正常
- */
-int cam_hk_get_peek(cam_805_hk_t *cam)
-{
-    if (cam_hk_queue == NULL)
-        return pdFALSE;
-    return xQueuePeek(cam_hk_queue, cam, 0);
 }
 
 /**
@@ -927,49 +918,52 @@ static int cam_get_hk(cam_805_hk_t *cam_hk)
  *
  * 遥测值获取调用int cam_hk_get_peek(cam_805_hk_t *cam)函数
  */
-void cam_hk(void)
+void cam_hk_task(void)
 {
-    cam_805_hk_t cam_hk;
+    cam_805_hk_t cam_hk = {0};
+
     if (cam_hk_queue == NULL)
-        cam_hk_queue = xQueueCreate(1, sizeof( dtb_805_hk_t ));
+        cam_hk_queue = xQueueCreate(1, sizeof( cam_805_hk_t ));
 
     cam_get_hk(&cam_hk);
 
     if (cam_hk_queue == NULL)
         return;
 
-    xQueueOverwrite(cam_hk_queue, &eps_hk);
+    xQueueOverwrite(cam_hk_queue, &cam_hk);
 }
 
-///**
-// * 通过队列获取dtb遥测值
-// *
-// * @param tm 接收缓冲区指针
-// * @return pdTRUE为正常，pdFALSE不正常
-// */
-//int dtb_hk_get_peek(dtb_805_hk_t *dtb)
-//{
-//    if (dtb_hk_queue == NULL)
-//        return pdFALSE;
-//    return xQueuePeek(dtb_hk_queue, dtb, 0);
-//}
 /**
- * 数传机数据采集任务，采集数值放入eps_hk_queue中
+ * 通过队列获取TTC遥测值
+ *
+ * @param tm 接收缓冲区指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int cam_hk_get_peek(cam_805_hk_t *cam)
+{
+    if (cam_hk_queue == NULL)
+        return pdFALSE;
+    return xQueuePeek(cam_hk_queue, cam, 0);
+}
+
+/**
+ * 姿控系统数据采集任务，采集数值放入adcs_hk_queue中
  *
  */
-//void dtb_hk(void)
-//{
-//    dtb_805_hk_t eps_hk;
-//    if (dtb_hk_queue == NULL)
-//        dtb_hk_queue = xQueueCreate(1, sizeof( dtb_805_hk_t ));
-//
-//    xDTBTelemetryGet((uint8_t *)&eps_hk, 500);
-//
-//    if (dtb_hk_queue == NULL)
-//        return;
-//
-//    xQueueOverwrite(dtb_hk_queue, &eps_hk);
-//}
+void adcs_hk_task(void)
+{
+    adcs805_hk_t adcs_hk = {0};
+
+    if (adcs_hk_queue == NULL)
+        adcs_hk_queue = xQueueCreate(1, sizeof( adcs805_hk_t ));
+
+    adcs_get_hk(&adcs_hk, 1000);
+
+    if (adcs_hk_queue == NULL)
+        return;
+
+    xQueueOverwrite(adcs_hk_queue, &adcs_hk);
+}
 
 /**
  * 通过队列获取ADCS遥测值
@@ -983,23 +977,4 @@ int adcs_hk_get_peek(adcs805_hk_t *adcs)
         return pdFALSE;
     return xQueuePeek(adcs_hk_queue, adcs, 0);
 }
-
-/**
- * 姿控系统数据采集任务，采集数值放入adcs_hk_queue中
- *
- */
-void adcs_hk(void)
-{
-    adcs805_hk_t adcs_hk;
-    if (adcs_hk_queue == NULL)
-        adcs_hk_queue = xQueueCreate(1, sizeof( adcs805_hk_t ));
-
-    adcs_get_hk(&adcs_hk, 1000);
-
-    if (adcs_hk_queue == NULL)
-        return;
-
-    xQueueOverwrite(adcs_hk_queue, &adcs_hk);
-}
-
 

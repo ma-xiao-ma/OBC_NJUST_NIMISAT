@@ -297,7 +297,7 @@ void vTelemetryFileManage(void * paragram);
  * 电源系统遥测采集任务，采集数值放入eps_hk_queue队列中
  *
  */
-void eps_hk(void);
+void eps_hk_task(void);
 
 /**
  * 通过eps_hk_queue队列获取EPS遥测值
@@ -311,7 +311,7 @@ int eps_hk_get_peek(eps_hk_t *eps);
  * TTC遥测采集任务，采集到的数据送入ttc_hk_queue队列
  *
  */
-void ttc_hk(void);
+void ttc_hk_task(void);
 
 /**
  * 通过队列获取TTC遥测值
@@ -325,7 +325,7 @@ int ttc_hk_get_peek(vu_isis_hk_t *ttc);
  * 数传机数据采集任务，采集数值放入eps_hk_queue中
  *
  */
-void dtb_hk(void);
+void dtb_hk_task(void);
 
 /**
  * 通过队列获取dtb遥测值
@@ -340,7 +340,7 @@ int dtb_hk_get_peek(dtb_805_hk_t *dtb);
  *
  * 遥测值获取调用int cam_hk_get_peek(cam_805_hk_t *cam)函数
  */
-void cam_hk(void);
+void cam_hk_task(void);
 
 /**
  * 通过队列获取TTC遥测值
@@ -354,7 +354,7 @@ int cam_hk_get_peek(cam_805_hk_t *cam);
  * 姿控系统数据采集任务，采集数值放入adcs_hk_queue中
  *
  */
-void adcs_hk(void);
+void adcs_hk_task(void);
 
 /**
  * 通过队列获取ADCS遥测值

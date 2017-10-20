@@ -180,18 +180,22 @@ void eps_task(void *pvParameters __attribute__((unused)))
 
     eps_start();
 
+    vTaskDelay(5000);
+
     while (1)
     {
 
-        eps_hk();
+        eps_hk_task();
 
-        ttc_hk();
+//        ttc_hk_task();
 
-        dtb_hk();
+        dtb_hk_task();
 
-        cam_hk();
+        cam_hk_task();
 
-        vTaskDelay(1000);
+        adcs_hk_task();
+
+        vTaskDelay(2000);
 
 //        if (ctime++ > 10)
 //        {

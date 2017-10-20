@@ -20,6 +20,7 @@
 #include "bsp_ds1302.h"
 #include "bsp_ad7490.h"
 #include "bsp_intadc.h"
+#include "bsp_temp175.h"
 //#include "bsp_camera.h"
 
 #include "FreeRTOS.h"
@@ -124,6 +125,9 @@ extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
 	 * 容量：4MB*/
 	bsp_InitNorFlash();
 
+	/*采温芯片初始化*/
+	temp175_init();
+
 	extern void cmd_eps_setup(void);
 	cmd_eps_setup();
 	extern void cmd_dfl_setup(void);
@@ -158,6 +162,8 @@ extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
 	cmd_norflash_setup();
 	extern void cmd_camera_setup(void);
 	cmd_camera_setup();
+
+	cmd_ina_temp_setup();
 
 //	vTaskDelete(NULL);
 }

@@ -11,12 +11,6 @@
 
 #include "bsp_intadc.h"
 
-
-void int_adc_init(void)
-{
-	ADC1_Init();
-}
-
 void ADC1_Init(void)
 {
     ADC_CommonInitTypeDef   ADC_CommonInitStructure;
@@ -46,6 +40,11 @@ void ADC1_Init(void)
     ADC_RegularChannelConfig(ADC1, ADC_Channel_16, 1, ADC_SampleTime_480Cycles );
 
     ADC_Cmd(ADC1, ENABLE);
+}
+
+void int_adc_init(void)
+{
+    ADC1_Init();
 }
 
 static u16 Get_Adc1(u8 ch)

@@ -41,10 +41,10 @@ int isis_send_handler(struct command_context * context)
 	if(frame == NULL)
 	    return CMD_ERROR_SYNTAX;
 
-	for(int i=0; i<ISIS_MTU; i++)
+	for (int i=0; i<ISIS_MTU; i++)
 	    frame[i] = i+1;
 
-	uint8_t rest_of_frame;
+	uint8_t rest_of_frame = 0;
 
 	printf("VU Send %u frame, Interval %u ms.\r\n", num_of_frame, interval_ms);
 
@@ -57,15 +57,15 @@ int isis_send_handler(struct command_context * context)
         else
         {
             num_of_frame--;
-            /**若发射机缓冲区已满，则等待50毫秒*/
+            /**若发射机缓冲区已满，则等待5000毫秒*/
             if(rest_of_frame == 0)
             {
                 times++;
-                vTaskDelay(50 / portTICK_PERIOD_MS);
+                vTaskDelay(5000 / portTICK_PERIOD_MS);
             }
         }
 
-	    if(interval_ms)
+	    if (interval_ms)
 	        vTaskDelay(interval_ms);
 
 	} while((num_of_frame > 0) && (errors < 5));
@@ -94,40 +94,38 @@ int isis_read_count_handler(struct command_context * context __attribute__((unus
 
 	uint16_t rest_num = 0;
 
-	if(vu_receiver_get_frame_num(&rest_num) == E_NO_ERR)
-	    printf("Number of frame in receive buffer: %u\n", rest_num);
+	if (vu_receiver_get_frame_num(&rest_num) == E_NO_ERR)
+	    printf("Number of frame in receiver buffer: %u\n", rest_num);
 
 	return CMD_ERROR_NONE;
 }
 
-int isis_tx_uptime_handler(struct command_context * context __attribute__((unused))) {
-
-
+int isis_tx_uptime_handler(struct command_context * context __attribute__((unused)))
+{
 	uint32_t TX_time = 0;
 
-	if(vu_transmitter_get_uptime(&TX_time) == E_NO_ERR)
+	if (vu_transmitter_get_uptime(&TX_time) == E_NO_ERR)
 		printf("Transmitter MCU has been active: %u s\n\n", TX_time);
 
 	return CMD_ERROR_NONE;
 }
 
-int isis_recetime_handler(struct command_context * context __attribute__((unused)))
+int isis_rx_uptime_handler(struct command_context * context __attribute__((unused)))
 {
-
     uint32_t RX_time = 0;
 
-	if(vu_receiver_get_uptime(&RX_time) == E_NO_ERR)
+	if (vu_receiver_get_uptime(&RX_time) == E_NO_ERR)
 	    printf("Receiver MCU has been active: %u s\n\n", RX_time);
 
 	return CMD_ERROR_NONE;
 }
 
 
-int isis_rate_handler(struct command_context * context __attribute__((unused)))
+int isis_set_rate_handler(struct command_context * context __attribute__((unused)))
 {
 
 	uint32_t rate = 0;
-	par_transmission_bitrate para;
+	par_transmission_bitrate para = {0};
 
 	char * args = command_args(context);
 	if (sscanf(args, "%u" , &rate) != 1)
@@ -142,8 +140,8 @@ int isis_rate_handler(struct command_context * context __attribute__((unused)))
 	else
         para = bps9600;
 
-	if(vu_transmitter_set_bitrate(para) == E_NO_ERR)
-	    printf("set ok \r\n");
+	if (vu_transmitter_set_bitrate(para) == E_NO_ERR)
+	    printf("Set OK!!!\r\n");
 
 	return CMD_ERROR_NONE;
 }
@@ -151,7 +149,7 @@ int isis_rate_handler(struct command_context * context __attribute__((unused)))
 int isis_sleep_status_handler(struct command_context * context __attribute__((unused))) {
 
 	uint32_t sleep_status = 0;
-	par_idle_state IdleState;
+	par_idle_state IdleState = {0};
 
 	char * args = command_args(context);
 	if (sscanf(args, "%u" , &sleep_status) != 1)
@@ -167,8 +165,9 @@ int isis_sleep_status_handler(struct command_context * context __attribute__((un
 	    IdleState = RemainOn;
 	    printf("Transmitter remains on when idle!\r\n");
 	}
-    if(vu_transmitter_set_idle_state(IdleState) == E_NO_ERR)
-        printf("set ok \r\n");
+
+    if (vu_transmitter_set_idle_state(IdleState) == E_NO_ERR)
+        printf("Set OK!!!\r\n");
 
 	return CMD_ERROR_NONE;
 }
@@ -177,13 +176,24 @@ int isis_measure_tx_status_handler(struct command_context * context __attribute_
 
     rsp_tx_tm status = {0};
 
+    printf("TX Measured current TM:\r\n\r\n");
 	if(vu_transmitter_measure_tm(&status) == E_NO_ERR)
 	{
-	    printf("Transmitter measure all the telemetry channels:\r\n");
-	    printf("ReflectedPower: %u, ForwardPower: %u, BusVoltage: %u, TotalCurrent: %u,"
-	            "  AmplifierTemp: %u, OscillatorTemp: %u\r\n",
-	            status.ReflectedPower, status.ForwardPower, status.BusVoltage, status.TotalCurrent,
-	            status.AmplifierTemp, status.OscillatorTemp);
+	    printf("TM Item\t\t\tRaw Value\tActual value:\r\n");
+	    printf("*******************************************************\r\n");
+	    printf("ReflectedPower:\t\t%u\t\t%.4f dBm(%.4f mW)\n"
+	            "ForwardPower:\t\t%u\t\t%.4f dBm(%.4f mW)\n"
+	            "BusVoltage:\t\t%u\t\t%.4f V\n"
+	            "TotalCurrent:\t\t%u\t\t%.4f mA\n"
+	            "AmplifierTemp:\t\t%u\t\t%.4f C\n"
+	            "OscillatorTemp:\t\t%u\t\t%.4f C\n",
+	            status.ReflectedPower,VU_RRP_dBm(status.ReflectedPower),VU_RRP_mW(status.ReflectedPower),
+	            status.ForwardPower,VU_RFP_dBm(status.ForwardPower),VU_RFP_mW(status.ForwardPower),
+	            status.BusVoltage,VU_PBV_V(status.BusVoltage),
+	            status.TotalCurrent,VU_TCC_mA(status.TotalCurrent),
+	            status.AmplifierTemp,VU_PAT_C(status.AmplifierTemp),
+	            status.OscillatorTemp,VU_LOT_C(status.OscillatorTemp)
+               );
 	}
 
 	return CMD_ERROR_NONE;
@@ -193,45 +203,62 @@ int isis_last_status_handler(struct command_context * context __attribute__((unu
 
     rsp_tx_tm status = {0};
 
+    printf("TX Stored last TM:\r\n\r\n");
     if(vu_transmitter_get_last_tm(&status) == E_NO_ERR)
     {
-        printf("Transmitter get telemetry channels during the last transmission:\r\n");
-        printf("ReflectedPower: %u, ForwardPower: %u, BusVoltage: %u, TotalCurrent: %u,"
-                "  AmplifierTemp: %u, OscillatorTemp: %u\r\n",
-                status.ReflectedPower, status.ForwardPower, status.BusVoltage, status.TotalCurrent,
-                status.AmplifierTemp, status.OscillatorTemp);
+        printf("TM Item\t\t\tRaw Value\tActual value:\r\n");
+        printf("********************************************************\r\n");
+        printf("ReflectedPower:\t\t%u\t\t%.4f dBm(%.4f mW)\n"
+                "ForwardPower:\t\t%u\t\t%.4f dBm(%.4f mW)\n"
+                "BusVoltage:\t\t%u\t\t%.4f V\n"
+                "TotalCurrent:\t\t%u\t\t%.4f mA\n"
+                "AmplifierTemp:\t\t%u\t\t%.4f C\n"
+                "OscillatorTemp:\t\t%u\t\t%.4f C\n",
+                status.ReflectedPower,VU_RRP_dBm(status.ReflectedPower),VU_RRP_mW(status.ReflectedPower),
+                status.ForwardPower,VU_RFP_dBm(status.ForwardPower),VU_RFP_mW(status.ForwardPower),
+                status.BusVoltage,VU_PBV_V(status.BusVoltage),
+                status.TotalCurrent,VU_TCC_mA(status.TotalCurrent),
+                status.AmplifierTemp,VU_PAT_C(status.AmplifierTemp),
+                status.OscillatorTemp,VU_LOT_C(status.OscillatorTemp)
+               );
     }
 	return CMD_ERROR_NONE;
 }
 
-int isis_set_default_callsigns_handler(struct command_context * context __attribute__((unused))) {
+
+int isis_set_default_callsigns_handler(struct command_context * context __attribute__((unused)))
+{
 
     par_default_call_set callsign = {0};
 
+    /*将字符串的值拷贝到数组*/
     char *str1 = "BI4ST-0";
     for(int i=0; *(str1+i) != '\0'; i++)
         *(callsign.DstCall + i) = *(str1 + i);
 
+    /*将字符串的值拷贝到数组*/
     char *str2 = "NJUST-4";
     for(int i=0; *(str2+i) != '\0'; i++)
         *(callsign.SrcCall + i) = *(str2 + i);
 
 	if (vu_transmitter_set_callsigns(&callsign) == E_NO_ERR)
-	    printf("set ok \r\n");
+	    printf("Set OK!!!\r\n");
 
 	return CMD_ERROR_NONE;
 }
 
 
-int isis_clearben_handler(struct command_context * context __attribute__((unused))) {
+int isis_clearben_handler(struct command_context * context __attribute__((unused)))
+{
 
 	if (vu_transmitter_clear_beacon() == E_NO_ERR)
-	    printf("set ok \r\n");
+	    printf("Clear beacon success!!!\r\n");
 
 	return CMD_ERROR_NONE;
 }
 
-int isis_setAX_handler(struct command_context * context __attribute__((unused))) {
+int isis_set_call_beacon_handler(struct command_context * context __attribute__((unused)))
+{
 
     uint16_t Interval;
 
@@ -245,23 +272,24 @@ int isis_setAX_handler(struct command_context * context __attribute__((unused)))
 
     char *str1 = "BI4ST-0";
     for(int i=0; *(str1+i) != '\0'; i++)
-            *(frame->DstCall + i) = *(str1 + i);
+        *(frame->DstCall + i) = *(str1 + i);
 
     char *str2 = "NJUST-4";
     for(int i=0; *(str2+i) != '\0'; i++)
-            *(frame->SrcCall + i) = *(str2 + i);
+        *(frame->SrcCall + i) = *(str2 + i);
 
     for(int i=0; i<ISIS_MTU; i++)
         frame->BeaconContent[i] = i+1;
 
 	if(vu_transmitter_beacon_new_call_set(frame, ISIS_MTU) == E_NO_ERR)
-	    printf("set ok \r\n");
+	    printf("Set beacon with new callsigns OK!!!\r\n");
 
 	qb50Free(frame);
 	return CMD_ERROR_NONE;
 }
 
-int isis_setbeacon_handler(struct command_context * context __attribute__((unused))) {
+int isis_set_beacon_handler(struct command_context * context __attribute__((unused)))
+{
 
     uint16_t Interval;
 
@@ -277,13 +305,14 @@ int isis_setbeacon_handler(struct command_context * context __attribute__((unuse
         beacon->BeaconContent[i] = i+1;
 
 	if (vu_transmitter_beacon_set(beacon, ISIS_MTU) == E_NO_ERR)
-	    printf("set ok \r\n");
+	    printf("Set beacon with default callsigns OK\r\n");
 
 	qb50Free(beacon);
 	return CMD_ERROR_NONE;
 }
 
-int isis_sendAXdate_handler(struct command_context * context __attribute__((unused))) {
+int isis_sendAXdate_handler(struct command_context * context __attribute__((unused)))
+{
 
 	par_frame_new_call *frame = qb50Malloc(sizeof(par_frame_new_call)+ISIS_MTU);
 
@@ -298,33 +327,42 @@ int isis_sendAXdate_handler(struct command_context * context __attribute__((unus
     for(int i=0; i<ISIS_MTU; i++)
         frame->FrameContent[i] = i+1;
 
-    uint8_t rsp;
-	if (vu_transmitter_send_frame_new_callsigns(frame, ISIS_MTU, &rsp) == E_NO_ERR)
+    uint8_t slot;
+	if (vu_transmitter_send_frame_new_callsigns(frame, ISIS_MTU, &slot) == E_NO_ERR)
 	{
-	    printf("frame send success!\r\n");
-	    printf("rsp = %u\r\n", rsp);
+	    printf("New call frame send success!!\r\n");
+	    printf("Slot = %u\r\n", slot);
 	}
 
 	qb50Free(frame);
 	return CMD_ERROR_NONE;
 }
 
-int isis_clearbutter_handler(struct command_context * context __attribute__((unused))) {
+int isis_clearbutter_handler(struct command_context * context __attribute__((unused)))
+{
 
 	if(vu_receiver_remove_frame() == E_NO_ERR)
-	    printf("set ok \r\n");
+	    printf("Receiver buffer remove frame success!!\r\n");
 
 	return CMD_ERROR_NONE;
 }
 
-int isis_read_frame_handler(struct command_context * context __attribute__((unused))) {
+int isis_read_frame_handler(struct command_context * context __attribute__((unused)))
+{
 
     rsp_frame *frame = qb50Malloc(sizeof(rsp_frame)+ISIS_RX_MTU);
 
 	if( vu_receiver_get_frame(frame, ISIS_RX_MTU) == E_NO_ERR)
 	{
-	    printf("DopplerOffset: %u, RSSI: %u\r\n", frame->DopplerOffset, frame->RSSI);
-	    for(uint16_t i=0; i<frame->DateSize; i++)
+        printf("TM Item\t\t\tRaw Value\tActual value:\r\n");
+        printf("********************************************************\r\n");
+	    printf("DopplerOffset:\t\t%u\t\t%.4f Hz\n"
+	           "RSSI:\t\t\t%u\t\t%.4f dBm\n",
+	            frame->DopplerOffset, VU_SDO_Hz(frame->DopplerOffset),
+	            frame->RSSI, VU_RSS_dBm(frame->RSSI)
+              );
+
+	    for(uint32_t i=0; i<frame->DateSize; i++)
 	        printf("0x%02x ", frame->Data[i]);
 	    printf("\r\n");
 	}
@@ -335,42 +373,97 @@ int isis_read_frame_handler(struct command_context * context __attribute__((unus
 }
 
 
-int isis_resetdog_handler(struct command_context * context __attribute__((unused))) {
+int isis_watchdog_resetdog_handler(struct command_context * context)
+{
+    uint32_t opt;
 
-    if(vu_receiver_watchdog_reset() == E_NO_ERR)
-        printf("Receiver watch dog reset!!!\r\n");
+    char * args = command_args(context);
+    if (sscanf(args, "%u" , &opt) != 1)
+        return CMD_ERROR_SYNTAX;
+
+    if(opt == 0)
+    {
+        if(vu_receiver_watchdog_reset() == E_NO_ERR)
+            printf("Receiver watch dog reset!!!\r\n");
+    }
+    else
+    {
+        if(vu_transmitter_watchdog_reset() == E_NO_ERR)
+            printf("Transmitter watch dog reset!!!\r\n");
+    }
 
 	return CMD_ERROR_NONE;
 }
 
-int isis_softwarereset_handler(struct command_context * context __attribute__((unused))) {
+int isis_software_reset_handler(struct command_context * context)
+{
+    uint32_t opt;
 
-    if(vu_receiver_software_reset() == E_NO_ERR)
-        printf("Receiver software reset!!!\r\n");
+    char * args = command_args(context);
+    if (sscanf(args, "%u" , &opt) != 1)
+        return CMD_ERROR_SYNTAX;
+
+    if(opt == 0)
+    {
+        if(vu_receiver_software_reset() == E_NO_ERR)
+            printf("Receiver software reset!!!\r\n");
+    }
+    else
+    {
+        if(vu_transmitter_software_reset() == E_NO_ERR)
+            printf("Transmitter software reset!!!\r\n");
+    }
 
     return CMD_ERROR_NONE;
 }
 
-int isis_hardwarereset_handler(struct command_context * context __attribute__((unused))) {
+int isis_hardware_reset_handler(struct command_context * context)
+{
+    uint32_t opt;
 
-    if(vu_receiver_hardware_reset() == E_NO_ERR)
-        printf("Receiver hardware reset!!!\r\n");
+    char * args = command_args(context);
+    if (sscanf(args, "%u" , &opt) != 1)
+        return CMD_ERROR_SYNTAX;
+
+    if(opt == 0)
+    {
+        if(vu_receiver_hardware_reset() == E_NO_ERR)
+            printf("Receiver hardware reset!!!\r\n");
+    }
+    else
+    {
+        if(vu_transmitter_hardware_reset() == E_NO_ERR)
+            printf("Transmitter hardware reset!!!\r\n");
+    }
 
     return CMD_ERROR_NONE;
 }
 
-int isis_measureofreciever_handler(struct command_context * context __attribute__((unused))) {
+int isis_measure_of_reciever_handler(struct command_context * context __attribute__((unused)))
+{
 
     rsp_rx_tm rx_tm = {0};
 
+    printf("RX Measured current TM:\r\n\r\n");
     if(vu_receiver_measure_tm(&rx_tm) == E_NO_ERR)
     {
-        printf("Receiver measure all the telemetry channels:\r\n");
-        printf("DopplerOffset: %u, RSSI: %u, BusVoltage: %u, TotalCurrent: %u,"
-                "  AmplifierTemp: %u, OscillatorTemp: %u\r\n",
-                rx_tm.DopplerOffset, rx_tm.RSSI, rx_tm.BusVoltage, rx_tm.TotalCurrent,
-                rx_tm.AmplifierTemp, rx_tm.OscillatorTemp);
+        printf("TM Item\t\t\tRaw Value\tActual value:\r\n");
+        printf("*********************************************************\r\n");
+        printf("DopplerOffset:\t\t%u\t\t%.4f Hz\n"
+               "RSSI:\t\t\t%u\t\t%.4f dBm\n"
+               "BusVoltage:\t\t%u\t\t%.4f V\n"
+               "TotalCurrent:\t\t%u\t\t%.4f mA\n"
+               "AmplifierTemp:\t\t%u\t\t%.4f C\n"
+               "OscillatorTemp:\t\t%u\t\t%.4f C\n",
+               rx_tm.DopplerOffset, VU_SDO_Hz(rx_tm.DopplerOffset),
+               rx_tm.RSSI, VU_RSS_dBm(rx_tm.RSSI),
+               rx_tm.BusVoltage, VU_PBV_V(rx_tm.BusVoltage),
+               rx_tm.TotalCurrent, VU_TCC_mA(rx_tm.TotalCurrent),
+               rx_tm.AmplifierTemp, VU_PAT_C(rx_tm.AmplifierTemp),
+               rx_tm.OscillatorTemp, VU_LOT_C(rx_tm.OscillatorTemp)
+              );
     }
+
 	return CMD_ERROR_NONE;
 }
 
@@ -381,8 +474,8 @@ struct command cmd_isis_sub[] = {
 		.usage = "<num_of_frame><interval_ms>",
 		.handler = isis_send_handler,
 	},{
-		.name = "status",
-		.help = "The state of tansmmiter",
+		.name = "state",
+		.help = "Transmitter state",
 		.handler = isis_transmitter_status_handler,
 	},{
 		.name = "uptime_tx",
@@ -392,38 +485,38 @@ struct command cmd_isis_sub[] = {
 		.name = "rate",
 		.help = "Set rate of transmitter:0--1200 1--2400 2--4800 3--9600",
 		.usage = "<rate>",
-		.handler = isis_rate_handler,
+		.handler = isis_set_rate_handler,
 	},{
 		.name = "telemetry_tx",
-		.help = "Show measure telemetry of transmitter",
+		.help = "Show measured current TM of transmitter",
 		.handler = isis_measure_tx_status_handler,
 	},{
 		.name = "last_telemetry",
-		.help = "Show last measure telemetry of transmitter",
+		.help = "Show stored last TM of transmitter",
 		.handler = isis_last_status_handler,
 	 },{
 		.name = "idle_state",
-		.help = "Set idle state of transmitter",
-		.usage = "<date 0-turn of 1-remain on>",
+		.help = "Set idle state of transmitter:0-turn off 1-remain on",
+		.usage = "<opt:0-turn off 1-remain on>",
 		.handler = isis_sleep_status_handler,
 	},{
 		.name = "callsigns",
 		.help = "Set default callsigns of transmitter",
 		.handler = isis_set_default_callsigns_handler,
 	},{
-		.name = "clearbea",
+		.name = "clearbeacon",
 		.help = "Clear beacon of transmitter",
 		.handler = isis_clearben_handler,
 	},{
-		.name = "beacon_with_call",
+		.name = "beacon_call",
 		.help = "Set beacon with new callsigns",
 		.usage = "<beacon interval>",
-		.handler = isis_setAX_handler,
+		.handler = isis_set_call_beacon_handler,
 	},{
-		.name = "setbeacon",
+		.name = "beacon",
 		.help = "Set beacon with default callsigns",
 		.usage = "<beacon interval>",
-		.handler = isis_setbeacon_handler,
+		.handler = isis_set_beacon_handler,
 	},{
 		.name = "sendAX",
 		.help = "Send frame with new callsigns",
@@ -431,35 +524,38 @@ struct command cmd_isis_sub[] = {
 	},{
 		.name = "uptime_rx",
 		.help = "Receiver MCU has been active since the last reset",
-		.handler = isis_recetime_handler,
+		.handler = isis_rx_uptime_handler,
 	},{
 		.name = "remove_frame",
-		.help = "Remove the oldest frame",
+		.help = "Remove the oldest frame from receiver buffer",
 		.handler = isis_clearbutter_handler,
 	},{
 		.name = "rcount",
-		.help = "isis_read_countof rece frame",
+		.help = "Get receiver buffer frame number",
 		.handler = isis_read_count_handler,
 	},{
 		.name = "rframe",
-		.help = "Get receiver buffer frame number",
+		.help = "Get frame from receiver buffer",
 		.handler = isis_read_frame_handler,
 	},{
 		.name = "watchdogreset",
-		.help = "Receiver watch dog reset",
-		.handler = isis_resetdog_handler,
+		.help = "Watch dog reset: 0-Receiver !0-Transmitter",
+		.usage = "<0-Receiver !0-Transmitter>",
+		.handler = isis_watchdog_resetdog_handler,
 	},{
 		.name = "softwarereset",
-		.help = "Receiver software reset",
-		.handler = isis_softwarereset_handler,
+		.help = "Software reset: 0-Receiver !0-Transmitter",
+        .usage = "<0-Receiver !0-Transmitter>",
+		.handler = isis_software_reset_handler,
 	},{
 		.name = "hardreset",
-		.help = "Receiver software reset",
-		.handler = isis_hardwarereset_handler,
+		.help = "Hardware reset: 0-Receiver !0-Transmitter",
+        .usage = "<0-Receiver !0-Transmitter>",
+		.handler = isis_hardware_reset_handler,
 	},{
 		.name = "telemetry_rx",
-		.help = "Show measure telemetry of transmitter",
-		.handler = isis_measureofreciever_handler,
+		.help = "Show measured telemetry of receiver",
+		.handler = isis_measure_of_reciever_handler,
 	}
 };
 
