@@ -17,9 +17,9 @@
 
 #define SV_NUM          6
 #define REG_NUM         6
-#define UREG_NUM 		5
+#define UREG_NUM 		3
 #define EPS_TEMP_NUM	4
-#define BAT_TEMP_NUM	2
+#define BAT_TEMP_NUM	4
 
 #define EPS_ADC_NUM		32
 
@@ -30,10 +30,10 @@
 
 
 
-#define TEMP_CS_GPIO		GPIOF			//OBC板温度采集片选
-#define TEMP_CS_PIN			GPIO_Pin_11
-#define TEMP_CS_LOW()      	TEMP_CS_GPIO->BSRRH = TEMP_CS_PIN
-#define TEMP_CS_HIGH()     	TEMP_CS_GPIO->BSRRL = TEMP_CS_PIN
+//#define TEMP_CS_GPIO		GPIOF			//OBC板温度采集片选
+//#define TEMP_CS_PIN			GPIO_Pin_11
+//#define TEMP_CS_LOW()      	TEMP_CS_GPIO->BSRRH = TEMP_CS_PIN
+//#define TEMP_CS_HIGH()     	TEMP_CS_GPIO->BSRRL = TEMP_CS_PIN
 
 
 #define OBC_CS_GPIO		    GPIOB			//OBC板模拟采样片选
@@ -66,7 +66,7 @@
 #define OBC_TEMP_NUM		2
 #define UN_USE_NUM			6
 
-#define OBC_ADC_NUM			16
+//#define OBC_ADC_NUM			16
 
 typedef struct
 {
@@ -86,26 +86,30 @@ typedef struct CaliFactor_t
 
 typedef struct EpsAdcValue_t
 {
-	uint16_t 	In_SunC[SV_NUM];
-	uint16_t 	In_SunV[SV_NUM];
-	uint16_t 	Out_ComC;
-	uint16_t 	Out_BusC;
-	uint16_t 	Out_BusV;
-	uint16_t 	Out_BranchC[REG_NUM+UREG_NUM];
-	int16_t     	EpsTemp[EPS_TEMP_NUM];
-	int16_t 	    BatTemp[BAT_TEMP_NUM];
+	uint16_t    In_SunC[SV_NUM];
+	uint16_t    In_SunV[SV_NUM];
+	uint16_t    Out_ComC;
+	uint16_t    Out_BusC;
+	uint16_t    Out_BusV;
+	uint16_t    Out_BranchC[REG_NUM+UREG_NUM];
+	int16_t     EpsTemp[EPS_TEMP_NUM];
+	int16_t     BatTemp[BAT_TEMP_NUM];
 } EpsAdcValue_t;
 
 
-extern EpsAdcValue_t	EpsHouseKeeping;
+extern EpsAdcValue_t EpsHouseKeeping;
 
 void bsp_InitSPI1(void);
-uint8_t EpsAdUpdate(uint8_t chip);
-void AdDataFliter(uint16_t ad_table[][5], uint16_t* ad_aver_table,
-        uint8_t channel_num);
-EpsAdcValue_t* EpsAdToReal(uint16_t* rec, EpsAdcValue_t* tar);
+
 void EpsAdToReal2(uint16_t* rec, EpsAdcValue_t* tar);
 void EpsAdCalibration(void);
+
+/**
+ *获取电源系统遥测值，由采集任务调用
+ *
+ * @param eps_hk 采集接收缓冲区
+ */
+void eps_get_hk(EpsAdcValue_t *eps_hk);
 
 void eps_start(void);
 void eps_hk(void);

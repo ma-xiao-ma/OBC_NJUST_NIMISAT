@@ -721,24 +721,7 @@ void vTelemetryFileManage(void * paragram)
     }
 }
 
-/**
- *获取电源系统遥测值，由采集任务调用
- *
- * @param eps_hk 采集接收缓冲区
- */
-void eps_get_hk(EpsAdcValue_t *eps_hk)
-{
-    uint8_t kc = 0;
 
-    for (kc = 0; kc < 16; kc++)
-    {
-        EpsAdUpdate(EPS_AD_CS1);
-        EpsAdUpdate(EPS_AD_CS2);
-    }
-
-    AdDataFliter(EpsAdValue, EpsAdValueAver, 32);
-    EpsAdToReal(EpsAdValueAver, eps_hk);
-}
 
 /**
  * 电源系统遥测采集任务，采集数值放入eps_hk_queue队列中
