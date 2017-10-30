@@ -41,26 +41,26 @@ extern uint32_t panel_status;
 
 extern flash_store_t store_info;
 
-extern EpsAdcValue_t	EpsHouseKeeping;
+//extern EpsAdcValue_t	EpsHouseKeeping;
 
-extern ObcAdcValue_t 	ObcAdData;
-extern uint8_t 			EpsCaliFlag;
-extern int16_t 			EpsCaliTable[REG_NUM + UREG_NUM];
+//extern ObcAdcValue_t 	ObcAdData;
+//extern uint8_t 			EpsCaliFlag;
+//extern int16_t 			EpsCaliTable[REG_NUM + UREG_NUM];
 
-extern uint16_t TempAdValue[16][5];              	//鐢垫簮鏉挎俯搴﹂噰鏍风偣
-extern uint16_t TempAdValueAver[16];			  	//鐢垫簮鏉挎俯搴﹀潎鍊�
-extern uint16_t ObcAdValue[16][5];              	//鐢垫簮鏉跨數鍘嬮噰鏍风偣
-extern uint16_t ObcAdValueAver[16];					//鐢垫簮鏉跨數鍘嬪潎鍊�
-extern uint16_t EpsAdValue[32][5];   				//鐢垫簮鏉跨數婧愯幏鍙栭噺閲囨牱鐐�
-extern uint16_t EpsAdValueAver[32];					//鐢垫簮鏉跨數婧愯幏鍙栭噺鍧囧��
+//extern uint16_t TempAdValue[16][5];              	//鐢垫簮鏉挎俯搴﹂噰鏍风偣
+//extern uint16_t TempAdValueAver[16];			  	//鐢垫簮鏉挎俯搴﹀潎鍊�
+//extern uint16_t ObcAdValue[16][5];              	//鐢垫簮鏉跨數鍘嬮噰鏍风偣
+//extern uint16_t ObcAdValueAver[16];				//鐢垫簮鏉跨數鍘嬪潎鍊�
+extern uint16_t EpsAdValue[32][5];   				//电源板电源获取量采样点
+extern uint16_t EpsAdValueAver[32];					//电源板电源获取量均值
 
 extern uint8_t EpsAdCorrectEnable;
-extern EpsAdcValue_t EpsHouseKeeping;
-extern uint16_t EpsTranOTCnt;	//鍙戦�佽秴鏃惰鏁�
-extern uint16_t EpsRevOTCnt;   //鎺ユ敹瓒呮椂璁℃暟
+//extern EpsAdcValue_t EpsHouseKeeping;
+//extern uint16_t EpsTranOTCnt;	//鍙戦�佽秴鏃惰鏁�
+//extern uint16_t EpsRevOTCnt;   //鎺ユ敹瓒呮椂璁℃暟
 
-extern uint8_t updateTimeFlag;
-extern uint8_t AdcsGpsUse;
+//extern uint8_t updateTimeFlag;
+//extern uint8_t AdcsGpsUse;
 
 extern uint8_t mode;
 

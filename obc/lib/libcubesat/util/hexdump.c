@@ -12,16 +12,20 @@ void hex_dump(void *src, int len) {
 	text[16] = '\0';
 	//printf("Hex dump:\r\n");
 	printf("%p : ", src);
-	for(i=0; i<len; i++) {
+	for(i=0; i<len; i++)
+	{
 		j++;
 		printf("%02X ",((volatile unsigned char *)src)[i]);
 		if(j == 8)
 			printf(" ");
-		if(j == 16) {
+		if(j == 16)
+		{
 			j = 0;
 			memcpy(text, &((char *)src)[i-15], 16);
-			for(k=0; k<16; k++) {
-				if((text[k] < 32) || (text[k] > 126)) {
+			for(k=0; k<16; k++)
+			{
+				if((text[k] < 32) || (text[k] > 126))
+				{
 					text[k] = '.';
 				}
 			}

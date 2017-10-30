@@ -14,6 +14,7 @@
 #include "bsp_switch.h"
 #include "bsp_watchdog.h"
 #include "bsp_reset.h"
+#include "if_downlink_vu.h"
 
 #include "task_user.h"
 
@@ -104,7 +105,6 @@ void vWatchDogTask1( void *pvParameters __attribute__((unused)))
 int main(void)
 {
 
-
     task_initz();
 
     /* 创建开始任务 */
@@ -146,7 +146,7 @@ void start_task(void *pvParameters)
                 (TaskHandle_t*  )&EpsTask_Handler);
 
 #if USE_SERIAL_PORT_DOWNLINK_INTERFACE
-    #if USE_ROUTE_PROTOCOL
+    #ifndef USE_ROUTE_PROTOCOL
     //创建调试上行串口解包任务
     xTaskCreate((TaskFunction_t )USART2_Receive_Task,
                 (const char*    )"USART2_RX",
@@ -166,6 +166,13 @@ void start_task(void *pvParameters)
 
 #endif
 
+//    //创建上行ISIS通信板解包任务
+//    xTaskCreate((TaskFunction_t )vu_jlg_uplink_task,
+//                (const char*    )"JLG",
+//                (uint16_t       )ISIS_READ_STK_SIZE,
+//                (void*          )NULL,
+//                (UBaseType_t    )ISIS_READ_TASK_PRIO,
+//                (TaskHandle_t*  )&ISISReadTask_Handler);
 
 //    //遥测下行和保存任务
 //    xTaskCreate((TaskFunction_t )down_save_task,

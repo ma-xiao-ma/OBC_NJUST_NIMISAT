@@ -14,6 +14,7 @@
 #include "semphr.h"
 #include "error.h"
 #include "QB50_mem.h"
+#include "crc.h"
 
 #include "if_jlgvu.h"
 
@@ -54,7 +55,7 @@ static int vu_cmd_rsp( uint8_t cmd, void * rsp, size_t rsplen )
  * @param cmd   指令在if_trxvu.h中定义
  * @param para  参数指针
  * @param paralen 参数字节数
- * @return      E_NO_ERR（-1）说明传输成功
+ * @return E_NO_ERR（-1）说明传输成功
  */
 static int vu_cmd_par( uint8_t cmd, void * para, size_t paralen )
 {
@@ -95,7 +96,7 @@ static int vu_cmd_par_rsp( uint8_t cmd, void * para, size_t paralen, void * rsp,
     return ret;
 }
 
-/**************************接收单元指令函数****************************/
+/**************************接口函数****************************/
 
 /**
  * 接收单元看门狗复位
@@ -250,16 +251,16 @@ int vu_get_uptime(uint32_t *uptime)
  * 发射单元发送AX.25数据帧，使用默认源呼号和目的呼号
  *
  * @param frame 数据帧指针
- * @param framelen 数据帧字节数
+ * @param framelen 数据帧字节数，最大235个字节
  * @param rsp 发射机缓冲区剩余空间
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_send_frame(void *frame, uint8_t framelen, uint8_t *rsp)
+int vu_send_frame(void *frame, uint8_t framelen, uint16_t *rsp)
 {
     if(framelen < 1 || framelen > ISIS_MTU)
         return E_INVALID_BUF_SIZE;
 
-    return vu_cmd_par_rsp( SEND_FRAME_DEFAULT, frame, framelen, rsp, sizeof(uint8_t));
+    return vu_cmd_par_rsp( SEND_FRAME_DEFAULT, frame, framelen, rsp, sizeof(uint16_t));
 }
 
 /**
@@ -362,9 +363,29 @@ int vu_set_bitrate(par_transmission_bitrate bitrate)
  * 获取发射机工作状态
  *
  * @param state 工作状态结构体指针
- * @return
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
 int vu_get_state(rsp_transmitter_state *state)
 {
     return vu_cmd_rsp( TRANSMITTER_STATE, state, sizeof(rsp_transmitter_state));
+}
+
+/**
+ * fm转发开
+ *
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int vu_fm_on(void)
+{
+    return vu_cmd( FM_FORWARDING_ON );
+}
+
+/**
+ * fm转发关
+ *
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int vu_fm_off(void)
+{
+    return vu_cmd( FM_FORWARDING_OFF );
 }

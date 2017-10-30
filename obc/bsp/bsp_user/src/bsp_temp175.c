@@ -44,7 +44,7 @@ int get_obc_temp(uint16_t *temp)
     uint16_t big_endian_temp;
     int ret;
 
-    ret = i2c_master_transaction(TEPM175_I2C_HANDLE, TEPM175_I2C_ADDR, TEMP_REG, 1, &big_endian_temp, 2, 500);
+    ret = i2c_master_transaction(TEPM175_I2C_HANDLE, TEPM175_I2C_ADDR, TEMP_REG, 1, &big_endian_temp, 2, 100);
 
     if(ret != E_NO_ERR)
         return ret;

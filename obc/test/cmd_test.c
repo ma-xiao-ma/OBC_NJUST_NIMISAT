@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "command.h"
 
@@ -19,12 +20,14 @@
 #include "crc.h"
 //#include "bsp_camera.h"
 #include "switches.h"
+#include "hk.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
 #include "route.h"
 #include "router_io.h"
 #include "dtb_805.h"
+#include "camera_805.h"
 
 //static uint32_t my_test_ccrram __attribute__((section(".ram_persist"))) = 5;
 
@@ -387,7 +390,6 @@ int dtb_tc(struct command_context *ctx )
 
 int dtb_tm(struct command_context * context __attribute__((unused)))
 {
-//    static uint8_t tm_data[17];
 
     dtb_tm_pack * tm = qb50Malloc(sizeof(dtb_tm_pack));
     if (tm == NULL)
@@ -401,17 +403,7 @@ int dtb_tm(struct command_context * context __attribute__((unused)))
     else
         printf("DTB tm receive fail!\r\n\r\n");
 
-//    memcpy(tm_data, tm, 17);
-
-//    if (tm->TRANS_ON == 1)
-//    if (tm_data[5] & 0x80)
-//        printf("Transmitter Open!!\r\n");
-//    else
-//        printf("Transmitter Close!!\r\n");
-
-
     qb50Free(tm);
-
     return CMD_ERROR_NONE;
 }
 
@@ -521,6 +513,63 @@ int CubeUnPacket_test(struct command_context *ctx)
     return CMD_ERROR_NONE;
 }
 
+int cam_related_test(struct command_context *ctx __attribute__((unused)))
+{
+//    uint8_t cmd_type;
+//
+//    char * args = command_args(ctx);
+//    if(sscanf(args, "%u", &cmd_type) != 1)
+//        return CMD_ERROR_SYNTAX;
+    ImageInfo_t t;
+    uint32_t exp_time = 0x00aabbcc;
+    Camera_Exposure_Time_Set(exp_time);
+
+    printf("%d\n", sizeof(cam_ctl_t));
+    printf("%d\n", sizeof(t.ImageLocation));
+
+    uint8_t test[3];
+    memset(test, 0, 3);
+    ((cam_ctl_t *)test)->tran = TTL;
+    ((cam_ctl_t *)test)->mode = Backup;
+    ((cam_ctl_t *)test)->expo = AutoExpoOn;
+
+    return CMD_ERROR_NONE;
+}
+
+int cmd_obc_hk(struct command_context *ctx __attribute__((unused)))
+{
+    obc_hk_t * obc = (obc_hk_t *)qb50Malloc(sizeof(obc_hk_t));
+    if (obc == NULL)
+        return CMD_ERROR_SYNTAX;
+
+    if (obc_hk_get_peek(obc) != pdTRUE)
+    {
+        qb50Free(obc);
+        return CMD_ERROR_SYNTAX;
+    }
+
+    printf("Item\t\tValue\n");
+    printf("******************************\n");
+    printf("sat_id\t\t%u\n", obc->sat_id);
+    printf("soft_id\t\t%u\n", obc->soft_id);
+    printf("reboot_count\t\t%u\n", obc->reboot_count);
+    printf("rec_cmd_count\t\t%u\n", obc->rec_cmd_count);
+    printf("hk_down_count\t\t%u\n", obc->hk_down_count);
+    printf("hk_store_count\t\t%u\n", obc->hk_store_count);
+    printf("i2c_error_count\t\t%u\n", obc->i2c_error_count);
+    printf("last_reset\t\t%u\n", obc->last_reset_time);
+    printf("work_mode\t\t%u\n", obc->work_mode);
+    printf("utc_time\t\t%u\n", obc->utc_time);
+    printf("tmep_mcu\t\t%u\n", obc->tmep_mcu);
+    printf("tmep_board\t\t%u\n", obc->tmep_board);
+    printf("on_off_status\t\t%u\n", obc->on_off_status);
+    printf("mindex\t\t%u\n", obc->mindex);
+    printf("aindex\t\t%u\n", obc->aindex);
+
+    qb50Free(obc);
+    return CMD_ERROR_NONE;
+}
+
 struct command test_subcommands[] = {
 	{
 		.name = "wflansh",
@@ -595,12 +644,17 @@ struct command test_subcommands[] = {
         .help = "UnPacket function test",
         .usage = "<typ>",
         .handler = CubeUnPacket_test,
+    },
+    {
+        .name = "cam",
+        .help = "Camera related test",
+        .handler = cam_related_test,
+    },
+    {
+        .name = "obc",
+        .help = "obc hk print",
+        .handler = cmd_obc_hk,
     }
-//    {
-//        .name = "camera",
-//        .help = "generate crc-citt",
-//        .handler = Camera_Test,
-//    }
 };
 
 struct command __root_command test_commands_master[] =

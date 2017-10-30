@@ -28,7 +28,7 @@ extern QueueHandle_t rx_tm_queue;
  *
  * @param addr  接收机地址或者发射机地址
  * @param cmd   指令在if_trxvu.h中定义
- * @return      E_NO_ERR（-1）说明传输成功
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
 static int vu_cmd( vu_i2c_addr addr, uint8_t cmd )
 {
@@ -43,7 +43,7 @@ static int vu_cmd( vu_i2c_addr addr, uint8_t cmd )
  * @param cmd   指令在if_trxvu.h中定义
  * @param rsp   接收响应的缓冲区指针
  * @param rsplen 响应字节数
- * @return      E_NO_ERR（-1）说明传输成功
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
 static int vu_cmd_rsp( vu_i2c_addr addr, uint8_t cmd, void * rsp, size_t rsplen )
 {
@@ -57,7 +57,7 @@ static int vu_cmd_rsp( vu_i2c_addr addr, uint8_t cmd, void * rsp, size_t rsplen 
  * @param cmd   指令在if_trxvu.h中定义
  * @param para  参数指针
  * @param paralen 参数字节数
- * @return      E_NO_ERR（-1）说明传输成功
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
 static int vu_cmd_par(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen)
 {
@@ -82,7 +82,7 @@ static int vu_cmd_par(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen
  * @param paralen 参数字节数
  * @param rsp   接收响应的缓冲区指针
  * @param rsplen 响应字节数
- * @return      E_NO_ERR（-1）说明传输成功
+ * @return  E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
 static int vu_cmd_par_rsp(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen, void * rsp, size_t rsplen)
 {
@@ -196,20 +196,22 @@ int vu_receiver_router_get_frame(void)
 
     rsp = (rsp_frame *)frame->data;
 
-    /**
-     * 给多普勒和信号强度遥测变量赋值
-     */
 
+    /* 给多普勒和信号强度遥测变量赋值 */
     if(rx_tm_queue != NULL)
     {
         receiving_tm rx_tm =
         {
-                rx_tm.DopplerOffset = rsp->DopplerOffset,
-                rx_tm.RSSI = rsp->RSSI
+            rx_tm.DopplerOffset = rsp->DopplerOffset,
+            rx_tm.RSSI = rsp->RSSI
         };
 
         xQueueOverwrite(rx_tm_queue, &rx_tm);
     }
+
+    /*收到的字节数不等于期望的字节数*/
+    if (rsp->DateSize != MAX_UPLINK_CONTENT_SIZE)
+        return E_INVALID_PARAM;
 
     if (*(uint32_t *)(&rsp->Data[rsp->DateSize-4]) != crc32_memory(rsp->Data, rsp->DateSize-4))
     {

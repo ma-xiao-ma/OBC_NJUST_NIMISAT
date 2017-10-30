@@ -16,13 +16,13 @@
 #include "driver_debug.h"
 #include "command.h"
 #include "console.h"
-
-#include "if_trxvu.h"
 #include "bsp_pca9665.h"
 #include "QB50_mem.h"
 #include "error.h"
+#include "csp_endian.h"
+#include "hk.h"
 
-
+#include "if_trxvu.h"
 
 /*测试发射速率*/
 int isis_send_handler(struct command_context * context)
@@ -30,32 +30,40 @@ int isis_send_handler(struct command_context * context)
 
     static uint32_t num_of_frame = 0;
     static uint32_t interval_ms = 0;
+    static uint8_t frame_len;
     int ret, errors = 0, times = 0;
+    uint32_t j = 1;
 
     char * args = command_args(context);
 
-    if (sscanf(args, "%u %u", &num_of_frame, &interval_ms) != 2)
+    if (sscanf(args, "%u %u %u", &frame_len, &num_of_frame, &interval_ms) != 3)
         return CMD_ERROR_SYNTAX;
 
-	uint8_t *frame = qb50Malloc(ISIS_MTU);
+    if (frame_len < 4 || frame_len > ISIS_MTU)
+        return CMD_ERROR_SYNTAX;
+
+	uint8_t *frame = qb50Malloc(frame_len/*ISIS_MTU*/);
 	if(frame == NULL)
 	    return CMD_ERROR_SYNTAX;
 
-	for (int i=0; i<ISIS_MTU; i++)
-	    frame[i] = i+1;
+	for (int i=0; i<frame_len/*ISIS_MTU*/; i++)
+	    frame[i] = 0x55;
 
 	uint8_t rest_of_frame = 0;
 
-	printf("VU Send %u frame, Interval %u ms.\r\n", num_of_frame, interval_ms);
+	printf("Framelen %u byte, Send %u frame, Interval %u ms.\r\n", frame_len, num_of_frame, interval_ms);
+	printf("...\n");
 
 	do {
+	    *(uint32_t *)frame = csp_htobe32(j);
 
-	    ret = vu_transmitter_send_frame(frame, ISIS_MTU, &rest_of_frame);
+	    ret = vu_transmitter_send_frame(frame, frame_len/*ISIS_MTU*/, &rest_of_frame);
 
         if (ret != E_NO_ERR || rest_of_frame == 0xFF)
             errors++;
         else
         {
+            j++;
             num_of_frame--;
             /**若发射机缓冲区已满，则等待5000毫秒*/
             if(rest_of_frame == 0)
@@ -70,7 +78,7 @@ int isis_send_handler(struct command_context * context)
 
 	} while((num_of_frame > 0) && (errors < 5));
 
-	printf("Slots %u, Remain %u, Error %u, Delay %u\r\n", rest_of_frame, num_of_frame, errors, times);
+	printf("Slots %u frame, Remain %u frame, Error %u, Delay %u\r\n", rest_of_frame, num_of_frame, errors, times);
 
 	qb50Free(frame);
 	return CMD_ERROR_NONE;
@@ -102,7 +110,7 @@ int isis_read_count_handler(struct command_context * context __attribute__((unus
 
 int isis_tx_uptime_handler(struct command_context * context __attribute__((unused)))
 {
-	uint32_t TX_time = 0;
+	static uint32_t TX_time = 0;
 
 	if (vu_transmitter_get_uptime(&TX_time) == E_NO_ERR)
 		printf("Transmitter MCU has been active: %u s\n\n", TX_time);
@@ -467,6 +475,90 @@ int isis_measure_of_reciever_handler(struct command_context * context __attribut
 	return CMD_ERROR_NONE;
 }
 
+int isis_all_tm_handler(struct command_context * context __attribute__((unused)))
+{
+
+    vu_isis_hk_t *hk = (vu_isis_hk_t *)qb50Malloc(sizeof(vu_isis_hk_t));
+    if (hk == NULL)
+        return CMD_ERROR_SYNTAX;
+
+    if(ttc_hk_get_peek(hk) != pdTRUE)
+        return CMD_ERROR_SYNTAX;
+
+    printf("Receiver MCU has been active: %u s\n\n", hk->ru_uptime);
+    printf("\n\n");
+    printf("RX Measured current TM:\r\n\r\n");
+
+    printf("TM Item\t\t\tRaw Value\tActual value:\r\n");
+    printf("*********************************************************\r\n");
+    printf("DopplerOffset:\t\t%u\t\t%.4f Hz\n"
+           "RSSI:\t\t\t%u\t\t%.4f dBm\n"
+           "BusVoltage:\t\t%u\t\t%.4f V\n"
+           "TotalCurrent:\t\t%u\t\t%.4f mA\n"
+           "AmplifierTemp:\t\t%u\t\t%.4f C\n"
+           "OscillatorTemp:\t\t%u\t\t%.4f C\n",
+           hk->ru_curt.DopplerOffset, VU_SDO_Hz(hk->ru_curt.DopplerOffset),
+           hk->ru_curt.RSSI, VU_RSS_dBm(hk->ru_curt.RSSI),
+           hk->ru_curt.BusVoltage, VU_PBV_V(hk->ru_curt.BusVoltage),
+           hk->ru_curt.TotalCurrent, VU_TCC_mA(hk->ru_curt.TotalCurrent),
+           hk->ru_curt.AmplifierTemp, VU_PAT_C(hk->ru_curt.AmplifierTemp),
+           hk->ru_curt.OscillatorTemp, VU_LOT_C(hk->ru_curt.OscillatorTemp)
+              );
+    printf("\n\n");
+    printf("TM Item\t\t\tRaw Value\tActual value:\r\n");
+    printf("********************************************************\r\n");
+    printf("DopplerOffset:\t\t%u\t\t%.4f Hz\n"
+           "RSSI:\t\t\t%u\t\t%.4f dBm\n",
+           hk->ru_last.DopplerOffset, VU_SDO_Hz(hk->ru_last.DopplerOffset),
+           hk->ru_last.RSSI, VU_RSS_dBm(hk->ru_last.RSSI)
+          );
+    printf("\n\n");
+    printf("\n\n");
+    printf("Transmitter MCU has been active: %u s\n\n",  hk->tu_uptime);
+    printf("\n\n");
+    printf("TX Measured current TM:\r\n");
+    printf("TM Item\t\t\tRaw Value\tActual value:\r\n");
+    printf("*******************************************************\r\n");
+    printf("ReflectedPower:\t\t%u\t\t%.4f dBm(%.4f mW)\n"
+            "ForwardPower:\t\t%u\t\t%.4f dBm(%.4f mW)\n"
+            "BusVoltage:\t\t%u\t\t%.4f V\n"
+            "TotalCurrent:\t\t%u\t\t%.4f mA\n"
+            "AmplifierTemp:\t\t%u\t\t%.4f C\n"
+            "OscillatorTemp:\t\t%u\t\t%.4f C\n",
+            hk->tu_curt.ReflectedPower,VU_RRP_dBm(hk->tu_curt.ReflectedPower),VU_RRP_mW(hk->tu_curt.ReflectedPower),
+            hk->tu_curt.ForwardPower,VU_RFP_dBm(hk->tu_curt.ForwardPower),VU_RFP_mW(hk->tu_curt.ForwardPower),
+            hk->tu_curt.BusVoltage,VU_PBV_V(hk->tu_curt.BusVoltage),
+            hk->tu_curt.TotalCurrent,VU_TCC_mA(hk->tu_curt.TotalCurrent),
+            hk->tu_curt.AmplifierTemp,VU_PAT_C(hk->tu_curt.AmplifierTemp),
+            hk->tu_curt.OscillatorTemp,VU_LOT_C(hk->tu_curt.OscillatorTemp)
+           );
+
+    printf("\n\n");
+    printf("TX Stored last TM:\r\n\r\n");
+    printf("TM Item\t\t\tRaw Value\tActual value:\r\n");
+    printf("********************************************************\r\n");
+    printf("ReflectedPower:\t\t%u\t\t%.4f dBm(%.4f mW)\n"
+            "ForwardPower:\t\t%u\t\t%.4f dBm(%.4f mW)\n"
+            "BusVoltage:\t\t%u\t\t%.4f V\n"
+            "TotalCurrent:\t\t%u\t\t%.4f mA\n"
+            "AmplifierTemp:\t\t%u\t\t%.4f C\n"
+            "OscillatorTemp:\t\t%u\t\t%.4f C\n",
+            hk->tu_last.ReflectedPower,VU_RRP_dBm( hk->tu_last.ReflectedPower),VU_RRP_mW( hk->tu_last.ReflectedPower),
+            hk->tu_last.ForwardPower,VU_RFP_dBm( hk->tu_last.ForwardPower),VU_RFP_mW( hk->tu_last.ForwardPower),
+            hk->tu_last.BusVoltage,VU_PBV_V( hk->tu_last.BusVoltage),
+            hk->tu_last.TotalCurrent,VU_TCC_mA( hk->tu_last.TotalCurrent),
+            hk->tu_last.AmplifierTemp,VU_PAT_C( hk->tu_last.AmplifierTemp),
+            hk->tu_last.OscillatorTemp,VU_LOT_C( hk->tu_last.OscillatorTemp)
+           );
+    printf("\n\n");
+    printf("********************************************************\r\n");
+    printf("Transmitter idle state: %u\r\n", hk->tx_state.IdleState);
+    printf("Beacon active:          %u\r\n", hk->tx_state.BeaconAct);
+    printf("Transmitter bit rate:   %u\r\n", hk->tx_state.BitRate);
+
+    return CMD_ERROR_NONE;
+}
+
 struct command cmd_isis_sub[] = {
 	{
 		.name = "send",
@@ -478,7 +570,7 @@ struct command cmd_isis_sub[] = {
 		.help = "Transmitter state",
 		.handler = isis_transmitter_status_handler,
 	},{
-		.name = "uptime_tx",
+		.name = "t_uptime",
 		.help = "Transmitter MCU has been active since the last reset",
 		.handler = isis_tx_uptime_handler,
 	},{
@@ -487,28 +579,28 @@ struct command cmd_isis_sub[] = {
 		.usage = "<rate>",
 		.handler = isis_set_rate_handler,
 	},{
-		.name = "telemetry_tx",
+		.name = "t_tm",
 		.help = "Show measured current TM of transmitter",
 		.handler = isis_measure_tx_status_handler,
 	},{
-		.name = "last_telemetry",
+		.name = "last",
 		.help = "Show stored last TM of transmitter",
 		.handler = isis_last_status_handler,
 	 },{
-		.name = "idle_state",
+		.name = "idle",
 		.help = "Set idle state of transmitter:0-turn off 1-remain on",
 		.usage = "<opt:0-turn off 1-remain on>",
 		.handler = isis_sleep_status_handler,
 	},{
-		.name = "callsigns",
+		.name = "signs",
 		.help = "Set default callsigns of transmitter",
 		.handler = isis_set_default_callsigns_handler,
 	},{
-		.name = "clearbeacon",
+		.name = "clear",
 		.help = "Clear beacon of transmitter",
 		.handler = isis_clearben_handler,
 	},{
-		.name = "beacon_call",
+		.name = "c_beacon",
 		.help = "Set beacon with new callsigns",
 		.usage = "<beacon interval>",
 		.handler = isis_set_call_beacon_handler,
@@ -518,45 +610,49 @@ struct command cmd_isis_sub[] = {
 		.usage = "<beacon interval>",
 		.handler = isis_set_beacon_handler,
 	},{
-		.name = "sendAX",
+		.name = "c_frame",
 		.help = "Send frame with new callsigns",
 		.handler = isis_sendAXdate_handler,
 	},{
-		.name = "uptime_rx",
+		.name = "r_uptime",
 		.help = "Receiver MCU has been active since the last reset",
 		.handler = isis_rx_uptime_handler,
 	},{
-		.name = "remove_frame",
+		.name = "remove",
 		.help = "Remove the oldest frame from receiver buffer",
 		.handler = isis_clearbutter_handler,
 	},{
-		.name = "rcount",
+		.name = "count",
 		.help = "Get receiver buffer frame number",
 		.handler = isis_read_count_handler,
 	},{
-		.name = "rframe",
+		.name = "receive",
 		.help = "Get frame from receiver buffer",
 		.handler = isis_read_frame_handler,
 	},{
-		.name = "watchdogreset",
+		.name = "watchdog",
 		.help = "Watch dog reset: 0-Receiver !0-Transmitter",
 		.usage = "<0-Receiver !0-Transmitter>",
 		.handler = isis_watchdog_resetdog_handler,
 	},{
-		.name = "softwarereset",
+		.name = "software",
 		.help = "Software reset: 0-Receiver !0-Transmitter",
         .usage = "<0-Receiver !0-Transmitter>",
 		.handler = isis_software_reset_handler,
 	},{
-		.name = "hardreset",
+		.name = "hardware",
 		.help = "Hardware reset: 0-Receiver !0-Transmitter",
         .usage = "<0-Receiver !0-Transmitter>",
 		.handler = isis_hardware_reset_handler,
 	},{
-		.name = "telemetry_rx",
+		.name = "r_tm",
 		.help = "Show measured telemetry of receiver",
 		.handler = isis_measure_of_reciever_handler,
-	}
+	},{
+        .name = "hk",
+        .help = "Show all hk of trxvu",
+        .handler = isis_all_tm_handler,
+    }
 };
 
 command_t __root_command cmd_isis_master[] = {

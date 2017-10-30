@@ -30,16 +30,16 @@
 #define HK_FIFO_FULL 				0x01
 #define HK_FIFO_OK 					0x02
 
-#define HK_FIFO_BUFFER_SIZE 		    255U
+#define HK_FIFO_BUFFER_SIZE 		255U
 #define HK_FIFO_BUFFER_CNT	 		20U
 
 #define HK_FRAME_MAIN				0x01
 #define HK_FRAME_APPEND				0x02
 
 #define HK_MAIN_LENGTH			    sizeof(HK_Main_t)
-#define HK_APPEND_LENGTH			    sizeof(HK_Append_t)
+#define HK_APPEND_LENGTH			sizeof(HK_Append_t)
 
-#define HK_LIST_NODE_CNT			    (1000U+1)
+#define HK_LIST_NODE_CNT			(1000U+1)
 #define HK_STORAGE_INTERVAL         15
 #define HK_OFFSET_H_MS				(uint32_t)(HK_STORAGE_INTERVAL * HK_FILE_MAX_COUNT / 2)
 
@@ -75,7 +75,7 @@ typedef struct __attribute__((packed)) {
 } HK_Fifo_t;
 
 
-/*星务计算机本地遥测，23 Byte*/
+/*星务计算机本地遥测，37 Byte*/
 typedef struct __attribute__((packed))
 {
     /**卫星号*/
@@ -86,8 +86,12 @@ typedef struct __attribute__((packed))
     uint16_t        reboot_count;           //2
     /**上行本地指令计数*/
     uint16_t        rec_cmd_count;          //2
-    /**遥测帧总计数（存储+下行）*/
-    uint16_t        down_count;             //2
+    /**下行遥测帧总计数*/
+    uint32_t        hk_down_count;          //4
+    /**存储遥测帧总计数*/
+    uint32_t        hk_store_count;         //4
+    /**i2c驱动错误计数*/
+    uint32_t        i2c_error_count;        //4
     /**上次复位时间*/
     uint32_t        last_reset_time;        //4
     /**工作模式*/
@@ -96,6 +100,8 @@ typedef struct __attribute__((packed))
     uint32_t        utc_time;               //4
     /**CPU片内温度*/
     uint16_t        tmep_mcu;               //2
+    /**obc板上温度*/
+    uint16_t        tmep_board;             //2
     /**开关状态*/
     uint32_t        on_off_status;          //4
     /**RAM延时遥测主帧索引*/
@@ -270,6 +276,7 @@ extern uint8_t 			hk_sd_path[25];
 extern FIL 				hkfile;
 extern UINT				hkrbytes;
 extern uint32_t			hkleek;
+extern uint32_t         i2c_error_count;
 
 extern uint16_t  hk_frame_index;
 extern HK_Fifo_t hk_main_fifo;
@@ -285,13 +292,26 @@ void HK_fifoInit(HK_Fifo_t *Q);
 uint8_t HK_fifoIn(HK_Fifo_t *Q, unsigned char *pdata, uint8_t opt);
 uint8_t HK_fifoOut(HK_Fifo_t *Q, unsigned char *pdata, uint8_t opt);
 uint16_t hk_fifo_find(const HK_Fifo_t *Q, uint32_t timevalue);
-int hk_collect_no_store(void);
-int hk_collect(void);
+void hk_collect_no_store(void);
+void hk_collect(void);
 int hk_store_init(void);
 void hk_out(void);
 int hk_store_add(void);
 void hk_file_task(void * paragram);
 void vTelemetryFileManage(void * paragram);
+
+/**
+ * 星务遥测采集任务
+ */
+void obc_hk_task(void);
+
+/**
+ * 星务遥测获取函数
+ *
+ * @param obc 星务遥测结构体指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int obc_hk_get_peek(obc_hk_t * obc);
 
 /**
  * 电源系统遥测采集任务，采集数值放入eps_hk_queue队列中
@@ -363,6 +383,11 @@ void adcs_hk_task(void);
  * @return pdTRUE为正常，pdFALSE不正常
  */
 int adcs_hk_get_peek(adcs805_hk_t *adcs);
+
+/**
+ * 遥测采集任务初始化 创建6个队列， 需要在初始化函数中调用
+ */
+void hk_collection_task_init(void);
 
 
 #endif /* SRC_HK_H_ */

@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "bsp_adc.h"
 
 #define OBC_I2C_RECEIVEMASK_1		0x0F
 #define OBC_I2C_RECEIVEMASK_2		0xF0
@@ -27,7 +28,11 @@ void chcontinuetimes(uint32_t *times);
 
 void OpenPanel_Task(void* param);
 void OpenAntenna_Task(void* param);
-int Battery_Task(void);
+
+
+int Battery_Task(const EpsAdcValue_t *eps_hk);
+void SleepWorkMode(void);
+void NormalWorkMode(void);
 
 /* 停止下行遥测函数 */
 void vContrlStopDownload(void);

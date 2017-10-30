@@ -359,12 +359,15 @@ static void console_transpose_chars(void) {
 	}
 }
 
-static void console_suspend(void) {
+static void console_suspend(void)
+{
 	/* We cannot suspend */
 }
 
-static void console_interrupt(void) {
+static void console_interrupt(void)
+{
 	/* We cannot interrupt */
+
 }
 
 void debug_console(void *pvParameters __attribute__((unused))) {

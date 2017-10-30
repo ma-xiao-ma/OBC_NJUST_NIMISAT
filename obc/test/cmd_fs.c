@@ -52,7 +52,8 @@ int cmd_flash_program(struct command_context *ctx) {
 	EndAddr = 0;
 
 	int result = f_open(&myfile,filename,FA_READ | FA_OPEN_EXISTING);
-	if(result != FR_OK){
+	if(result != FR_OK)
+	{
 		printf("the filename is not existing\r\n");
 		printf("open file error ,result is  :%u\r\n",result);
 
@@ -97,7 +98,8 @@ int cmd_flash_program(struct command_context *ctx) {
 //	vPortEnterCritical();
 	for(;;){
 		result = f_read(&myfile,&buffer,1,&byteread);
-		if(result == FR_OK){
+		if(result == FR_OK)
+		{
 			if(byteread == 0) break;
 			i += 1;
 			if(FLASH_ProgramByte(StartAddr, buffer) == FLASH_COMPLETE){
@@ -107,7 +109,9 @@ int cmd_flash_program(struct command_context *ctx) {
 
 				goto myreturn;
 			}
-		}else{
+		}
+		else
+		{
 			printf("read file failed\r\n");
 			printf("read error ,result is :%u\r\n",result);
 
@@ -137,7 +141,8 @@ myreturn:
 	return CMD_ERROR_NONE;
 }
 
-int cmd_fat_setdir(struct command_context *ctx __attribute__((unused))) {
+int cmd_fat_setdir(struct command_context *ctx __attribute__((unused)))
+{
 
 	memset(cur_ls_path, 0, 40);
 	strcpy(cur_ls_path,"0:");
@@ -569,7 +574,8 @@ struct command __root_command fat_commands[] = {
 	}
 };
 
-void cmd_fs_setup(void) {
+void cmd_fs_setup(void)
+{
 	memset(cur_ls_path, 0, 40);
 	strcpy(cur_ls_path,"0:");
 	/* If memory was loaded okay, add plugins */

@@ -37,16 +37,16 @@ uint16_t EpsSendByte(uint16_t _ucValue, uint8_t _chipNum);
 
 ////////////////////////////////////////////////////////////////////////////////
 
-uint16_t TempAdValue[16][5];              		//电源板温度采样点
-uint16_t TempAdValueAver[16] = {0};			  	//电源板温度均值
-uint16_t ObcAdValue[16][5];              		//电源板电压采样点
-uint16_t ObcAdValueAver[16] = {0};				//电源板电压均值
-uint16_t EpsAdValue[32][5];   					//电源板电源获取量采样点
-uint16_t EpsAdValueAver[32] = {0};				//电源板电源获取量均值
+//uint16_t TempAdValue[16][5];
+//uint16_t TempAdValueAver[16] = {0};
+//uint16_t ObcAdValue[16][5];
+//uint16_t ObcAdValueAver[16] = {0};
+uint16_t EpsAdValue[32][5];   				//电源板电源获取量采样点
+uint16_t EpsAdValueAver[32];				//电源板电源获取量均值
 
-ObcAdcValue_t ObcAdData;
-uint8_t EpsCaliFlag = 0;
-int16_t EpsCaliTable[REG_NUM + UREG_NUM] = {0};
+//ObcAdcValue_t ObcAdData;
+//uint8_t EpsCaliFlag = 0;
+//int16_t EpsCaliTable[REG_NUM + UREG_NUM] = {0};
 
 //const int AD_Channel[16] = { CHANNEL_0, CHANNEL_1, CHANNEL_2, CHANNEL_3,
 //CHANNEL_4, CHANNEL_5, CHANNEL_6, CHANNEL_7,
@@ -97,7 +97,6 @@ const uint8_t EpsAdcMap[] =
 //电流量为1/(R*G),典型值R=0.051欧，G=25V/V;总线电流采样电阻R=0.051/2
 //转换关系为C=V*(1/R*G)
 //温度量为V = 0.75+0.01*(T-25);转换关系为T = (V-0.75)/0.01+25
-
 #if 1  //老版本EPS
 const float AdcDiv[] =
 {
@@ -105,11 +104,11 @@ const float AdcDiv[] =
       5.99,   5.99,   5.99,   5.99,   5.99,   5.99,//In_SunV[SV_NUM] 光电压
     0.7843, //Out_ComC 通信板电流
     1.5686, //Out_BusC 输出母线电流
-      6.10, //Out_BusV 输出母线电压
+      /*6.10*/6.065, //Out_BusV 输出母线电压
     0.7843, 0.7843, 0.7843, 0.7843, 0.7843, 0.7843,//Out_BranchC[REG_NUM] 可控输出的电流遥测
-    0.7843, 0.7843, 0.7843,         //Out_BranchC[+UREG_NUM] 母线保护输出电流遥测
-    1.0, 1.0, 1.0, 1.0,             //EpsTemp[EPS_TEMP_NUM] 电源控制板温度
-    1.0, 1.0 ,1.0, 1.0,             //BatTemp[BAT_TEMP_NUM] 电池板温度
+    0.7843, 0.7843, 0.7843, //Out_BranchC[+UREG_NUM] 母线保护输出电流遥测
+    1.0, 1.0, 1.0, 1.0, //EpsTemp[EPS_TEMP_NUM] 电源控制板温度
+    1.0, 1.0 ,1.0, 1.0, //BatTemp[BAT_TEMP_NUM] 电池板温度
 };
 #else
 const float AdcDiv[]=
@@ -138,17 +137,17 @@ CaliFactor_t EpsCaliMap[] =
 {
     { 1.0, 0 }, { 1.0, 0 }, { 1.0, 0 }, { 1.0, 0 }, { 1.0, 0 }, { 1.0, 0 }, //In_SunC[SV_NUM] 光电流
     { 1.0, 0 }, { 1.0, 0 }, { 1.0, 0 }, { 1.0, 0 }, { 1.0, 0 }, { 1.0, 0 }, //In_SunV[SV_NUM] 光电压
-    { 1.0 / 1.25, -1 }, //Out_ComC 通信板电流
+    { /*1.0 / 1.25*/1.0, 0 }, //Out_ComC 通信板电流
     { 1.0, 0 },         //Out_BusC 输出母线电流
     { 1.0, 0 },         //Out_BusV 输出母线电压
-    { 1.0 / 1.06, 0 }, { 1.0, 0 }, { 1.0, 0 }, { 1.0, -5 }, {1.0 / 1.0, -15 }, { 1.0, 0 }, //Out_BranchC[REG_NUM] 可控输出的电流遥测
+    /*{ 1.0 / 1.06, 0 }*/{ 1.0, 0 }, { 1.0, 0 }, { 1.0, 0 }, { 1.0, 0 }, { 1.0, 0 }, { 1.0, 0 }, //Out_BranchC[REG_NUM] 可控输出的电流遥测
     { 1.0, 0 }, { 1.0, 0 },{ 1.0 / 1.022, 0 },  //Out_BranchC[+UREG_NUM] 母线保护输出电流遥测
 };
 
 
 
 uint8_t EpsAdCorrectEnable = 1;
-EpsAdcValue_t EpsHouseKeeping;
+static EpsAdcValue_t EpsHouseKeeping;
 extern QueueHandle_t eps_hk_queue;
 uint16_t EpsTranOTCnt = 0;	//发送超时计数
 uint16_t EpsRevOTCnt = 0;   //接收超时计数
@@ -177,7 +176,7 @@ void InitSPI1(void)
 	SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;	// 片选控制方式：软件控制
 
 	// 设置波特率预分频系数 SPI_BaudRatePrescaler_128
-	SPI_InitStructure.SPI_BaudRatePrescaler = OBC_SPI_BAUD;	//OBC_SPI_BAUD
+	SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_128;	//OBC_SPI_BAUD
 	// 数据位传输次序：高位先传
 	SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
 	SPI_InitStructure.SPI_CRCPolynomial = 7;	// CRC多项式寄存器，复位后为7
@@ -213,12 +212,12 @@ void InitSPI1_GPIO(void)
 
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
 	// 配置片选线
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-	GPIO_InitStructure.GPIO_Pin = OBC_CS_PIN;
-	GPIO_Init(OBC_CS_GPIO, &GPIO_InitStructure);
+//	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+//	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+//	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+//	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+//	GPIO_InitStructure.GPIO_Pin = OBC_CS_PIN;
+//	GPIO_Init(OBC_CS_GPIO, &GPIO_InitStructure);
 
 //	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOF, ENABLE);
 //	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
@@ -243,7 +242,7 @@ void InitSPI1_GPIO(void)
 	GPIO_Init(EPS_CS2_GPIO, &GPIO_InitStructure);
 
 //	TEMP_CS_HIGH();
-	OBC_CS_HIGH();
+//	OBC_CS_HIGH();
 	EPS_CS1_HIGH();
 	EPS_CS2_HIGH();
 }
@@ -562,72 +561,73 @@ void AdDataFliter(uint16_t ad_table[][5], uint16_t* ad_aver_table,
 //	}
 //}
 
-EpsAdcValue_t* EpsAdCorrect(EpsAdcValue_t* p) //EPS通道相关量修正
-{
-	//103ͨ通道->4ͨ通道影响修正
-	int32_t x_temp;
-	int32_t y_temp;
-	uint8_t i;
-	x_temp = p->Out_BranchC[0] + p->Out_BranchC[1] + p->Out_BranchC[3];
-
-	if (x_temp > 25)
-		y_temp = (int32_t) ((float) (0.1637f * x_temp) + 26.87f);
-	else
-		y_temp = (int32_t) ((float) (1.24f * x_temp) + 1.6f);
-
-	p->Out_BranchC[4] = (uint16_t) (p->Out_BranchC[4] - y_temp);
-	p->Out_BranchC[4] = p->Out_BranchC[4] > 60000 ? 0 : p->Out_BranchC[4];
-
-
-//	 0->1  0.05743   0.5238
-//	 1->0
+//EpsAdcValue_t* EpsAdCorrect(EpsAdcValue_t* p) //EPS通道相关量修正
+//{
+//	//103ͨ通道->4ͨ通道影响修正
+//	int32_t x_temp;
+//	int32_t y_temp;
+//	uint8_t i;
+//	x_temp = p->Out_BranchC[0] + p->Out_BranchC[1] + p->Out_BranchC[3];
 //
-//	 c->6  0.03759  -0.1304
-//	 c->7,8,9 0.05761  0.2935
+//	if (x_temp > 25)
+//		y_temp = (int32_t) ((float) (0.1637f * x_temp) + 26.87f);
+//	else
+//		y_temp = (int32_t) ((float) (1.24f * x_temp) + 1.6f);
+//
+//	p->Out_BranchC[4] = (uint16_t) (p->Out_BranchC[4] - y_temp);
+//	p->Out_BranchC[4] = p->Out_BranchC[4] > 60000 ? 0 : p->Out_BranchC[4];
 //
 //
-//	 7,8,9->6 0.03759   -0.1304
-//	 7,8,9->c 0.04599   -0.1413
-//	 6->7,8,9  0.0386   2.225
+////	 0->1  0.05743   0.5238
+////	 1->0
+////
+////	 c->6  0.03759  -0.1304
+////	 c->7,8,9 0.05761  0.2935
+////
+////
+////	 7,8,9->6 0.03759   -0.1304
+////	 7,8,9->c 0.04599   -0.1413
+////	 6->7,8,9  0.0386   2.225
+////
+////	 6->c  0.03338   -0.8788
 //
-//	 6->c  0.03338   -0.8788
-
-	p->Out_BranchC[0] -= (int32_t) ((float) p->Out_BranchC[1] * 0.05743f
-			+ 0.5238f);
-	p->Out_BranchC[0] = p->Out_BranchC[0] > 60000 ? 0 : p->Out_BranchC[0];
-
-	p->Out_BranchC[1] -= (int32_t) ((float) p->Out_BranchC[0] * 0.05743f
-			+ 0.5238f);
-	p->Out_BranchC[1] = p->Out_BranchC[1] > 60000 ? 0 : p->Out_BranchC[1];
-
-	x_temp = p->Out_BranchC[7] + p->Out_BranchC[8] + p->Out_BranchC[9]
-			+ p->Out_BranchC[p->Out_ComC];
-	p->Out_BranchC[6] -= (int32_t) ((float) x_temp * 0.03759f - 0.1304f);
-	p->Out_BranchC[6] = p->Out_BranchC[6] > 60000 ? 0 : p->Out_BranchC[6];
-
-	x_temp = p->Out_BranchC[7] + p->Out_BranchC[8] + p->Out_BranchC[9];
-	x_temp = (int32_t) (((float) x_temp * 0.04599f - 0.1413f)
-			+ ((float) p->Out_BranchC[6] * 0.03338f - 0.8788f));
-	p->Out_ComC -= x_temp;
-	p->Out_ComC = p->Out_ComC > 60000 ? 0 : p->Out_ComC;
-
-	for (i = 7; i <= 9; i++)
-	{
-		x_temp = p->Out_BranchC[6] + p->Out_BranchC[7] + p->Out_BranchC[8]
-				+ p->Out_BranchC[9];
-		x_temp -= p->Out_BranchC[i];
-		x_temp = (int32_t) (((float) x_temp * 0.0386f + 2.225f)
-				+ ((float) p->Out_ComC * 0.05761f + 0.2935f));
-		p->Out_BranchC[i] -= x_temp;
-		p->Out_BranchC[i] = p->Out_BranchC[i] > 60000 ? 0 : p->Out_BranchC[i];
-	}
-
-	return p;
-}
+//	p->Out_BranchC[0] -= (int32_t) ((float) p->Out_BranchC[1] * 0.05743f
+//			+ 0.5238f);
+//	p->Out_BranchC[0] = p->Out_BranchC[0] > 60000 ? 0 : p->Out_BranchC[0];
+//
+//	p->Out_BranchC[1] -= (int32_t) ((float) p->Out_BranchC[0] * 0.05743f
+//			+ 0.5238f);
+//	p->Out_BranchC[1] = p->Out_BranchC[1] > 60000 ? 0 : p->Out_BranchC[1];
+//
+//	x_temp = p->Out_BranchC[7] + p->Out_BranchC[8] + p->Out_BranchC[9]
+//			+ p->Out_BranchC[p->Out_ComC];
+//	p->Out_BranchC[6] -= (int32_t) ((float) x_temp * 0.03759f - 0.1304f);
+//	p->Out_BranchC[6] = p->Out_BranchC[6] > 60000 ? 0 : p->Out_BranchC[6];
+//
+//	x_temp = p->Out_BranchC[7] + p->Out_BranchC[8] + p->Out_BranchC[9];
+//	x_temp = (int32_t) (((float) x_temp * 0.04599f - 0.1413f)
+//			+ ((float) p->Out_BranchC[6] * 0.03338f - 0.8788f));
+//	p->Out_ComC -= x_temp;
+//	p->Out_ComC = p->Out_ComC > 60000 ? 0 : p->Out_ComC;
+//
+//	for (i = 7; i <= 9; i++)
+//	{
+//		x_temp = p->Out_BranchC[6] + p->Out_BranchC[7] + p->Out_BranchC[8]
+//				+ p->Out_BranchC[9];
+//		x_temp -= p->Out_BranchC[i];
+//		x_temp = (int32_t) (((float) x_temp * 0.0386f + 2.225f)
+//				+ ((float) p->Out_ComC * 0.05761f + 0.2935f));
+//		p->Out_BranchC[i] -= x_temp;
+//		p->Out_BranchC[i] = p->Out_BranchC[i] > 60000 ? 0 : p->Out_BranchC[i];
+//	}
+//
+//	return p;
+//}
 
 
 //AD值转换为实际值
-void EpsAdToReal2(uint16_t* rec, EpsAdcValue_t* tar) {
+void EpsAdToReal2(uint16_t* rec, EpsAdcValue_t* tar)
+{
 
 	uint8_t i = 0;
 
@@ -639,9 +639,10 @@ void EpsAdToReal2(uint16_t* rec, EpsAdcValue_t* tar) {
         tar->In_SunV[i] = (uint16_t) (((float) (*(rec + EpsAdcMap[i+6]))) * AdcDiv[i+6]
                     * ADC_REF / ADC_FULL_SCALE * EpsCaliMap[i+6].k) + EpsCaliMap[i+6].b;
     }
-    /**
-     * 还差通信板电流转换公式
-     */
+
+    tar->Out_ComC = (uint16_t) (((float) (*(rec + EpsAdcMap[12]))) * AdcDiv[12]
+                    * ADC_REF / ADC_FULL_SCALE * EpsCaliMap[12].k) + EpsCaliMap[12].b;
+
     tar->Out_BusC  = (uint16_t) (((float) (*(rec + EpsAdcMap[13]))) * AdcDiv[13]
                     * ADC_REF / ADC_FULL_SCALE * EpsCaliMap[13].k) + EpsCaliMap[13].b;
 
@@ -662,38 +663,39 @@ void EpsAdToReal2(uint16_t* rec, EpsAdcValue_t* tar) {
 }
 
 
-//AD值转换为实际值
-EpsAdcValue_t* EpsAdToReal(uint16_t* rec, EpsAdcValue_t* tar) {
-	uint8_t i;
-	uint16_t *p;
-	int16_t *q;
-	uint16_t adc_temp;
-	p = (uint16_t*) tar;
-	q = (int16_t*) (&(tar->EpsTemp[0]));
+////AD值转换为实际值
+//EpsAdcValue_t* EpsAdToReal(uint16_t* rec, EpsAdcValue_t* tar) {
+//	uint8_t i;
+//	uint16_t *p;
+//	int16_t *q;
+//	uint16_t adc_temp;
+//	p = (uint16_t*) tar;
+//	q = (int16_t*) (&(tar->EpsTemp[0]));
+//
+//	for (i = 0; i < EPS_ADC_NUM - (EPS_TEMP_NUM + BAT_TEMP_NUM); i++) {
+//		adc_temp = (uint16_t) (((float) (*(rec + EpsAdcMap[i]))) * AdcDiv[i]
+//				* ADC_REF / ADC_FULL_SCALE * EpsCaliMap[i].k) + EpsCaliMap[i].b;
+//		*(p + i) = adc_temp > 60000 ? 0 : adc_temp;
+//
+////		if(*(p+i) < ZERO_DRIFT)		*(p+i) = 0; //出现零值漂移后直接置零
+//	}
+//
+//	for (i = 0; i < (EPS_TEMP_NUM + BAT_TEMP_NUM); i++) {
+//		*(q + i) = (int16_t) (((((float) (*(rec + EpsAdcMap[i + 24]))) * ADC_REF
+//				/ ADC_FULL_SCALE - 750) / 10) + 25);
+//	}
+//
+//	if (EpsAdCorrectEnable)
+//		EpsAdCorrect(tar); //转换修正
+//	return tar;
+//}
 
-	for (i = 0; i < EPS_ADC_NUM - (EPS_TEMP_NUM + BAT_TEMP_NUM); i++) {
-		adc_temp = (uint16_t) (((float) (*(rec + EpsAdcMap[i]))) * AdcDiv[i]
-				* ADC_REF / ADC_FULL_SCALE * EpsCaliMap[i].k) + EpsCaliMap[i].b;
-		*(p + i) = adc_temp > 60000 ? 0 : adc_temp;
-
-//		if(*(p+i) < ZERO_DRIFT)		*(p+i) = 0; //出现零值漂移后直接置零
-	}
-
-	for (i = 0; i < (EPS_TEMP_NUM + BAT_TEMP_NUM); i++) {
-		*(q + i) = (int16_t) (((((float) (*(rec + EpsAdcMap[i + 24]))) * ADC_REF
-				/ ADC_FULL_SCALE - 750) / 10) + 25);
-	}
-
-	if (EpsAdCorrectEnable)
-		EpsAdCorrect(tar); //转换修正
-	return tar;
-}
-
-void eps_start(void) {
+void eps_start(void)
+{
 	EpsAdStart();   // 电源控制板两个AD7490配置
 //	ObcAdStart();   // 星务板上一个AD7490配置
 //	TempAdStart();  // 电路图无此使能引脚
-	EpsCaliFlag = EPS_FLAG_ENTER;
+//	EpsCaliFlag = EPS_FLAG_ENTER;
 }
 
 //void eps_hk(void)
@@ -738,8 +740,8 @@ void eps_get_hk(EpsAdcValue_t *eps_hk)
     }
 
     AdDataFliter(EpsAdValue, EpsAdValueAver, 32);
-    EpsAdToReal(EpsAdValueAver, eps_hk);
-//    EpsAdToReal2(EpsAdValueAver, eps_hk);
+//    EpsAdToReal(EpsAdValueAver, eps_hk);
+    EpsAdToReal2(EpsAdValueAver, eps_hk);
 }
 
 

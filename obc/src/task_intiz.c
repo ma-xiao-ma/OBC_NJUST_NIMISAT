@@ -39,15 +39,19 @@
 #include "camera_805.h"
 #include "driver_debug.h"
 
-static FATFS fs; /* Work area (file system object) for logical drives */
 
 //extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
 
-//void task_initz(void *pvParameters __attribute__((unused)))
 void task_initz(void)
 {
+    extern uint8_t driver_debug_switch[DEBUG_ENUM_MAX+1];
+
+    driver_debug_switch[DEBUG_HK] = 1;
+
     /*控制开关IO口初始化*/
     bsp_InitSwitch();
+    /*姿控上电*/
+    EpsOutSwitch(OUT_EPS_S0, ENABLE);
 
 	Console_Usart_init(115200);
 
@@ -56,9 +60,6 @@ void task_initz(void)
 	vSerialInterfaceInit();
 
 #endif
-
-	/*姿控上电*/
-	EpsOutSwitch(OUT_EPS_S0, ENABLE);
 
 	Camera_805_Init();
 
@@ -86,14 +87,10 @@ void task_initz(void)
 	/*command initialize*/
 	command_init();
 
-extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
-	driver_debug_switch[DEBUG_HK] = 1;
-	/*Initialize SD card*/
-	SD_NVIC_Configuration();
-	f_mount(0,&fs);
-
 	/*use cpu flash to store the info*/
 	obc_argvs_recover();
+
+
 
 	/*house-keeping store to SD card*/
 	hk_list_init(&hk_list);
@@ -108,7 +105,6 @@ extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
     server_start_task(configMINIMAL_STACK_SIZE, tskIDLE_PRIORITY + 2);
     /*创建发送处理任务*/
     send_processing_start_task(configMINIMAL_STACK_SIZE, tskIDLE_PRIORITY + 2);
-
     /*创建路由任务*/
     router_start_task(configMINIMAL_STACK_SIZE*2, tskIDLE_PRIORITY + 1);
 
@@ -121,16 +117,10 @@ extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
     i2c_init(1, I2C_MASTER, 0x08, 60, 5, 5, i2c_rx_callback);
     pca9665_isr_init();
 
-	/*FSMC NorFlash 初始化
-	 * 容量：4MB*/
-	bsp_InitNorFlash();
-
 	/*采温芯片初始化*/
 	temp175_init();
 
-	extern void cmd_eps_setup(void);
 	cmd_eps_setup();
-	extern void cmd_dfl_setup(void);
 	cmd_dfl_setup();
 	extern void cmd_fs_setup(void);
 	cmd_fs_setup();

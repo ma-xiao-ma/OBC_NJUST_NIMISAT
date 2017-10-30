@@ -176,46 +176,26 @@ void SleepWorkMode(void)
 
 void eps_task(void *pvParameters __attribute__((unused)))
 {
-    static uint8_t ctime;
-
+    hk_collection_task_init();
     eps_start();
 
     vTaskDelay(5000);
 
     while (1)
     {
+//        obc_hk_task();
 
         eps_hk_task();
 
-//        ttc_hk_task();
+        ttc_hk_task();
 
-        dtb_hk_task();
+//        dtb_hk_task();
 
-        cam_hk_task();
+//        cam_hk_task();
 
-        adcs_hk_task();
+//        adcs_hk_task();
 
         vTaskDelay(2000);
-
-//        if (ctime++ > 10)
-//        {
-//
-//            ctime = 0;
-
-//            switch (Battery_Task())
-//            {
-//                case 0:
-//                    SleepWorkMode();
-//                    break;
-//                case 1:
-//                    NormalWorkMode();
-//                    break;
-//                case 2:
-//                    break;
-//                default:
-//                    break;
-//            }
-//        }
     }
 }
 
@@ -301,12 +281,12 @@ void OpenPanel_Task(void* param __attribute__((unused))) {
 	}
 }
 
-int Battery_Task(void)
+int Battery_Task(const EpsAdcValue_t *eps_hk)
 {
 
 	float BatteryVoltage = 0.0;
 
-	BatteryVoltage = EpsHouseKeeping.Out_BusV*0.001;
+	BatteryVoltage = eps_hk->Out_BusV * 0.001;
 
 	if (BatteryVoltage > Normal_Battery || BatteryVoltage < Abnormal_Battery)
 		return 1;

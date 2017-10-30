@@ -19,6 +19,9 @@
 #include "hk_arg.h"
 #include "obc_argvs_save.h"
 
+extern uint32_t hk_down_cnt;
+extern uint32_t hk_store_cnt;
+
 obc_save_t obc_save = {0};
 
 uint8_t obc_argvs_store(void) {
@@ -48,31 +51,54 @@ uint8_t obc_argvs_recover(void) {
 //	}
 //	res = flash_program(0, (uint8_t*)&obc_save, sizeof(obc_save), 1);
 
-	if(bsp_ReadCpuFlash(OBC_STORE_ADDR, (uint8_t*)&obc_save, sizeof(obc_save)) == 1) {
+	if(bsp_ReadCpuFlash(OBC_STORE_ADDR, (uint8_t*)&obc_save, sizeof(obc_save)) == 1)
+	{
 		obc_boot_count = 0;
 		obc_reset_time = 0;
 		antenna_status = 0;
 
 		return 1;
-	}else {
-		if(obc_save.obc_boot_count == 0xFFFFFFFF || obc_save.obc_boot_count == 0) {
+	}
+	else
+	{
+
+		if(obc_save.obc_boot_count == 0xFFFFFFFF || obc_save.obc_boot_count == 0)
+		{
 			obc_save.obc_boot_count = 1;
-		}else{
+		}
+		else
+		{
 			obc_save.obc_boot_count = obc_save.obc_boot_count + 1;
 		}
+
 		res = bsp_WriteCpuFlash(OBC_STORE_ADDR, (uint8_t*)&obc_save, sizeof(obc_save));
-		if(obc_save.obc_reset_time == 0xFFFFFFFF) {
+
+		if(obc_save.obc_reset_time == 0xFFFFFFFF)
+		{
 			obc_save.obc_reset_time = 0;
 		}
 
-		if(obc_save.antenna_status != 0 && obc_save.antenna_status != 1 && obc_save.antenna_status != 2) {
+		if(obc_save.antenna_status != 0 && obc_save.antenna_status != 1 && obc_save.antenna_status != 2)
+		{
 			obc_save.antenna_status = 0;
 		}
+
+        if(obc_save.hk_down_cnt == 0xFFFFFFFF)
+        {
+            obc_save.hk_down_cnt = 0;
+        }
+
+        if(obc_save.hk_store_cnt == 0xFFFFFFFF)
+        {
+            obc_save.hk_store_cnt = 0;
+        }
 	}
 
 	obc_boot_count = obc_save.obc_boot_count;
 	obc_reset_time = obc_save.obc_reset_time;
 	antenna_status = obc_save.antenna_status;
+	hk_down_cnt = obc_save.hk_down_cnt;
+	hk_store_cnt = obc_save.hk_store_cnt;
 
 	return res;
 }

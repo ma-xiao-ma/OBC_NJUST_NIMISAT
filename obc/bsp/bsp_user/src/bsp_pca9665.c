@@ -27,6 +27,9 @@
 /** I2C master mode lock */
 xSemaphoreHandle i2c_lock = NULL;
 
+/** I2C error counter */
+unsigned int i2c_error_count;
+
 /** Registers */
 #define I2CSTA							0
 #define INDPTR							0
@@ -618,6 +621,7 @@ void __attribute__((noinline)) pca9665_dsr(portBASE_TYPE * task_woken) {
 		default:
 
 isr_error:
+            i2c_error_count ++;
 			/* Soft reset the device */
 			driver_debug(DEBUG_I2C, "I2C ERR 0x%02X\n\r", state);
 			pca9665_init_registers(handle);

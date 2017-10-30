@@ -13,6 +13,8 @@
 #include "semphr.h"
 #include "cube_com.h"
 #include "QB50_mem.h"
+#include "if_jlgvu.h"
+#include "hexdump.h"
 
 #include "if_downlink_vu.h"
 
@@ -50,10 +52,10 @@ int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len)
         FrameDataSize = (RemainSize < DOWNLINK_MTU) ? RemainSize : DOWNLINK_MTU;
         memcpy(downlink->dat, pdata, FrameDataSize);
 
-        *(uint32_t *)(&downlink->dat[ROUTE_HEAD_SIZE+FrameDataSize]) =
+        *(uint32_t *)(&downlink->dat[FrameDataSize]) =
                 crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE+FrameDataSize);
 
-        ret = vu_transmitter_send_frame(downlink, FrameDataSize+DOWNLINK_OVERHEAD, &TxRemainBufSize);
+        ret = vu_transmitter_send_frame(downlink, FrameDataSize + DOWNLINK_OVERHEAD, &TxRemainBufSize);
 
         /**如果传输成功，且通信机成功将消息加入发送缓冲区，发送指针后移 */
         if ((ret == E_NO_ERR) && (TxRemainBufSize != 0xFF))
@@ -88,11 +90,12 @@ int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len)
 /**
  * 图像下行接口，由OBC本地调用
  *
- * @param image_data
- * @param image_len
- * @return
+ * @param image_data 图像数据指针
+ * @param image_len 图像长度
+ * @param start_pack 图像起始包号
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_isis_image_downlink(const void * image_data, uint32_t image_len)
+int vu_isis_image_downlink(const void * image_data, uint32_t image_len, uint16_t start_pack)
 {
     int ret;
     uint8_t Error, TxRemainBufSize, RemainSize = image_len;
@@ -109,17 +112,17 @@ int vu_isis_image_downlink(const void * image_data, uint32_t image_len)
 
     ImagePacket_t * packet = (ImagePacket_t *)downlink->dat;
 
-    packet->PacketID = 0;
+    packet->PacketID = start_pack;
     do
     {
         /**组图像数据包*/
         packet->PacketSize = (RemainSize < IMAGE_PACK_MAX_SIZE) ? RemainSize : IMAGE_PACK_MAX_SIZE;
-        memcpy(packet->ImageData, image_data, packet->PacketSize);
+        memcpy(packet->ImageData, image_data, IMAGE_PACK_MAX_SIZE);
 
-        *(uint32_t *)(&downlink->dat[ROUTE_HEAD_SIZE+IMAGE_PACK_HEAD_SIZE+packet->PacketSize]) =
-                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE+IMAGE_PACK_HEAD_SIZE+packet->PacketSize);
+        *(uint32_t *)(&downlink->dat[IMAGE_PACK_HEAD_SIZE + packet->PacketSize]) =
+                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE + IMAGE_PACK_HEAD_SIZE + packet->PacketSize);
 
-        ret = vu_transmitter_send_frame(downlink, packet->PacketSize+IMAGE_DOWNLINK_OVERHEAD, &TxRemainBufSize);
+        ret = vu_transmitter_send_frame(downlink, packet->PacketSize + IMAGE_DOWNLINK_OVERHEAD, &TxRemainBufSize);
 
         /**如果传输成功，且通信机成功将消息加入发送缓冲区，发送指针后移 */
         if ((ret == E_NO_ERR) && (TxRemainBufSize != 0xFF))
@@ -168,6 +171,7 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
 
     while(1)
     {
+        vTaskDelay(500);
         /**获取接收机缓冲区帧计数*/
         if (vu_receiver_get_frame_num(&frame_num) != E_NO_ERR)
             continue;
@@ -213,7 +217,7 @@ static void vu_isis_downlink_task(void *para)
      * 访问相机接收缓冲区，需要加锁
      */
     if(request->tpye == CAM_IMAGE)
-        vu_isis_image_downlink(request->pdata, request->data_len);
+        vu_isis_image_downlink(request->pdata, request->data_len, request->start_pack);
     /**
      * 下行完毕，解锁
      */
@@ -226,15 +230,17 @@ static void vu_isis_downlink_task(void *para)
  *
  * @param pdata 图像数据指针
  * @param len 图像数据字节数
- * @return E_NO_ERR正常
+ * @param start_pack 图像起始包号
+ * @return E_NO_ERR 正常
  */
-int image_whole_download(void *pdata, uint32_t len)
+int image_whole_download(void *pdata, uint32_t len, uint16_t start_pack)
 {
     static downlink_request request;
 
     request.tpye = CAM_IMAGE;
     request.pdata = pdata;
     request.data_len = len;
+    request.start_pack = start_pack;
 
     int ret = xTaskCreate(vu_isis_downlink_task, "IMG", configMINIMAL_STACK_SIZE, &request, tskIDLE_PRIORITY + 3, NULL);
 
@@ -307,5 +313,82 @@ int vu_isis_router_downlink(route_packet_t *packet)
     qb50Free(packet);
     xSemaphoreGive(i2c_lock);
     return E_NO_ERR;
+}
+
+
+/**
+ * 解理工通信机上行接收任务（测试）
+ *
+ * @param para 没用
+ */
+void vu_jlg_uplink_task(void *para __attribute__((unused)))
+{
+    static uint16_t frame_num;
+
+    while(1)
+    {
+        vTaskDelay(500);
+
+        /**获取接收机缓冲区帧计数*/
+        if (vu_get_frame_num(&frame_num) != E_NO_ERR)
+            continue;
+
+        if (frame_num == 0)
+            continue;
+
+//        /**若缓冲区不为空，则接收帧到路由器*/
+//        if (vu_router_get_frame() != E_NO_ERR)
+//            continue;
+        rsp_frame *frame = qb50Malloc(sizeof(rsp_frame)+/*ISIS_RX_MTU*/249);
+
+        if( vu_get_frame(frame, /*ISIS_RX_MTU*/249) == E_NO_ERR)
+        {
+//            printf("TM Item\t\t\tRaw Value\tActual value:\r\n");
+//            printf("********************************************************\r\n");
+//            printf("DopplerOffset:\t\t%u\t\t%.4f Hz\n"
+//                   "RSSI:\t\t\t%u\t\t%.4f dBm\n",
+//                    frame->DopplerOffset, VU_SDO_Hz(frame->DopplerOffset),
+//                    frame->RSSI, VU_RSS_dBm(frame->RSSI)
+//                  );
+//            printf("\n\n");
+//
+            printf("Len: %u bytes.\n", frame->DateSize);
+
+            if (frame->DateSize /*!= ISIS_RX_MTU*/ > 249 || frame->DateSize == 0 )
+            {
+                printf("ERROR: Rx length!!!");
+            }
+            else
+            {
+
+                hex_dump( frame->Data, frame->DateSize );
+//                for(uint32_t i=0; i<frame->DateSize; i++)
+//                    printf("0x%02x ", frame->Data[i]);
+//                printf("\r\n");
+            }
+            printf("\n\n");
+        }
+
+        qb50Free(frame);
+
+        /**通信机接收上行消息计数加1*/
+        vu_rx_count++;
+
+        /**成功接收后移除此帧*/
+        if (vu_remove_frame() != E_NO_ERR)
+        {
+            for (uint8_t repeat_time = 0; repeat_time < 5; repeat_time++)
+            {
+                if (vu_remove_frame() == E_NO_ERR)
+                    break;
+
+                if (repeat_time == 5)
+                {
+                    vu_software_reset();
+                    vTaskDelay(50 / portTICK_PERIOD_MS);
+                }
+            }
+        }
+    }
 }
 

@@ -4,7 +4,11 @@
 #include "stm32f4xx.h"
 
 #include "bsp_fsmc_sram.h"
+#include "bsp_nor_flash.h"
+#include "ff.h"
+#include "bsp_sdio_sd.h"
 #include "bsp_reset.h"
+
 
 // ---------------------------------------------------------------------------- //
 
@@ -18,6 +22,8 @@ extern unsigned int __data_regions_array_start;
 extern unsigned int __data_regions_array_end;
 extern unsigned int __bss_regions_array_start;
 extern unsigned int __bss_regions_array_end;
+
+static FATFS fs; /* Work area (file system object) for logical drives */
 
 extern void main (void);
 void _start (void);
@@ -54,6 +60,13 @@ _start (void)
     /*FSMC SRAM 初始化
      *  容量：2MB*/
     bsp_InitExtSRAM();
+    /*FSMC NorFlash 初始化
+     * 容量：4MB*/
+    bsp_InitNorFlash();
+
+    /*初始化micro SD卡*/
+    SD_NVIC_Configuration();
+    FRESULT result = f_mount(0,&fs);
 
 	// Copy the data sections from flash to SRAM.
     for (unsigned int* p = &__data_regions_array_start;

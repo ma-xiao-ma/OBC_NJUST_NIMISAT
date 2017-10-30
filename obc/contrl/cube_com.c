@@ -577,91 +577,91 @@ void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 
         case CAM_WORK_MODE_SET:
 
-            if(Camera_Work_Mode_Set(pcmd_cam->TransMode, pcmd_cam->WorkMode,
-                    pcmd_cam->AutoExpo, pcmd_cam->ImageId))
-            {
-                result = 1;
-            }
-            else
-            {
-                result = 0;
-            }
+//            if(Camera_Work_Mode_Set(pcmd_cam->TransMode, pcmd_cam->WorkMode,
+//                    pcmd_cam->AutoExpo, pcmd_cam->ImageId))
+//            {
+//                result = 1;
+//            }
+//            else
+//            {
+//                result = 0;
+//            }
 
             obc_cmd_ack(cmd_id, result);
             break;
         case DOWN_IMAGE_INFO_FALSH:
 
-            if(xImageInfoDownload(1, 0) == 0)
-            {
-                result = 1;
-            }
-            else
-            {
-                result = 0;
-            }
-
-            obc_cmd_ack(cmd_id, result);
+//            if(xImageInfoDownload(1, 0) == 0)
+//            {
+//                result = 1;
+//            }
+//            else
+//            {
+//                result = 0;
+//            }
+//
+//            obc_cmd_ack(cmd_id, result);
             break;
         case DOWN_IMAGE_INFO_TF:
 
-            if(xImageInfoDownload(0, pcmd_cam->ImageId) == 0)
-            {
-                result = 1;
-            }
-            else
-            {
-                result = 0;
-            }
-
-            obc_cmd_ack(cmd_id, result);
+//            if(xImageInfoDownload(0, pcmd_cam->ImageId) == 0)
+//            {
+//                result = 1;
+//            }
+//            else
+//            {
+//                result = 0;
+//            }
+//
+//            obc_cmd_ack(cmd_id, result);
             break;
         case DOWN_IMAGE_FLASH_WHOLE:
 
-            opt.is_sd = 0;
-            opt.is_single = 0;
-
-            if(xImageDownload(opt, 0, 0) != 0)
-                result = 0;
-            else
-                result = 1;
-
-            obc_cmd_ack(cmd_id, result);
+//            opt.is_sd = 0;
+//            opt.is_single = 0;
+//
+//            if(xImageDownload(opt, 0, 0) != 0)
+//                result = 0;
+//            else
+//                result = 1;
+//
+//            obc_cmd_ack(cmd_id, result);
             break;
         case DOWN_IMAGE_FALSH_SINGLE:
 
-            opt.is_sd = 0;
-            opt.is_single = 1;
-
-            if(xImageDownload(opt, 0, pcmd_cam->PacketId) != 0)
-                result = 0;
-            else
-                result = 1;
-
-            obc_cmd_ack(cmd_id, result);
+//            opt.is_sd = 0;
+//            opt.is_single = 1;
+//
+//            if(xImageDownload(opt, 0, pcmd_cam->PacketId) != 0)
+//                result = 0;
+//            else
+//                result = 1;
+//
+//            obc_cmd_ack(cmd_id, result);
             break;
         case DOWN_IMAGE_TF_WHOLE:
 
-            opt.is_sd = 1;
-            opt.is_single = 0;
-
-            if(xImageDownload(opt, pcmd_cam->ImageId, 0) != 0)
-                result = 0;
-            else
-                result = 1;
-
-            obc_cmd_ack(cmd_id, result);
+//            opt.is_sd = 1;
+//            opt.is_single = 0;
+//
+//            if(xImageDownload(opt, pcmd_cam->ImageId, 0) != 0)
+//                result = 0;
+//            else
+//                result = 1;
+//
+//            obc_cmd_ack(cmd_id, result);
             break;
         case DOWN_IMAGE_TF_SINGLE:
 
-            opt.is_sd = 1;
-            opt.is_single = 1;
-
-            if(xImageDownload(opt, pcmd_cam->ImageId, pcmd_cam->PacketId) != 0)
-                result = 0;
-            else
-                result = 1;
-
-            obc_cmd_ack(cmd_id, result);
+//            opt.is_sd = 1;
+//            opt.is_single = 1;
+//
+//            if(xImageDownload(opt, pcmd_cam->ImageId, pcmd_cam->PacketId) != 0)
+//                result = 0;
+//            else
+//                result = 1;
+//
+//            obc_cmd_ack(cmd_id, result);
             break;
         case CAM_POWER_ON:
 

@@ -30,6 +30,34 @@ typedef struct
     uint8_t tpye;
     void * pdata;
     uint32_t data_len;
+    uint16_t start_pack;
 } downlink_request;
+
+/**
+ * ISIS通信机下行接口函数，由OBC本地调用
+ *
+ * @param type 下行消息类型
+ * @param pdata 下行数据指针
+ * @param len 下行数据字节数
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len);
+
+/**
+ * 下行整幅图片接口函数
+ *
+ * @param pdata 图像数据指针
+ * @param len 图像数据字节数
+ * @param start_pack 图像起始包号
+ * @return E_NO_ERR 正常
+ */
+int image_whole_download(void *pdata, uint32_t len, uint16_t start_pack);
+
+/**
+ * 解理工通信机上行接受任务
+ *
+ * @param para 没用
+ */
+void vu_jlg_uplink_task(void *para __attribute__((unused)));
 
 #endif /* CONTRL_IF_DOWNLINK_VU_H_ */

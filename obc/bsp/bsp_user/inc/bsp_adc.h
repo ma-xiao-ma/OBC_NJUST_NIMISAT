@@ -36,11 +36,11 @@
 //#define TEMP_CS_HIGH()     	TEMP_CS_GPIO->BSRRL = TEMP_CS_PIN
 
 
-#define OBC_CS_GPIO		    GPIOB			//OBC板模拟采样片选
-#define OBC_CS_PIN			GPIO_Pin_1
-#define OBC_CS_LOW()       	OBC_CS_GPIO->BSRRH = OBC_CS_PIN
-#define OBC_CS_HIGH()      	OBC_CS_GPIO->BSRRL = OBC_CS_PIN
-#define OBC_SPI_BAUD		SPI_BaudRatePrescaler_128
+//#define OBC_CS_GPIO		    GPIOB			//OBC板模拟采样片选
+//#define OBC_CS_PIN			GPIO_Pin_1
+//#define OBC_CS_LOW()       	OBC_CS_GPIO->BSRRH = OBC_CS_PIN
+//#define OBC_CS_HIGH()      	OBC_CS_GPIO->BSRRL = OBC_CS_PIN
+//#define OBC_SPI_BAUD		SPI_BaudRatePrescaler_128
 
 
 #define EPS_CS1_GPIO		GPIOA			//EPS板模拟采样片选
@@ -57,25 +57,25 @@
 
 #define EPS_AD_CS1          0x01			//OBC板模拟采样极值
 #define EPS_AD_CS2          0x02
-#define OBC_AD_CS1          0x03
-#define TEMP_AD_CS1			0x04
+//#define OBC_AD_CS1          0x03
+//#define TEMP_AD_CS1			0x04
 
 
 
-#define SUN_NUM				6
-#define OBC_TEMP_NUM		2
-#define UN_USE_NUM			6
+//#define SUN_NUM				6
+//#define OBC_TEMP_NUM		2
+//#define UN_USE_NUM			6
 
 //#define OBC_ADC_NUM			16
 
-typedef struct
-{
-	uint16_t	InSunSensorV[SUN_NUM];
-	uint16_t 	InObc5V;
-	uint16_t 	InObc3V3;
-	int16_t 	ObcTemp[OBC_TEMP_NUM];
-	uint16_t	InAdcRes[UN_USE_NUM];
-}ObcAdcValue_t;
+//typedef struct
+//{
+//	uint16_t	InSunSensorV[SUN_NUM];
+//	uint16_t 	InObc5V;
+//	uint16_t 	InObc3V3;
+//	int16_t 	ObcTemp[OBC_TEMP_NUM];
+//	uint16_t	InAdcRes[UN_USE_NUM];
+//}ObcAdcValue_t;
 
 typedef struct CaliFactor_t
 {
@@ -97,12 +97,12 @@ typedef struct EpsAdcValue_t
 } EpsAdcValue_t;
 
 
-extern EpsAdcValue_t EpsHouseKeeping;
+//extern EpsAdcValue_t EpsHouseKeeping;
 
 void bsp_InitSPI1(void);
 
-void EpsAdToReal2(uint16_t* rec, EpsAdcValue_t* tar);
-void EpsAdCalibration(void);
+//void EpsAdToReal2(uint16_t* rec, EpsAdcValue_t* tar);
+//void EpsAdCalibration(void);
 
 /**
  *获取电源系统遥测值，由采集任务调用
@@ -112,7 +112,7 @@ void EpsAdCalibration(void);
 void eps_get_hk(EpsAdcValue_t *eps_hk);
 
 void eps_start(void);
-void eps_hk(void);
+
 void cmd_eps_setup(void);
 
 
