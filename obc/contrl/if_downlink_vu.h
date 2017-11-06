@@ -7,11 +7,6 @@
 #ifndef CONTRL_IF_DOWNLINK_VU_H_
 #define CONTRL_IF_DOWNLINK_VU_H_
 
-#include "if_trxvu.h"
-#include "route.h"
-#include "camera_805.h"
-#include "FreeRTOS.h"
-
 #define DOWNLINK_CRC_SIZE   4
 #define DOWNLINK_OVERHEAD (ROUTE_HEAD_SIZE + DOWNLINK_CRC_SIZE)
 #define DOWNLINK_MTU (ISIS_MTU - DOWNLINK_OVERHEAD)
@@ -59,5 +54,12 @@ int image_whole_download(void *pdata, uint32_t len, uint16_t start_pack);
  * @param para 没用
  */
 void vu_jlg_uplink_task(void *para __attribute__((unused)));
+
+/**
+ * ISIS通信机上行轮询任务
+ *
+ * @param para 任务参数，没有用到
+ */
+void vu_isis_uplink_task(void *para __attribute__((unused)));
 
 #endif /* CONTRL_IF_DOWNLINK_VU_H_ */

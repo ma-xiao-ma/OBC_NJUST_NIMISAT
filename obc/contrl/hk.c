@@ -744,39 +744,28 @@ static int ttc_get_hk(vu_isis_hk_t *ttc)
     ret = vu_transmitter_get_state(&ttc->tx_state);
     if (ret != E_NO_ERR)
         return ret;
-//    ret = vu_receiver_get_uptime(&ttc->ru_uptime);
-//    if (ret != E_NO_ERR)
-//        return ret;
 
-//    vTaskDelay(2000);
+    ret = vu_receiver_get_uptime(&ttc->ru_uptime);
+    if (ret != E_NO_ERR)
+        return ret;
 
     ret = vu_receiver_measure_tm(&ttc->ru_curt);
     if (ret != E_NO_ERR)
         return ret;
 
-//    vTaskDelay(2000);
-
     vu_isis_get_receiving_tm(&ttc->ru_last);
 
-
-//    ret = vu_transmitter_get_uptime(&ttc->tu_uptime);
-//    if (ret != E_NO_ERR)
-//        return ret;
-
-//    vTaskDelay(2000);
+    ret = vu_transmitter_get_uptime(&ttc->tu_uptime);
+    if (ret != E_NO_ERR)
+        return ret;
 
     ret = vu_transmitter_measure_tm(&ttc->tu_curt);
     if (ret != E_NO_ERR)
         return ret;
 
-//    vTaskDelay(2000);
-
     ret = vu_transmitter_get_last_tm(&ttc->tu_last);
     if (ret != E_NO_ERR)
         return ret;
-
-//    vTaskDelay(2000);
-
 
     return E_NO_ERR;
 }
@@ -851,6 +840,18 @@ static int cam_get_hk(cam_805_hk_t *cam_hk)
      * 需要完成相机驱动后添加对应的
      * 遥测获取指令
      */
+    Camera_Temp_Get(0x01, &cam_hk->point_1_temp);
+
+    Camera_Temp_Get(0x02, &cam_hk->point_2_temp);
+
+    Camera_Temp_Get(0x03, &cam_hk->point_3_temp);
+
+    Camera_Exposure_Time_Read(&cam_hk->exposure_time);
+
+    Camera_Gain_Get(&cam_hk->gain);
+
+    Camera_Work_Mode_Get(&cam_hk->work_mode);
+
     return E_NO_ERR;
 }
 
@@ -916,7 +917,7 @@ int adcs_hk_get_peek(adcs805_hk_t *adcs)
 /**
  * 遥测采集任务初始化 创建6个队列， 需要在初始化函数中调用
  */
-void hk_collection_task_init(void)
+void hk_collect_task_init(void)
 {
 
     if (obc_hk_queue == NULL)

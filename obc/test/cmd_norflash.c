@@ -20,7 +20,7 @@
 #include "task.h"
 
 
-   /*经测试前8K无法写入*/
+   /*经测试前 8K half-word(16K Byte)无法写入 */
 int norflash_write_handler(struct command_context * context) {
 
 	char * args = command_args(context);

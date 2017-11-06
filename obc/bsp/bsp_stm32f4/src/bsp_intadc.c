@@ -54,7 +54,7 @@ static u16 Get_Adc1(u8 ch)
 
     ADC_SoftwareStartConv(ADC1);
 
-    while(!ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC ));
+    while(!ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC));
 
     return ADC_GetConversionValue(ADC1);
 }

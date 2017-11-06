@@ -166,6 +166,11 @@ void Camera_805_USART_Init(void)
     USART_DMACmd(CAMERA_PORT_NAME, USART_DMAReq_Tx | USART_DMAReq_Rx, ENABLE);
 }
 
+/**
+ *图像存储映射表恢复
+ *
+ */
+void img_store_block_recover(void);
 
 void Camera_805_Init(void)
 {
@@ -903,8 +908,11 @@ void img_store_block_recover(void)
     /* 遍历存储表 */
     for (int i = 0; i < FLASH_IMG_NUM; i++)
     {
-        FSMC_NOR_ReadBuffer((uint16_t *)image_store_falsh[i].image_id, get_addr_via_sector_num(image_store_falsh[i].falsh_sector),
-                    sizeof(uint32_t));
+        FSMC_NOR_ReadBuffer((uint16_t *)&image_store_falsh[i].image_id, get_addr_via_sector_num(image_store_falsh[i].falsh_sector),
+                    sizeof(uint32_t)/2);
+
+        if (image_store_falsh[i].image_id == 0xFFFFFFFF)
+            image_store_falsh[i].image_id = 0;
     }
 }
 

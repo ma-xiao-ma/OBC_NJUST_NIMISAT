@@ -174,26 +174,31 @@ void SleepWorkMode(void)
 //	}
 //}
 
-void eps_task(void *pvParameters __attribute__((unused)))
+void hk_collect_task(void *pvParameters __attribute__((unused)))
 {
-    hk_collection_task_init();
+
     eps_start();
+    hk_collect_task_init();
 
     vTaskDelay(5000);
 
     while (1)
     {
-//        obc_hk_task();
+        obc_hk_task();
 
         eps_hk_task();
 
         ttc_hk_task();
 
-//        dtb_hk_task();
+        /* 若数传上电，则获取遥测值 */
+        if (OUT_SW_DTB_5V_PIN())
+            dtb_hk_task();
 
-//        cam_hk_task();
+        /* 若相机上电，则获取遥测值 */
+        if (OUT_SW_CAMERA_10W_PIN() && OUT_SW_CAMERA_5W_PIN())
+            cam_hk_task();
 
-//        adcs_hk_task();
+        adcs_hk_task();
 
         vTaskDelay(2000);
     }
@@ -693,79 +698,79 @@ void ObcUnpacketTask(void *pvPara)
 //}
 
 
-void isis_read_task(void *para __attribute__((unused))) {
-
-    uint16_t frames_num             = 0;
-    uint8_t * pCRC                  = NULL;
-    uplink_content_t *pdata         = NULL;
-    uint32_t cmd_crc                = 0;
-    uint8_t data_len                = 0;
-    uint8_t pname[]                 = "CMD0";
-
-    while(1) {
-        /* 获取ICD接收指令计数 */
-        I2C_ICD_read_countofframe((uint8_t*)&frames_num);
-        vTaskDelay(1000);
-
-        if(frames_num == 0)
-        {
-            continue;
-        }
-        /* 清空ICD接收指令计数 */
-        frames_num = 0;
-
-        /* 为每包数据申请内存 */
-        pdata = (uplink_content_t *)qb50Malloc(I2C_MTU);
-
-        /* 从ICD收地面发来的数据包 */
-        I2C_ICD_get_frame_stable((uint8_t*)pdata);
-        vTaskDelay(1000);
-        /* 若读数据失败 */
-        if(I2C_ICD_get_frame_stable((uint8_t*)pdata) != E_NO_ERR)
-        {
-            qb50Free(pdata);
-            continue;
-        }
-        /* 清空ICD接收缓冲区，为接收下一包数据做准备 */
-        I2C_ICD_sweep_butter();
-
-        pCRC = (uint8_t *)&pdata->Packet;
-        data_len = pdata->Packet.DataLength - 5; //除了4字节的CRC本身和1字节的Tail,其他数据都参与
-
-        /*CRC校验*/
-        cmd_crc = crc32_memory((uint8_t *)pCRC, data_len);
-        if(cmd_crc != *((uint32_t *)&pCRC[data_len]))
-        {
-            I2C_ICD_sweep_butter();
-            qb50Free(pdata);
-            continue;
-        }
-        /*收到正确地面正确指令，设开始下行标志为1，启动遥测数据下行*/
-//        up_hk_down_cmd = 1;
-        switch(pdata->Packet.Id)
-        {
-            case 1:
-                pname[3]++;
-                /* 如果任务创建失败，则跳出switch语句，释放内存 */
-                if(xTaskCreate(ObcUnpacketTask, (const signed char*)pname, configMINIMAL_STACK_SIZE * 2,
-                        pdata, tskIDLE_PRIORITY + 4, NULL) != pdPASS)
-                {
-                    break;
-                }
-                /* 如果任务创建成功则在任务中释放内存，进行下一轮循环 */
-                continue;
-            case 2:
-                i2c_master_transaction(OBC_TO_ADCS_HANDLE, ADCS_I2C1_ADDR, &pdata->Packet.Id,
-                        pdata->Packet.DataLength, NULL, 0, 1000);
-                break;
-            default:
-                break;
-        }
-
-        I2C_ICD_sweep_butter();
-
-        qb50Free(pdata);
-    }
-}
+//void isis_read_task(void *para __attribute__((unused))) {
+//
+//    uint16_t frames_num             = 0;
+//    uint8_t * pCRC                  = NULL;
+//    uplink_content_t *pdata         = NULL;
+//    uint32_t cmd_crc                = 0;
+//    uint8_t data_len                = 0;
+//    uint8_t pname[]                 = "CMD0";
+//
+//    while(1) {
+//        /* 获取ICD接收指令计数 */
+//        I2C_ICD_read_countofframe((uint8_t*)&frames_num);
+//        vTaskDelay(1000);
+//
+//        if(frames_num == 0)
+//        {
+//            continue;
+//        }
+//        /* 清空ICD接收指令计数 */
+//        frames_num = 0;
+//
+//        /* 为每包数据申请内存 */
+//        pdata = (uplink_content_t *)qb50Malloc(I2C_MTU);
+//
+//        /* 从ICD收地面发来的数据包 */
+//        I2C_ICD_get_frame_stable((uint8_t*)pdata);
+//        vTaskDelay(1000);
+//        /* 若读数据失败 */
+//        if(I2C_ICD_get_frame_stable((uint8_t*)pdata) != E_NO_ERR)
+//        {
+//            qb50Free(pdata);
+//            continue;
+//        }
+//        /* 清空ICD接收缓冲区，为接收下一包数据做准备 */
+//        I2C_ICD_sweep_butter();
+//
+//        pCRC = (uint8_t *)&pdata->Packet;
+//        data_len = pdata->Packet.DataLength - 5; //除了4字节的CRC本身和1字节的Tail,其他数据都参与
+//
+//        /*CRC校验*/
+//        cmd_crc = crc32_memory((uint8_t *)pCRC, data_len);
+//        if(cmd_crc != *((uint32_t *)&pCRC[data_len]))
+//        {
+//            I2C_ICD_sweep_butter();
+//            qb50Free(pdata);
+//            continue;
+//        }
+//        /*收到正确地面正确指令，设开始下行标志为1，启动遥测数据下行*/
+////        up_hk_down_cmd = 1;
+//        switch(pdata->Packet.Id)
+//        {
+//            case 1:
+//                pname[3]++;
+//                /* 如果任务创建失败，则跳出switch语句，释放内存 */
+//                if(xTaskCreate(ObcUnpacketTask, (const signed char*)pname, configMINIMAL_STACK_SIZE * 2,
+//                        pdata, tskIDLE_PRIORITY + 4, NULL) != pdPASS)
+//                {
+//                    break;
+//                }
+//                /* 如果任务创建成功则在任务中释放内存，进行下一轮循环 */
+//                continue;
+//            case 2:
+//                i2c_master_transaction(OBC_TO_ADCS_HANDLE, ADCS_I2C1_ADDR, &pdata->Packet.Id,
+//                        pdata->Packet.DataLength, NULL, 0, 1000);
+//                break;
+//            default:
+//                break;
+//        }
+//
+//        I2C_ICD_sweep_butter();
+//
+//        qb50Free(pdata);
+//    }
+//}
 
 

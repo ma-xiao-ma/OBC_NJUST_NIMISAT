@@ -171,7 +171,7 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
 
     while(1)
     {
-        vTaskDelay(500);
+        vTaskDelay(1000);
         /**获取接收机缓冲区帧计数*/
         if (vu_receiver_get_frame_num(&frame_num) != E_NO_ERR)
             continue;

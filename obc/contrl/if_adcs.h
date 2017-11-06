@@ -19,7 +19,7 @@
 #define ADCS_I2C0_ADDR          0x06
 #define ADCS_I2C1_ADDR          0x05
 
-int adcs_get_hk(const void *hk, uint16_t timeout);
+int adcs_get_hk(void *hk, uint16_t timeout);
 
 int adcs_send_mode(uint8_t eps_mode);
 

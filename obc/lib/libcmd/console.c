@@ -380,6 +380,7 @@ void debug_console(void *pvParameters __attribute__((unused))) {
 	while (1) {
 		c = console_getc();
 
+
 		switch (c) {
 		case CONTROL('A'):
 			console_beginning_of_line();

@@ -11,6 +11,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "camera_805.h"
+
 
 enum BOOL {INVALID=0,VALID=1};
 
@@ -89,23 +91,21 @@ typedef struct __attribute__((packed)) {
 	uint32_t 	upAdcsConPDZ;
 }ctrl_pdz_t;
 
-typedef struct __attribute__((packed))
+
+typedef struct __attribute__((packed)) {
+    uint32_t    img_id;
+    uint16_t    packet_id;
+} img_down_para;
+
+typedef union __attribute__((packed))
 {
-    ctrl_motor_t    cmd;
-    union
-    {
-        uint32_t    CamPara;
-        struct __attribute__((__packed__))
-        {
-            uint8_t reserved;
-            uint8_t TransMode;
-            uint8_t WorkMode;
-            uint8_t AutoExpo;
-        };
-    };
-    uint16_t    ImageId;
-    uint16_t    PacketId;
-}cam_cmd_t;
+    uint32_t        exp_time;
+    uint8_t         gain;
+    cam_ctl_t       cam_ctl_mode;
+    uint32_t        img_id;
+    img_down_para   img_down;
+} cam_cmd_t;
+
 
 
 typedef struct __attribute__((packed)) {

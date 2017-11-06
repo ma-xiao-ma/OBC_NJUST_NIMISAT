@@ -59,16 +59,17 @@
 #define CAM_EXPOSURE_TIME_SET   0x31
 #define CAM_GAIN_SET            0x32
 #define CAM_WORK_MODE_SET       0x33
-#define DOWN_IMAGE_INFO_FALSH   0x34
-#define DOWN_IMAGE_INFO_TF      0x35
-#define DOWN_IMAGE_FLASH_WHOLE  0x36
-#define DOWN_IMAGE_FALSH_SINGLE 0x37
-#define DOWN_IMAGE_TF_WHOLE     0x38
-#define DOWN_IMAGE_TF_SINGLE    0x39
-#define CAM_POWER_ON            0x3A
-#define CAM_POWER_OFF           0x3B
-#define CAM_HEAT2_ON            0x3C
-#define CAM_HEAT2_OFF           0x3D
+
+#define DOWN_NEWEST_IMAGE_INFO  0x34
+#define DOWN_IMAGE_INFO         0x35
+#define DOWN_IMAGE_DATA_WHOLE   0x36
+#define DOWN_IMAGE_DATA_SINGLE  0x37
+#define DOWN_IMAGE_DATA_PART    0x38
+#define CAM_POWER_ON            0x39
+#define CAM_POWER_OFF           0x3A
+#define CAM_HEAT2_ON            0x3B
+#define CAM_HEAT2_OFF           0x3C
+
 
 
 /*GROUP4*/
@@ -126,8 +127,13 @@
 #define INS_ORB_TLE_FLAG       0xA3   //轨道上注
 #define INS_MW_Speed_Set       0xA4
 #define INS_Max_MagTorque_Set  0xA5
-#define INS_OBC_GET_ADCS_HK    0xA6
 
+/*星务和姿控之间的消息类型*/
+#define INS_OBC_GET_ADCS_HK    0xA6
+#define INS_GET_CROSSING_FLAG  0xA7
+#define INS_GET_SAT_TIME       0xA8
+
+/*下行消息类型*/
 #define OBC_TELEMETRY          0xE1
 #define ADCS_TELEMETRY         0xE2
 #define CAM_IMAGE_INFO         0xE3

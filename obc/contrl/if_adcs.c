@@ -4,16 +4,18 @@
  *  Created on: 2017年9月29日
  *      Author: Ma Wenli
  */
-
+#include "string.h"
 #include "FreeRTOS.h"
 
 #include "bsp_pca9665.h"
 #include "error.h"
 #include "cube_com.h"
 #include "router_io.h"
-#include "if_adcs.h"
 #include "hk.h"
 #include "contrl.h"
+#include "QB50_mem.h"
+
+#include "if_adcs.h"
 
 static xQueueHandle adcs_queue;
 
@@ -180,7 +182,7 @@ int adcs_transaction_direct(uint8_t type, void * txbuf, size_t txlen, void * rxb
     return ret;
 }
 
-int adcs_get_hk(const void *hk, uint16_t timeout)
+int adcs_get_hk(void *hk, uint16_t timeout)
 {
 
     return adcs_transaction_direct(INS_OBC_GET_ADCS_HK, NULL, 0, hk, sizeof(adcs805_hk_t), timeout);

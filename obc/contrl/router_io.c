@@ -7,13 +7,15 @@
 
 #include <if_trxvu.h>
 #include "FreeRTOS.h"
-#include "router_io.h"
 #include "route.h"
 #include "error.h"
 #include "bsp_pca9665.h"
 #include "if_adcs.h"
 #include "driver_debug.h"
 #include "cube_com.h"
+#include "QB50_mem.h"
+
+#include "router_io.h"
 
 
 int route_user_init(void)

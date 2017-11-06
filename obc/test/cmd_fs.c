@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
+#include <ctype.h>
 
 #include "stm32f4xx.h"
 
@@ -248,6 +249,7 @@ int cmd_fat_cat(struct command_context *ctx) {
 	for(;;){
 		result = f_read(&myfile,&buffer,1,&byteread);
 		if(result == FR_OK){
+            if(byteread == 0) break;
 			i++;
 			if(isprint(buffer)){
 				printf("%c",buffer);
@@ -255,7 +257,6 @@ int cmd_fat_cat(struct command_context *ctx) {
 			else{
 				printf("*");
 			}
-			if(byteread == 0) break;
 		}
 		else{
 			printf("read failed\r\n");
@@ -466,6 +467,7 @@ int cmd_reset_all(struct command_context *ctx __attribute__((unused))) {
 	vTaskSuspendAll();
 
 	FRESULT result = f_opendir(&dir,path);
+	strcat(path,"/");
 
 	for(;;){
 		result = f_readdir(&dir,&fno);

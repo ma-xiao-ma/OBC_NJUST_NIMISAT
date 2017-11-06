@@ -4,10 +4,10 @@
 
 /*
 *********************************************************************************************************
-*	�� �� ��: bsp_InitExtSRAM
-*	����˵��: ���������ⲿSRAM��GPIO��FSMC
-*	��    ��:  ��
-*	�� �� ֵ: ��
+*	函  数  名: bsp_InitExtSRAM
+*	功能说明: 配置连接外部SRAM的GPIO和FSMC
+*	形        参: 无
+*	返  回  值: 无
 *********************************************************************************************************
 */
 void bsp_InitExtSRAM(void)
@@ -16,14 +16,14 @@ void bsp_InitExtSRAM(void)
 	FSMC_NORSRAMTimingInitTypeDef  p;
 	GPIO_InitTypeDef GPIO_InitStructure;
 
-	/* ʹ��GPIOʱ�� */
+	/* 使能GPIO时钟 */
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD | RCC_AHB1Periph_GPIOE | RCC_AHB1Periph_GPIOF |
 	             RCC_AHB1Periph_GPIOG, ENABLE);
 
-	/* ʹ�� FSMC ʱ�� */
+	/* 使能FSMC时钟 */
 	RCC_AHB3PeriphClockCmd(RCC_AHB3Periph_FSMC, ENABLE);
 
-	/* SRAM �� GPIO ��
+	/* SRAM 的 GPIO :
 		PD0/FSMC_D2
 		PD1/FSMC_D3
 		PD4/FSMC_NOE
@@ -40,8 +40,8 @@ void bsp_InitExtSRAM(void)
 		PE0/FSMC_NBL0
 		PE1/FSMC_NBL1
 		PE3/FSMC_A19
-		PE4/FSMC_A20	-- ����Ƭѡ������
-		PE5/FSMC_A21	-- ����Ƭѡ������
+		PE4/FSMC_A20	-- 参与片选的译码
+		PE5/FSMC_A21	-- 参与片选的译码
 		PE7/FSMC_D4
 		PE8/FSMC_D5
 		PE9/FSMC_D6
@@ -69,7 +69,7 @@ void bsp_InitExtSRAM(void)
 		PG3/FSMC_A13
 		PG4/FSMC_A14
 		PG5/FSMC_A15
-		PG10/FSMC_NE3	--- Ƭѡ���ź�
+		PG10/FSMC_NE3	--- 片选主信号
 	*/
 
 	/* GPIOD configuration */
@@ -156,9 +156,9 @@ void bsp_InitExtSRAM(void)
 	GPIO_Init(GPIOG, &GPIO_InitStructure);
 
 	/*-- FSMC Configuration ------------------------------------------------------*/
-	p.FSMC_AddressSetupTime = 6;		/* ����Ϊ2�����; 3���� */
+	p.FSMC_AddressSetupTime = /*6*/3;		/* 设置为2会出错， 3正常 */
 	p.FSMC_AddressHoldTime = 0;
-	p.FSMC_DataSetupTime = 10;			/* ����Ϊ1����2���� */
+	p.FSMC_DataSetupTime = /*10*/2;			/* 设置为1会出错，2正常  */
 	p.FSMC_BusTurnAroundDuration = 1;
 	p.FSMC_CLKDivision = 0;
 	p.FSMC_DataLatency = 0;
@@ -188,10 +188,10 @@ void bsp_InitExtSRAM(void)
 
 /*
 *********************************************************************************************************
-*	�� �� ��: bsp_TestExtSRAM
-*	����˵��: ɨ������ⲿSRAM
-*	��    ��: ��
-*	�� �� ֵ: 0 ��ʾ����ͨ���� ����0��ʾ����Ԫ�ĸ�����
+*	函  数  名: bsp_TestExtSRAM
+*	功能说明: 扫描测试外部SRAM
+*	形        参: 无
+*	返  回  值: 0表示测试通过：大于零表示错误单元个数
 *********************************************************************************************************
 */
 uint8_t bsp_TestExtSRAM(void)
@@ -202,14 +202,14 @@ uint8_t bsp_TestExtSRAM(void)
 	uint32_t err;
 	const uint8_t ByteBuf[4] = {0x55, 0xA5, 0x5A, 0xAA};
 
-	/* дSRAM */
+	/* 写SRAM */
 	pSRAM = (uint32_t *)EXT_SRAM_ADDR;
 	for (i = 0; i < EXT_SRAM_SIZE / 4; i++)
 	{
 		*pSRAM++ = i;
 	}
 
-	/* ��SRAM */
+	/* 读SRAM */
 	err = 0;
 	pSRAM = (uint32_t *)EXT_SRAM_ADDR;
 	for (i = 0; i < EXT_SRAM_SIZE / 4; i++)
@@ -225,7 +225,7 @@ uint8_t bsp_TestExtSRAM(void)
 		return  (4 * err);
 	}
 
-	/* ��SRAM �������󷴲�д�� */
+	/* 对SRAM的数据求反并写入 */
 	pSRAM = (uint32_t *)EXT_SRAM_ADDR;
 	for (i = 0; i < EXT_SRAM_SIZE / 4; i++)
 	{
@@ -233,7 +233,7 @@ uint8_t bsp_TestExtSRAM(void)
 		pSRAM++;
 	}
 
-	/* �ٴαȽ�SRAM������ */
+	/* 再次比较SRAM数据 */
 	err = 0;
 	pSRAM = (uint32_t *)EXT_SRAM_ADDR;
 	for (i = 0; i < EXT_SRAM_SIZE / 4; i++)
@@ -249,14 +249,14 @@ uint8_t bsp_TestExtSRAM(void)
 		return (4 * err);
 	}
 
-	/* ���԰��ֽڷ�ʽ����, Ŀ������֤ FSMC_NBL0 �� FSMC_NBL1 ���� */
+	/* 测试按字节访问，目的是验证 FSMC_NBL0 、FSMC_NBL1 口线 */
 	pBytes = (uint8_t *)EXT_SRAM_ADDR;
 	for (i = 0; i < sizeof(ByteBuf); i++)
 	{
 		*pBytes++ = ByteBuf[i];
 	}
 
-	/* �Ƚ�SRAM������ */
+	/* 比较SRAM数据 */
 	err = 0;
 	pBytes = (uint8_t *)EXT_SRAM_ADDR;
 	for (i = 0; i < sizeof(ByteBuf); i++)

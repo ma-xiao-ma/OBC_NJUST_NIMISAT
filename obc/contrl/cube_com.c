@@ -11,6 +11,7 @@
 #include "bsp_ds1302.h"
 #include "bsp_switch.h"
 #include "dtb_805.h"
+#include "QB50_mem.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -292,7 +293,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
 
         case TR_BOOT:
 
-            if(xDTBTeleControlSend(0x01, 1000) != 0)
+            if(xDTBTeleControlSend(Boot, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -301,7 +302,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
             break;
         case TR_SHUT_DOWN:
 
-            if(xDTBTeleControlSend(0x02, 1000) != 0)
+            if(xDTBTeleControlSend(ShutDown, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -310,7 +311,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
             break;
         case TR_MEM_RESET:
 
-            if(xDTBTeleControlSend(0x03, 1000) != 0)
+            if(xDTBTeleControlSend(MemReset, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -319,7 +320,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
             break;
         case TR_MEM1_RECORD:
 
-            if(xDTBTeleControlSend(0x04, 1000) != 0)
+            if(xDTBTeleControlSend(Mem1Record, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -328,7 +329,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
                 break;
         case TR_MEM2_RECORD:
 
-            if(xDTBTeleControlSend(0x05, 1000) != 0)
+            if(xDTBTeleControlSend(Mem2Record, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -337,7 +338,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
             break;
         case TR_MEM3_RECORD:
 
-            if(xDTBTeleControlSend(0x06, 1000) != 0)
+            if(xDTBTeleControlSend(Mem3Record, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -346,7 +347,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
             break;
         case TR_MEM4_RECORD:
 
-            if(xDTBTeleControlSend(0x07, 1000) != 0)
+            if(xDTBTeleControlSend(Mem4Record, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -355,7 +356,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
             break;
         case TR_MEM_STOP:
 
-            if(xDTBTeleControlSend(0x08, 1000) != 0)
+            if(xDTBTeleControlSend(MemStop, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -364,7 +365,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
             break;
         case TR_MEM1_BACK:
 
-            if(xDTBTeleControlSend(0x09, 1000) != 0)
+            if(xDTBTeleControlSend(Mem1Back, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -373,7 +374,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
             break;
         case TR_MEM2_BACK:
 
-            if(xDTBTeleControlSend(0x0A, 1000) != 0)
+            if(xDTBTeleControlSend(Mem2Back, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -382,7 +383,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
             break;
         case TR_MEM3_BACK:
 
-            if(xDTBTeleControlSend(0x0B, 1000) != 0)
+            if(xDTBTeleControlSend(Mem3Back, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -391,7 +392,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
             break;
         case TR_MEM4_BACK:
 
-            if(xDTBTeleControlSend(0x0C, 1000) != 0)
+            if(xDTBTeleControlSend(Mem4Back, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -400,7 +401,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
             break;
         case TR_MEM1_ERA:
 
-            if(xDTBTeleControlSend(0x0D, 1000) != 0)
+            if(xDTBTeleControlSend(Mem1Erase, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -409,7 +410,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
             break;
         case TR_MEM2_ERA:
 
-            if(xDTBTeleControlSend(0x0E, 1000) != 0)
+            if(xDTBTeleControlSend(Mem2Erase, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -418,7 +419,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
             break;
         case TR_MEM3_ERA:
 
-            if(xDTBTeleControlSend(0x0F, 1000) != 0)
+            if(xDTBTeleControlSend(Mem3Erase, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -427,7 +428,7 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
             break;
         case TR_MEM4_ERA:
 
-            if(xDTBTeleControlSend(0x10, 1000) != 0)
+            if(xDTBTeleControlSend(Mem4Erase, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -447,7 +448,7 @@ void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 
         case TR_PC_ON:
 
-            if(xDTBTeleControlSend(0x11, 1000) != 0)
+            if(xDTBTeleControlSend(PseudoOn, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -456,7 +457,7 @@ void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
             break;
         case TR_PC_OFF:
 
-            if(xDTBTeleControlSend(0x12, 1000) != 0)
+            if(xDTBTeleControlSend(PseudoOff, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -465,7 +466,7 @@ void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
             break;
         case TR_1M_RATE:
 
-            if(xDTBTeleControlSend(0x13, 1000) != 0)
+            if(xDTBTeleControlSend(Rate1Mbps, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -474,7 +475,7 @@ void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
             break;
         case TR_2M_RATE:
 
-            if(xDTBTeleControlSend(0x14, 1000) != 0)
+            if(xDTBTeleControlSend(Rate2Mbps, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -483,7 +484,7 @@ void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
             break;
         case TR_4M_RATE:
 
-            if(xDTBTeleControlSend(0x15, 1000) != 0)
+            if(xDTBTeleControlSend(Rate4Mbps, 1000) != 0)
                 result = 0;
             else
                 result = 1;
@@ -539,15 +540,14 @@ void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 {
 	int result = 0;
 
-	cam_cmd_t * pcmd_cam    = (cam_cmd_t *)cube_buf;
-	cam_opt opt = {0};
+	cam_cmd_t * cam_cmd    = (cam_cmd_t *)cube_buf;
 
 	switch (cmd_id)
 	{
 
         case CAM_SOFTWARE_RESET:
 
-            if(Camera_805_reset() == 0x7e)
+            if(Camera_805_reset() == E_NO_ERR)
                 result = 1;
             else
                 result = 0;
@@ -557,7 +557,7 @@ void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 
         case CAM_EXPOSURE_TIME_SET:
 
-            if(Camera_Exposure_Time_Set(pcmd_cam->CamPara) == pcmd_cam->CamPara)
+            if(Camera_Exposure_Time_Set( cam_cmd->exp_time ) == E_NO_ERR)
                 result = 1;
             else
                 result = 0;
@@ -567,7 +567,7 @@ void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 
         case CAM_GAIN_SET:
 
-            if(Camera_Gain_Set(pcmd_cam->CamPara) == pcmd_cam->CamPara)
+            if(Camera_Gain_Set( cam_cmd->gain ) == E_NO_ERR)
                 result = 1;
             else
                 result = 0;
@@ -577,91 +577,57 @@ void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 
         case CAM_WORK_MODE_SET:
 
-//            if(Camera_Work_Mode_Set(pcmd_cam->TransMode, pcmd_cam->WorkMode,
-//                    pcmd_cam->AutoExpo, pcmd_cam->ImageId))
-//            {
-//                result = 1;
-//            }
-//            else
-//            {
-//                result = 0;
-//            }
+            if(Camera_Work_Mode_Set( cam_cmd->cam_ctl_mode ) == E_NO_ERR)
+                result = 1;
+            else
+                result = 0;
 
             obc_cmd_ack(cmd_id, result);
             break;
-        case DOWN_IMAGE_INFO_FALSH:
+        case DOWN_NEWEST_IMAGE_INFO:
 
-//            if(xImageInfoDownload(1, 0) == 0)
-//            {
-//                result = 1;
-//            }
-//            else
-//            {
-//                result = 0;
-//            }
-//
-//            obc_cmd_ack(cmd_id, result);
+            if(cam_newest_img_info_down() == E_NO_ERR)
+                result = 1;
+            else
+                result = 0;
+
+            obc_cmd_ack(cmd_id, result);
             break;
-        case DOWN_IMAGE_INFO_TF:
+        case DOWN_IMAGE_INFO:
 
-//            if(xImageInfoDownload(0, pcmd_cam->ImageId) == 0)
-//            {
-//                result = 1;
-//            }
-//            else
-//            {
-//                result = 0;
-//            }
-//
-//            obc_cmd_ack(cmd_id, result);
+            if(cam_img_info_down( cam_cmd->img_down.img_id ) == E_NO_ERR)
+                result = 1;
+            else
+                result = 0;
+
+            obc_cmd_ack(cmd_id, result);
             break;
-        case DOWN_IMAGE_FLASH_WHOLE:
+        case DOWN_IMAGE_DATA_WHOLE:
 
-//            opt.is_sd = 0;
-//            opt.is_single = 0;
-//
-//            if(xImageDownload(opt, 0, 0) != 0)
-//                result = 0;
-//            else
-//                result = 1;
-//
-//            obc_cmd_ack(cmd_id, result);
+            if(cam_img_data_down( cam_cmd->img_down.img_id ) != E_NO_ERR)
+                result = 0;
+            else
+                result = 1;
+
+            obc_cmd_ack(cmd_id, result);
             break;
-        case DOWN_IMAGE_FALSH_SINGLE:
+        case DOWN_IMAGE_DATA_SINGLE:
 
-//            opt.is_sd = 0;
-//            opt.is_single = 1;
-//
-//            if(xImageDownload(opt, 0, pcmd_cam->PacketId) != 0)
-//                result = 0;
-//            else
-//                result = 1;
-//
-//            obc_cmd_ack(cmd_id, result);
+            if(cam_img_packet_down( cam_cmd->img_down.img_id, cam_cmd->img_down.packet_id ) != E_NO_ERR)
+                result = 0;
+            else
+                result = 1;
+
+            obc_cmd_ack(cmd_id, result);
             break;
-        case DOWN_IMAGE_TF_WHOLE:
+        case DOWN_IMAGE_DATA_PART:
 
-//            opt.is_sd = 1;
-//            opt.is_single = 0;
-//
-//            if(xImageDownload(opt, pcmd_cam->ImageId, 0) != 0)
-//                result = 0;
-//            else
-//                result = 1;
-//
-//            obc_cmd_ack(cmd_id, result);
-            break;
-        case DOWN_IMAGE_TF_SINGLE:
+            if(cam_img_data_packet_down( cam_cmd->img_down.img_id, cam_cmd->img_down.packet_id ) != E_NO_ERR)
+                result = 0;
+            else
+                result = 1;
 
-//            opt.is_sd = 1;
-//            opt.is_single = 1;
-//
-//            if(xImageDownload(opt, pcmd_cam->ImageId, pcmd_cam->PacketId) != 0)
-//                result = 0;
-//            else
-//                result = 1;
-//
-//            obc_cmd_ack(cmd_id, result);
+            obc_cmd_ack(cmd_id, result);
             break;
         case CAM_POWER_ON:
 

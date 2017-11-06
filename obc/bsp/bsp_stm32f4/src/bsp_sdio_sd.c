@@ -1,12 +1,18 @@
+/*
+ * bsp_sdio_sd.c
+ *
+ *  Created on: 2017年11月4日
+ *      Author: Ma Wenli
+ */
+
 /**
   ******************************************************************************
   * @file    stm324xg_eval_sdio_sd.c
   * @author  MCD Application Team
-  * @version V1.0.0
-  * @date    30-September-2011
+  * @version V1.1.2
+  * @date    19-September-2013
   * @brief   This file provides a set of functions needed to manage the SDIO SD
   *          Card memory mounted on STM324xG-EVAL evaluation board.
-  *
   *
   *  @verbatim
   *
@@ -205,19 +211,25 @@
   ******************************************************************************
   * @attention
   *
-  * THE PRESENT FIRMWARE WHICH IS FOR GUIDANCE ONLY AIMS AT PROVIDING CUSTOMERS
-  * WITH CODING INFORMATION REGARDING THEIR PRODUCTS IN ORDER FOR THEM TO SAVE
-  * TIME. AS A RESULT, STMICROELECTRONICS SHALL NOT BE HELD LIABLE FOR ANY
-  * DIRECT, INDIRECT OR CONSEQUENTIAL DAMAGES WITH RESPECT TO ANY CLAIMS ARISING
-  * FROM THE CONTENT OF SUCH FIRMWARE AND/OR THE USE MADE BY CUSTOMERS OF THE
-  * CODING INFORMATION CONTAINED HEREIN IN CONNECTION WITH THEIR PRODUCTS.
+  * <h2><center>&copy; COPYRIGHT 2013 STMicroelectronics</center></h2>
   *
-  * <h2><center>&copy; COPYRIGHT 2011 STMicroelectronics</center></h2>
+  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
+  * You may not use this file except in compliance with the License.
+  * You may obtain a copy of the License at:
+  *
+  *        http://www.st.com/software_license_agreement_liberty_v2
+  *
+  * Unless required by applicable law or agreed to in writing, software
+  * distributed under the License is distributed on an "AS IS" BASIS,
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  *
   ******************************************************************************
   */
 
 /* Includes ------------------------------------------------------------------*/
-#include "bsp_sdio_sd.h"
+#include <bsp_sdio_sd.h>
 
 
 /** @addtogroup Utilities
@@ -254,7 +266,7 @@
   */
 #define NULL 0
 #define SDIO_STATIC_FLAGS               ((uint32_t)0x000005FF)
-#define SDIO_CMD0TIMEOUT                ((uint32_t)0x00030000)
+#define SDIO_CMD0TIMEOUT                ((uint32_t)0x00010000)
 
 /**
   * @brief  Mask for errors Card Status R1 (OCR Register)
@@ -370,6 +382,7 @@ uint8_t convert_from_bytes_to_power_of_two(uint16_t NumberOfBytes);
 /**
   * @}
   */
+
 void SD_NVIC_Configuration(void)
 {
   NVIC_InitTypeDef NVIC_InitStructure;
@@ -387,11 +400,15 @@ void SD_NVIC_Configuration(void)
   NVIC_Init(&NVIC_InitStructure);
 }
 
+SD_Error SD_ProcessIRQSrc(void);
+
 void SDIO_IRQHandler(void)
 {
   /* Process All SDIO Interrupt Sources */
   SD_ProcessIRQSrc();
 }
+
+void SD_ProcessDMAIRQ(void);
 
 void SD_SDIO_DMA_IRQHANDLER(void)
 {
@@ -399,6 +416,186 @@ void SD_SDIO_DMA_IRQHANDLER(void)
   SD_ProcessDMAIRQ();
 }
 
+
+/**
+  * @brief  DeInitializes the SDIO interface.
+  * @param  None
+  * @retval None
+  */
+void SD_LowLevel_DeInit(void)
+{
+  GPIO_InitTypeDef  GPIO_InitStructure;
+
+  /*!< Disable SDIO Clock */
+  SDIO_ClockCmd(DISABLE);
+
+  /*!< Set Power State to OFF */
+  SDIO_SetPowerState(SDIO_PowerState_OFF);
+
+  /*!< DeInitializes the SDIO peripheral */
+  SDIO_DeInit();
+
+  /* Disable the SDIO APB2 Clock */
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_SDIO, DISABLE);
+
+  GPIO_PinAFConfig(GPIOC, GPIO_PinSource8, GPIO_AF_MCO);
+  GPIO_PinAFConfig(GPIOC, GPIO_PinSource9, GPIO_AF_MCO);
+  GPIO_PinAFConfig(GPIOC, GPIO_PinSource10, GPIO_AF_MCO);
+  GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_MCO);
+  GPIO_PinAFConfig(GPIOC, GPIO_PinSource12, GPIO_AF_MCO);
+  GPIO_PinAFConfig(GPIOD, GPIO_PinSource2, GPIO_AF_MCO);
+
+  /* Configure PC.08, PC.09, PC.10, PC.11 pins: D0, D1, D2, D3 pins */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
+  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+  GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+  /* Configure PD.02 CMD line */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
+  GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+  /* Configure PC.12 pin: CLK pin */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
+  GPIO_Init(GPIOC, &GPIO_InitStructure);
+}
+
+/**
+  * @brief  Initializes the SD Card and put it into StandBy State (Ready for
+  *         data transfer).
+  * @param  None
+  * @retval None
+  */
+void SD_LowLevel_Init(void)
+{
+  GPIO_InitTypeDef  GPIO_InitStructure;
+
+  /* GPIOC and GPIOD Periph clock enable */
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC | RCC_AHB1Periph_GPIOD /*| SD_DETECT_GPIO_CLK*/, ENABLE);
+
+  GPIO_PinAFConfig(GPIOC, GPIO_PinSource8, GPIO_AF_SDIO);
+  GPIO_PinAFConfig(GPIOC, GPIO_PinSource9, GPIO_AF_SDIO);
+  GPIO_PinAFConfig(GPIOC, GPIO_PinSource10, GPIO_AF_SDIO);
+  GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_SDIO);
+  GPIO_PinAFConfig(GPIOC, GPIO_PinSource12, GPIO_AF_SDIO);
+  GPIO_PinAFConfig(GPIOD, GPIO_PinSource2, GPIO_AF_SDIO);
+
+  /* Configure PC.08, PC.09, PC.10, PC.11 pins: D0, D1, D2, D3 pins */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+  GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+  /* Configure PD.02 CMD line */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
+  GPIO_Init(GPIOD, &GPIO_InitStructure);
+
+  /* Configure PC.12 pin: CLK pin */
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
+  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+  GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+  /*!< Configure SD_SPI_DETECT_PIN pin: SD Card detect pin */
+//  GPIO_InitStructure.GPIO_Pin = SD_DETECT_PIN;
+//  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
+//  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+//  GPIO_Init(SD_DETECT_GPIO_PORT, &GPIO_InitStructure);
+
+  /* Enable the SDIO APB2 Clock */
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_SDIO, ENABLE);
+
+  /* Enable the DMA2 Clock */
+  RCC_AHB1PeriphClockCmd(SD_SDIO_DMA_CLK, ENABLE);
+}
+
+/**
+  * @brief  Configures the DMA2 Channel4 for SDIO Tx request.
+  * @param  BufferSRC: pointer to the source buffer
+  * @param  BufferSize: buffer size
+  * @retval None
+  */
+void SD_LowLevel_DMA_TxConfig(uint32_t *BufferSRC, uint32_t BufferSize)
+{
+  DMA_InitTypeDef SDDMA_InitStructure;
+
+  DMA_ClearFlag(SD_SDIO_DMA_STREAM, SD_SDIO_DMA_FLAG_FEIF | SD_SDIO_DMA_FLAG_DMEIF | SD_SDIO_DMA_FLAG_TEIF | SD_SDIO_DMA_FLAG_HTIF | SD_SDIO_DMA_FLAG_TCIF);
+
+  /* DMA2 Stream3  or Stream6 disable */
+  DMA_Cmd(SD_SDIO_DMA_STREAM, DISABLE);
+
+  /* DMA2 Stream3  or Stream6 Config */
+  DMA_DeInit(SD_SDIO_DMA_STREAM);
+
+  SDDMA_InitStructure.DMA_Channel = SD_SDIO_DMA_CHANNEL;
+  SDDMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)SDIO_FIFO_ADDRESS;
+  SDDMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t)BufferSRC;
+  SDDMA_InitStructure.DMA_DIR = DMA_DIR_MemoryToPeripheral;
+  SDDMA_InitStructure.DMA_BufferSize = BufferSize;
+  SDDMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+  SDDMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+  SDDMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Word;
+  SDDMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Word;
+  SDDMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+  SDDMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+  SDDMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Enable;
+  SDDMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_Full;
+  SDDMA_InitStructure.DMA_MemoryBurst = DMA_MemoryBurst_INC4;
+  SDDMA_InitStructure.DMA_PeripheralBurst = DMA_PeripheralBurst_INC4;
+  DMA_Init(SD_SDIO_DMA_STREAM, &SDDMA_InitStructure);
+  DMA_ITConfig(SD_SDIO_DMA_STREAM, DMA_IT_TC, ENABLE);
+  DMA_FlowControllerConfig(SD_SDIO_DMA_STREAM, DMA_FlowCtrl_Peripheral);
+
+  /* DMA2 Stream3  or Stream6 enable */
+  DMA_Cmd(SD_SDIO_DMA_STREAM, ENABLE);
+
+}
+
+/**
+  * @brief  Configures the DMA2 Channel4 for SDIO Rx request.
+  * @param  BufferDST: pointer to the destination buffer
+  * @param  BufferSize: buffer size
+  * @retval None
+  */
+void SD_LowLevel_DMA_RxConfig(uint32_t *BufferDST, uint32_t BufferSize)
+{
+  DMA_InitTypeDef SDDMA_InitStructure;
+
+  DMA_ClearFlag(SD_SDIO_DMA_STREAM, SD_SDIO_DMA_FLAG_FEIF | SD_SDIO_DMA_FLAG_DMEIF | SD_SDIO_DMA_FLAG_TEIF | SD_SDIO_DMA_FLAG_HTIF | SD_SDIO_DMA_FLAG_TCIF);
+
+  /* DMA2 Stream3  or Stream6 disable */
+  DMA_Cmd(SD_SDIO_DMA_STREAM, DISABLE);
+
+  /* DMA2 Stream3 or Stream6 Config */
+  DMA_DeInit(SD_SDIO_DMA_STREAM);
+
+  SDDMA_InitStructure.DMA_Channel = SD_SDIO_DMA_CHANNEL;
+  SDDMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)SDIO_FIFO_ADDRESS;
+  SDDMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t)BufferDST;
+  SDDMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralToMemory;
+  SDDMA_InitStructure.DMA_BufferSize = BufferSize;
+  SDDMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+  SDDMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+  SDDMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Word;
+  SDDMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Word;
+  SDDMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+  SDDMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+  SDDMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Enable;
+  SDDMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_Full;
+  SDDMA_InitStructure.DMA_MemoryBurst = DMA_MemoryBurst_INC4;
+  SDDMA_InitStructure.DMA_PeripheralBurst = DMA_PeripheralBurst_INC4;
+  DMA_Init(SD_SDIO_DMA_STREAM, &SDDMA_InitStructure);
+  DMA_ITConfig(SD_SDIO_DMA_STREAM, DMA_IT_TC, ENABLE);
+  DMA_FlowControllerConfig(SD_SDIO_DMA_STREAM, DMA_FlowCtrl_Peripheral);
+
+  /* DMA2 Stream3 or Stream6 enable */
+  DMA_Cmd(SD_SDIO_DMA_STREAM, ENABLE);
+}
+
+/** @defgroup STM324xG_EVAL_SDIO_SD_Private_Functions
+  * @{
+  */
 
 /**
   * @brief  DeInitializes the SDIO interface.
@@ -532,13 +729,11 @@ uint8_t SD_Detect(void)
 {
   __IO uint8_t status = SD_PRESENT;
 
-  /*!< Check GPIO to detect SD */
-  if (GPIO_ReadInputDataBit(SD_DETECT_GPIO_PORT, SD_DETECT_PIN) != Bit_RESET)
-  {
-	status = SD_NOT_PRESENT;
-  }
-
-  status = SD_PRESENT;
+//  /*!< Check GPIO to detect SD */
+//  if (GPIO_ReadInputDataBit(SD_DETECT_GPIO_PORT, SD_DETECT_PIN) != Bit_RESET)
+//  {
+//    status = SD_NOT_PRESENT;
+//  }
 
   return status;
 }
@@ -560,7 +755,7 @@ SD_Error SD_PowerON(void)
   /*!< SDIO_CK = SDIOCLK / (SDIO_INIT_CLK_DIV + 2) */
   /*!< on STM32F4xx devices, SDIOCLK is fixed to 48MHz */
   /*!< SDIO_CK for initialization should not exceed 400 KHz */
-  SDIO_InitStructure.SDIO_ClockDiv = 0x9d;//SDIO_INIT_CLK_DIV;
+  SDIO_InitStructure.SDIO_ClockDiv = SDIO_INIT_CLK_DIV;
   SDIO_InitStructure.SDIO_ClockEdge = SDIO_ClockEdge_Rising;
   SDIO_InitStructure.SDIO_ClockBypass = SDIO_ClockBypass_Disable;
   SDIO_InitStructure.SDIO_ClockPowerSave = SDIO_ClockPowerSave_Disable;
@@ -889,7 +1084,7 @@ SD_Error SD_GetCardInfo(SD_CardInfo *cardinfo)
     /*!< Byte 10 */
     tmp = (uint8_t)((CSD_Tab[2] & 0x0000FF00) >> 8);
 
-    cardinfo->CardCapacity = (cardinfo->SD_csd.DeviceSize + 1) * 512 * 1024;
+    cardinfo->CardCapacity = ((uint64_t)cardinfo->SD_csd.DeviceSize + 1) * 512 * 1024;
     cardinfo->CardBlockSize = 512;
   }
 
@@ -1154,12 +1349,12 @@ SD_Error SD_EnableWideBusOperation(uint32_t WideMode)
   * @param  addr: Address of the Card to be selected.
   * @retval SD_Error: SD Card Error code.
   */
-SD_Error SD_SelectDeselect(uint32_t addr)
+SD_Error SD_SelectDeselect(uint64_t addr)
 {
   SD_Error errorstatus = SD_OK;
 
   /*!< Send CMD7 SDIO_SEL_DESEL_CARD */
-  SDIO_CmdInitStructure.SDIO_Argument =  addr;
+  SDIO_CmdInitStructure.SDIO_Argument =  (uint32_t)addr;
   SDIO_CmdInitStructure.SDIO_CmdIndex = SD_CMD_SEL_DESEL_CARD;
   SDIO_CmdInitStructure.SDIO_Response = SDIO_Response_Short;
   SDIO_CmdInitStructure.SDIO_Wait = SDIO_Wait_No;
@@ -1185,7 +1380,7 @@ SD_Error SD_SelectDeselect(uint32_t addr)
   * @param  BlockSize: the SD card Data block size. The Block size should be 512.
   * @retval SD_Error: SD Card Error code.
   */
-SD_Error SD_ReadBlock(uint8_t *readbuff, uint32_t ReadAddr, uint16_t BlockSize)
+SD_Error SD_ReadBlock(uint8_t *readbuff, uint64_t ReadAddr, uint16_t BlockSize)
 {
   SD_Error errorstatus = SD_OK;
 #if defined (SD_POLLING_MODE)
@@ -1197,7 +1392,6 @@ SD_Error SD_ReadBlock(uint8_t *readbuff, uint32_t ReadAddr, uint16_t BlockSize)
   StopCondition = 0;
 
   SDIO->DCTRL = 0x0;
-
 
   if (CardType == SDIO_HIGH_CAPACITY_SD_CARD)
   {
@@ -1292,11 +1486,10 @@ SD_Error SD_ReadBlock(uint8_t *readbuff, uint32_t ReadAddr, uint16_t BlockSize)
 
   /*!< Clear all the static flags */
   SDIO_ClearFlag(SDIO_STATIC_FLAGS);
-
 #elif defined (SD_DMA_MODE)
-    SDIO_ITConfig(SDIO_IT_DCRCFAIL | SDIO_IT_DTIMEOUT | SDIO_IT_DATAEND | SDIO_IT_RXOVERR | SDIO_IT_STBITERR, ENABLE);
-    SDIO_DMACmd(ENABLE);
-    SD_LowLevel_DMA_RxConfig((uint32_t *)readbuff, BlockSize);
+  SDIO_ITConfig(SDIO_IT_DCRCFAIL | SDIO_IT_DTIMEOUT | SDIO_IT_DATAEND | SDIO_IT_RXOVERR | SDIO_IT_STBITERR, ENABLE);
+  SD_LowLevel_DMA_RxConfig((uint32_t *)readbuff, BlockSize);
+  SDIO_DMACmd(ENABLE);
 #endif
 
   return(errorstatus);
@@ -1317,7 +1510,7 @@ SD_Error SD_ReadBlock(uint8_t *readbuff, uint32_t ReadAddr, uint16_t BlockSize)
   * @param  NumberOfBlocks: number of blocks to be read.
   * @retval SD_Error: SD Card Error code.
   */
-SD_Error SD_ReadMultiBlocks(uint8_t *readbuff, uint32_t ReadAddr, uint16_t BlockSize, uint32_t NumberOfBlocks)
+SD_Error SD_ReadMultiBlocks(uint8_t *readbuff, uint64_t ReadAddr, uint16_t BlockSize, uint32_t NumberOfBlocks)
 {
   SD_Error errorstatus = SD_OK;
   TransferError = SD_OK;
@@ -1371,8 +1564,8 @@ SD_Error SD_ReadMultiBlocks(uint8_t *readbuff, uint32_t ReadAddr, uint16_t Block
   }
 
   SDIO_ITConfig(SDIO_IT_DCRCFAIL | SDIO_IT_DTIMEOUT | SDIO_IT_DATAEND | SDIO_IT_RXOVERR | SDIO_IT_STBITERR, ENABLE);
-  SDIO_DMACmd(ENABLE);
   SD_LowLevel_DMA_RxConfig((uint32_t *)readbuff, (NumberOfBlocks * BlockSize));
+  SDIO_DMACmd(ENABLE);
 
   return(errorstatus);
 }
@@ -1409,6 +1602,7 @@ SD_Error SD_WaitReadOperation(void)
   if (StopCondition == 1)
   {
     errorstatus = SD_StopTransfer();
+    StopCondition = 0;
   }
 
   if ((timeout == 0) && (errorstatus == SD_OK))
@@ -1443,7 +1637,7 @@ SD_Error SD_WaitReadOperation(void)
   * @param  BlockSize: the SD card Data block size. The Block size should be 512.
   * @retval SD_Error: SD Card Error code.
   */
-SD_Error SD_WriteBlock(uint8_t *writebuff, uint32_t WriteAddr, uint16_t BlockSize)
+SD_Error SD_WriteBlock(uint8_t *writebuff, uint64_t WriteAddr, uint16_t BlockSize)
 {
   SD_Error errorstatus = SD_OK;
 
@@ -1457,7 +1651,6 @@ SD_Error SD_WriteBlock(uint8_t *writebuff, uint32_t WriteAddr, uint16_t BlockSiz
   StopCondition = 0;
 
   SDIO->DCTRL = 0x0;
-
 
   if (CardType == SDIO_HIGH_CAPACITY_SD_CARD)
   {
@@ -1481,7 +1674,7 @@ SD_Error SD_WriteBlock(uint8_t *writebuff, uint32_t WriteAddr, uint16_t BlockSiz
   }
 
   /*!< Send CMD24 WRITE_SINGLE_BLOCK */
-  SDIO_CmdInitStructure.SDIO_Argument = WriteAddr;
+  SDIO_CmdInitStructure.SDIO_Argument = (uint32_t)WriteAddr;
   SDIO_CmdInitStructure.SDIO_CmdIndex = SD_CMD_WRITE_SINGLE_BLOCK;
   SDIO_CmdInitStructure.SDIO_Response = SDIO_Response_Short;
   SDIO_CmdInitStructure.SDIO_Wait = SDIO_Wait_No;
@@ -1497,7 +1690,7 @@ SD_Error SD_WriteBlock(uint8_t *writebuff, uint32_t WriteAddr, uint16_t BlockSiz
 
   SDIO_DataInitStructure.SDIO_DataTimeOut = SD_DATATIMEOUT;
   SDIO_DataInitStructure.SDIO_DataLength = BlockSize;
-  SDIO_DataInitStructure.SDIO_DataBlockSize = (uint32_t) 9 << 4;
+  SDIO_DataInitStructure.SDIO_DataBlockSize = /*(uint32_t) 9 << 4*/SDIO_DataBlockSize_512b;
   SDIO_DataInitStructure.SDIO_TransferDir = SDIO_TransferDir_ToCard;
   SDIO_DataInitStructure.SDIO_TransferMode = SDIO_TransferMode_Block;
   SDIO_DataInitStructure.SDIO_DPSM = SDIO_DPSM_Enable;
@@ -1552,7 +1745,9 @@ SD_Error SD_WriteBlock(uint8_t *writebuff, uint32_t WriteAddr, uint16_t BlockSiz
     errorstatus = SD_START_BIT_ERR;
     return(errorstatus);
   }
-#elif defined (SD_DMA_MODE)
+
+#endif
+#if defined (SD_DMA_MODE)
   SDIO_ITConfig(SDIO_IT_DCRCFAIL | SDIO_IT_DTIMEOUT | SDIO_IT_DATAEND | SDIO_IT_RXOVERR | SDIO_IT_STBITERR, ENABLE);
   SD_LowLevel_DMA_TxConfig((uint32_t *)writebuff, BlockSize);
   SDIO_DMACmd(ENABLE);
@@ -1576,14 +1771,13 @@ SD_Error SD_WriteBlock(uint8_t *writebuff, uint32_t WriteAddr, uint16_t BlockSiz
   * @param  NumberOfBlocks: number of blocks to be written.
   * @retval SD_Error: SD Card Error code.
   */
-SD_Error SD_WriteMultiBlocks(uint8_t *writebuff, uint32_t WriteAddr, uint16_t BlockSize, uint32_t NumberOfBlocks)
+SD_Error SD_WriteMultiBlocks(uint8_t *writebuff, uint64_t WriteAddr, uint16_t BlockSize, uint32_t NumberOfBlocks)
 {
   SD_Error errorstatus = SD_OK;
 
   TransferError = SD_OK;
   TransferEnd = 0;
   StopCondition = 1;
-
   SDIO->DCTRL = 0x0;
 
   if (CardType == SDIO_HIGH_CAPACITY_SD_CARD)
@@ -1662,8 +1856,8 @@ SD_Error SD_WriteMultiBlocks(uint8_t *writebuff, uint32_t WriteAddr, uint16_t Bl
   SDIO_DataConfig(&SDIO_DataInitStructure);
 
   SDIO_ITConfig(SDIO_IT_DCRCFAIL | SDIO_IT_DTIMEOUT | SDIO_IT_DATAEND | SDIO_IT_RXOVERR | SDIO_IT_STBITERR, ENABLE);
-  SDIO_DMACmd(ENABLE);
   SD_LowLevel_DMA_TxConfig((uint32_t *)writebuff, (NumberOfBlocks * BlockSize));
+  SDIO_DMACmd(ENABLE);
 
   return(errorstatus);
 }
@@ -1700,6 +1894,7 @@ SD_Error SD_WaitWriteOperation(void)
   if (StopCondition == 1)
   {
     errorstatus = SD_StopTransfer();
+    StopCondition = 0;
   }
 
   if ((timeout == 0) && (errorstatus == SD_OK))
@@ -1768,7 +1963,7 @@ SD_Error SD_StopTransfer(void)
   * @param  endaddr: the end address.
   * @retval SD_Error: SD Card Error code.
   */
-SD_Error SD_Erase(uint32_t startaddr, uint32_t endaddr)
+SD_Error SD_Erase(uint64_t startaddr, uint64_t endaddr)
 {
   SD_Error errorstatus = SD_OK;
   uint32_t delay = 0;
@@ -1800,7 +1995,7 @@ SD_Error SD_Erase(uint32_t startaddr, uint32_t endaddr)
   if ((SDIO_STD_CAPACITY_SD_CARD_V1_1 == CardType) || (SDIO_STD_CAPACITY_SD_CARD_V2_0 == CardType) || (SDIO_HIGH_CAPACITY_SD_CARD == CardType))
   {
     /*!< Send CMD32 SD_ERASE_GRP_START with argument as addr  */
-    SDIO_CmdInitStructure.SDIO_Argument = startaddr;
+    SDIO_CmdInitStructure.SDIO_Argument =(uint32_t)startaddr;
     SDIO_CmdInitStructure.SDIO_CmdIndex = SD_CMD_SD_ERASE_GRP_START;
     SDIO_CmdInitStructure.SDIO_Response = SDIO_Response_Short;
     SDIO_CmdInitStructure.SDIO_Wait = SDIO_Wait_No;
@@ -1814,7 +2009,7 @@ SD_Error SD_Erase(uint32_t startaddr, uint32_t endaddr)
     }
 
     /*!< Send CMD33 SD_ERASE_GRP_END with argument as addr  */
-    SDIO_CmdInitStructure.SDIO_Argument = endaddr;
+    SDIO_CmdInitStructure.SDIO_Argument = (uint32_t)endaddr;
     SDIO_CmdInitStructure.SDIO_CmdIndex = SD_CMD_SD_ERASE_GRP_END;
     SDIO_CmdInitStructure.SDIO_Response = SDIO_Response_Short;
     SDIO_CmdInitStructure.SDIO_Wait = SDIO_Wait_No;
@@ -2817,181 +3012,142 @@ uint8_t convert_from_bytes_to_power_of_two(uint16_t NumberOfBytes)
 }
 
 /**
-  * @brief  DeInitializes the SDIO interface.
-  * @param  None
-  * @retval None
-  */
-void SD_LowLevel_DeInit(void)
+* @brief  Switch mode High-Speed
+* @note   This function must be used after "Transfer State"
+* @note   This operation should be followed by the configuration
+*         of PLL to have SDIOCK clock between 67 and 75 MHz
+* @param  None
+* @retval SD_Error: SD Card Error code.
+*/
+SD_Error SD_HighSpeed (void)
 {
-  GPIO_InitTypeDef  GPIO_InitStructure;
+  SD_Error errorstatus = SD_OK;
+  uint32_t scr[2] = {0, 0};
+  uint32_t SD_SPEC = 0 ;
+  uint8_t hs[64] = {0} ;
+  uint32_t  count = 0, *tempbuff = (uint32_t *)hs;
+  TransferError = SD_OK;
+  TransferEnd = 0;
+  StopCondition = 0;
 
-  /*!< Disable SDIO Clock */
-  SDIO_ClockCmd(DISABLE);
+  SDIO->DCTRL = 0x0;
 
-  /*!< Set Power State to OFF */
-  SDIO_SetPowerState(SDIO_PowerState_OFF);
+  /*!< Get SCR Register */
+  errorstatus = FindSCR(RCA, scr);
 
-  /*!< DeInitializes the SDIO peripheral */
-  SDIO_DeInit();
+  if (errorstatus != SD_OK)
+  {
+    return(errorstatus);
+  }
 
-  /* Disable the SDIO APB2 Clock */
-  RCC_APB2PeriphClockCmd(RCC_APB2Periph_SDIO, DISABLE);
+  /* Test the Version supported by the card*/
+  SD_SPEC = (scr[1]  & 0x01000000)||(scr[1]  & 0x02000000);
 
-  GPIO_PinAFConfig(GPIOC, GPIO_PinSource8, GPIO_AF_MCO);
-  GPIO_PinAFConfig(GPIOC, GPIO_PinSource9, GPIO_AF_MCO);
-  GPIO_PinAFConfig(GPIOC, GPIO_PinSource10, GPIO_AF_MCO);
-  GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_MCO);
-  GPIO_PinAFConfig(GPIOC, GPIO_PinSource12, GPIO_AF_MCO);
-  GPIO_PinAFConfig(GPIOD, GPIO_PinSource2, GPIO_AF_MCO);
+  if (SD_SPEC != SD_ALLZERO)
+  {
+    /* Set Block Size for Card */
+    SDIO_CmdInitStructure.SDIO_Argument = (uint32_t)64;
+    SDIO_CmdInitStructure.SDIO_CmdIndex = SD_CMD_SET_BLOCKLEN;
+    SDIO_CmdInitStructure.SDIO_Response = SDIO_Response_Short;
+    SDIO_CmdInitStructure.SDIO_Wait = SDIO_Wait_No;
+    SDIO_CmdInitStructure.SDIO_CPSM = SDIO_CPSM_Enable;
+    SDIO_SendCommand(&SDIO_CmdInitStructure);
+    errorstatus = CmdResp1Error(SD_CMD_SET_BLOCKLEN);
+    if (errorstatus != SD_OK)
+    {
+      return(errorstatus);
+    }
+    SDIO_DataInitStructure.SDIO_DataTimeOut = SD_DATATIMEOUT;
+    SDIO_DataInitStructure.SDIO_DataLength = 64;
+    SDIO_DataInitStructure.SDIO_DataBlockSize = SDIO_DataBlockSize_64b ;
+    SDIO_DataInitStructure.SDIO_TransferDir = SDIO_TransferDir_ToSDIO;
+    SDIO_DataInitStructure.SDIO_TransferMode = SDIO_TransferMode_Block;
+    SDIO_DataInitStructure.SDIO_DPSM = SDIO_DPSM_Enable;
+    SDIO_DataConfig(&SDIO_DataInitStructure);
 
-  /* Configure PC.08, PC.09, PC.10, PC.11 pins: D0, D1, D2, D3 pins */
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
-  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-  GPIO_Init(GPIOC, &GPIO_InitStructure);
+    /*!< Send CMD6 switch mode */
+    SDIO_CmdInitStructure.SDIO_Argument = 0x80FFFF01;
+    SDIO_CmdInitStructure.SDIO_CmdIndex = SD_CMD_HS_SWITCH;
+    SDIO_CmdInitStructure.SDIO_Response = SDIO_Response_Short;
+    SDIO_CmdInitStructure.SDIO_Wait = SDIO_Wait_No;
+    SDIO_CmdInitStructure.SDIO_CPSM = SDIO_CPSM_Enable;
+    SDIO_SendCommand(&SDIO_CmdInitStructure);
+    errorstatus = CmdResp1Error(SD_CMD_HS_SWITCH);
 
-  /* Configure PD.02 CMD line */
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
-  GPIO_Init(GPIOD, &GPIO_InitStructure);
+    if (errorstatus != SD_OK)
+    {
+      return(errorstatus);
+    }
+    while (!(SDIO->STA &(SDIO_FLAG_RXOVERR | SDIO_FLAG_DCRCFAIL | SDIO_FLAG_DTIMEOUT | SDIO_FLAG_DBCKEND | SDIO_FLAG_STBITERR)))
+    {
+      if (SDIO_GetFlagStatus(SDIO_FLAG_RXFIFOHF) != RESET)
+      {
+        for (count = 0; count < 8; count++)
+        {
+          *(tempbuff + count) = SDIO_ReadData();
+        }
+        tempbuff += 8;
+      }
+    }
 
-  /* Configure PC.12 pin: CLK pin */
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
-  GPIO_Init(GPIOC, &GPIO_InitStructure);
+    if (SDIO_GetFlagStatus(SDIO_FLAG_DTIMEOUT) != RESET)
+    {
+      SDIO_ClearFlag(SDIO_FLAG_DTIMEOUT);
+      errorstatus = SD_DATA_TIMEOUT;
+      return(errorstatus);
+    }
+    else if (SDIO_GetFlagStatus(SDIO_FLAG_DCRCFAIL) != RESET)
+    {
+      SDIO_ClearFlag(SDIO_FLAG_DCRCFAIL);
+      errorstatus = SD_DATA_CRC_FAIL;
+      return(errorstatus);
+    }
+    else if (SDIO_GetFlagStatus(SDIO_FLAG_RXOVERR) != RESET)
+    {
+      SDIO_ClearFlag(SDIO_FLAG_RXOVERR);
+      errorstatus = SD_RX_OVERRUN;
+      return(errorstatus);
+    }
+    else if (SDIO_GetFlagStatus(SDIO_FLAG_STBITERR) != RESET)
+    {
+      SDIO_ClearFlag(SDIO_FLAG_STBITERR);
+      errorstatus = SD_START_BIT_ERR;
+      return(errorstatus);
+    }
+    count = SD_DATATIMEOUT;
+    while ((SDIO_GetFlagStatus(SDIO_FLAG_RXDAVL) != RESET) && (count > 0))
+    {
+      *tempbuff = SDIO_ReadData();
+      tempbuff++;
+      count--;
+    }
+
+    /*!< Clear all the static flags */
+    SDIO_ClearFlag(SDIO_STATIC_FLAGS);
+
+    /* Test if the switch mode HS is ok */
+    if ((hs[13]& 0x2)==0x2)
+    {
+      errorstatus=SD_OK;
+    }
+    else
+    {
+      errorstatus=SD_UNSUPPORTED_FEATURE ;
+    }
+  }
+  return(errorstatus);
 }
 
 /**
-  * @brief  Initializes the SD Card and put it into StandBy State (Ready for
-  *         data transfer).
-  * @param  None
-  * @retval None
+  * @}
   */
-void SD_LowLevel_Init(void)
-{
-  GPIO_InitTypeDef  GPIO_InitStructure;
-
-  /* GPIOC and GPIOD Periph clock enable */
-  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC | RCC_AHB1Periph_GPIOD | SD_DETECT_GPIO_CLK, ENABLE);
-
-  GPIO_PinAFConfig(GPIOC, GPIO_PinSource8, GPIO_AF_SDIO);
-  GPIO_PinAFConfig(GPIOC, GPIO_PinSource9, GPIO_AF_SDIO);
-  GPIO_PinAFConfig(GPIOC, GPIO_PinSource10, GPIO_AF_SDIO);
-  GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_SDIO);
-  GPIO_PinAFConfig(GPIOC, GPIO_PinSource12, GPIO_AF_SDIO);
-  GPIO_PinAFConfig(GPIOD, GPIO_PinSource2, GPIO_AF_SDIO);
-
-  /* Configure PC.08, PC.09, PC.10, PC.11 pins: D0, D1, D2, D3 pins */
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10 | GPIO_Pin_11;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_25MHz;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-  GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-  GPIO_Init(GPIOC, &GPIO_InitStructure);
-
-  /* Configure PD.02 CMD line */
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
-  GPIO_Init(GPIOD, &GPIO_InitStructure);
-
-  /* Configure PC.12 pin: CLK pin */
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
-//  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-  GPIO_Init(GPIOC, &GPIO_InitStructure);
-
-  /*!< Configure SD_SPI_DETECT_PIN pin: SD Card detect pin */
-  GPIO_InitStructure.GPIO_Pin = SD_DETECT_PIN;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
-  GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-  GPIO_Init(SD_DETECT_GPIO_PORT, &GPIO_InitStructure);
-
-  /* Enable the SDIO APB2 Clock */
-  RCC_APB2PeriphClockCmd(RCC_APB2Periph_SDIO, ENABLE);
-
-  /* Enable the DMA2 Clock */
-  RCC_AHB1PeriphClockCmd(SD_SDIO_DMA_CLK, ENABLE);
-}
 
 /**
-  * @brief  Configures the DMA2 Channel4 for SDIO Tx request.
-  * @param  BufferSRC: pointer to the source buffer
-  * @param  BufferSize: buffer size
-  * @retval None
+  * @}
   */
-void SD_LowLevel_DMA_TxConfig(uint32_t *BufferSRC, uint32_t BufferSize)
-{
-  DMA_InitTypeDef SDDMA_InitStructure;
-
-  DMA_ClearFlag(SD_SDIO_DMA_STREAM, SD_SDIO_DMA_FLAG_FEIF | SD_SDIO_DMA_FLAG_DMEIF | SD_SDIO_DMA_FLAG_TEIF | SD_SDIO_DMA_FLAG_HTIF | SD_SDIO_DMA_FLAG_TCIF);
-
-  /* DMA2 Stream3  or Stream6 disable */
-  DMA_Cmd(SD_SDIO_DMA_STREAM, DISABLE);
-
-  /* DMA2 Stream3  or Stream6 Config */
-  DMA_DeInit(SD_SDIO_DMA_STREAM);
-
-  SDDMA_InitStructure.DMA_Channel = SD_SDIO_DMA_CHANNEL;
-  SDDMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)SDIO_FIFO_ADDRESS;
-  SDDMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t)BufferSRC;
-  SDDMA_InitStructure.DMA_DIR = DMA_DIR_MemoryToPeripheral;
-  SDDMA_InitStructure.DMA_BufferSize = 0;
-  SDDMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-  SDDMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
-  SDDMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Word;
-  SDDMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Word;
-  SDDMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
-  SDDMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
-  SDDMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Enable;
-  SDDMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_Full;
-  SDDMA_InitStructure.DMA_MemoryBurst = DMA_MemoryBurst_INC4;
-  SDDMA_InitStructure.DMA_PeripheralBurst = DMA_PeripheralBurst_INC4;
-  DMA_Init(SD_SDIO_DMA_STREAM, &SDDMA_InitStructure);
-  DMA_ITConfig(SD_SDIO_DMA_STREAM, DMA_IT_TC, ENABLE);
-  DMA_FlowControllerConfig(SD_SDIO_DMA_STREAM, DMA_FlowCtrl_Peripheral);
-
-  /* DMA2 Stream3  or Stream6 enable */
-  DMA_Cmd(SD_SDIO_DMA_STREAM, ENABLE);
-
-}
 
 /**
-  * @brief  Configures the DMA2 Channel4 for SDIO Rx request.
-  * @param  BufferDST: pointer to the destination buffer
-  * @param  BufferSize: buffer size
-  * @retval None
+  * @}
   */
-void SD_LowLevel_DMA_RxConfig(uint32_t *BufferDST, uint32_t BufferSize)
-{
-  DMA_InitTypeDef SDDMA_InitStructure;
 
-  DMA_ClearFlag(SD_SDIO_DMA_STREAM, SD_SDIO_DMA_FLAG_FEIF | SD_SDIO_DMA_FLAG_DMEIF | SD_SDIO_DMA_FLAG_TEIF | SD_SDIO_DMA_FLAG_HTIF | SD_SDIO_DMA_FLAG_TCIF);
-
-  /* DMA2 Stream3  or Stream6 disable */
-  DMA_Cmd(SD_SDIO_DMA_STREAM, DISABLE);
-
-  /* DMA2 Stream3 or Stream6 Config */
-  DMA_DeInit(SD_SDIO_DMA_STREAM);
-
-  SDDMA_InitStructure.DMA_Channel = SD_SDIO_DMA_CHANNEL;
-  SDDMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)SDIO_FIFO_ADDRESS;
-  SDDMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t)BufferDST;
-  SDDMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralToMemory;
-  SDDMA_InitStructure.DMA_BufferSize = 0;
-  SDDMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-  SDDMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
-  SDDMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Word;
-  SDDMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Word;
-  SDDMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
-  SDDMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
-  SDDMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Enable;
-  SDDMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_Full;
-  SDDMA_InitStructure.DMA_MemoryBurst = DMA_MemoryBurst_INC4;
-  SDDMA_InitStructure.DMA_PeripheralBurst = DMA_PeripheralBurst_INC4;
-  DMA_Init(SD_SDIO_DMA_STREAM, &SDDMA_InitStructure);
-  DMA_ITConfig(SD_SDIO_DMA_STREAM, DMA_IT_TC, ENABLE);
-  DMA_FlowControllerConfig(SD_SDIO_DMA_STREAM, DMA_FlowCtrl_Peripheral);
-
-  /* DMA2 Stream3 or Stream6 enable */
-  DMA_Cmd(SD_SDIO_DMA_STREAM, ENABLE);
-}
-
-/******************* (C) COPYRIGHT 2011 STMicroelectronics *****END OF FILE****/
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

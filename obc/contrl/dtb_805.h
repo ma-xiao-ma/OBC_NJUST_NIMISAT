@@ -103,6 +103,32 @@ typedef struct __attribute__((__packed__))
         uint8_t MEM4_BACK_CNT; //W16
 } dtb_tm_pack;
 
+/**数传控制命令*/
+typedef enum __attribute__((__packed__))
+{
+    Boot = 1,
+    ShutDown,
+    MemReset,
+    Mem1Record,
+    Mem2Record,
+    Mem3Record,
+    Mem4Record,
+    MemStop,
+    Mem1Back,
+    Mem2Back,
+    Mem3Back,
+    Mem4Back,
+    Mem1Erase,
+    Mem2Erase,
+    Mem3Erase,
+    Mem4Erase,
+    PseudoOn,
+    PseudoOff,
+    Rate1Mbps,
+    Rate2Mbps,
+    Rate4Mbps
+} dtb_cmd;
+
 
 int xDTBTelemetryGet(uint8_t *pRxData, uint16_t Timeout);
 

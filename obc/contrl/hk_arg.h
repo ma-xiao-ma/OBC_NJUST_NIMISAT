@@ -30,6 +30,9 @@ extern uint32_t     obc_reset_time;
 
 extern uint8_t up_hk_down_cmd;
 
+extern uint32_t hk_down_cnt;
+extern uint32_t hk_store_cnt;
+
 extern uint32_t StorageIntervalCount;
 extern uint32_t Stop_Down_Time;		//鍗槦杩涚珯鍚庯紝姣�4s涓嬭涓�娆℃暟鎹紝鎸佺画 8 min 鍒╃敤4绉掑畾鏃讹紝120娆″嵆涓�8鍒嗛挓
 extern uint32_t downtimeset;	//鍗曚綅ms

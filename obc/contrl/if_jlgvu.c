@@ -15,6 +15,7 @@
 #include "error.h"
 #include "QB50_mem.h"
 #include "crc.h"
+#include "if_trxvu.h"
 
 #include "if_jlgvu.h"
 

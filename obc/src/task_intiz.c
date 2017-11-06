@@ -42,6 +42,7 @@
 
 //extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
 
+
 void task_initz(void)
 {
     extern uint8_t driver_debug_switch[DEBUG_ENUM_MAX+1];
@@ -62,6 +63,8 @@ void task_initz(void)
 #endif
 
 	Camera_805_Init();
+
+	printf("wang ni shi zhu!!!\n");
 
 	int_adc_init();
 
@@ -89,8 +92,6 @@ void task_initz(void)
 
 	/*use cpu flash to store the info*/
 	obc_argvs_recover();
-
-
 
 	/*house-keeping store to SD card*/
 	hk_list_init(&hk_list);

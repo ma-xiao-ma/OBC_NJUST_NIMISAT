@@ -1,17 +1,22 @@
-// ���ļ���Դ�� stm324xg_eval_sdio_sd.h
-
+/*
+ * bsp_sdio_sd.h
+ *
+ *  Created on: 2017年11月4日
+ *      Author: Ma Wenli
+ */
 /**
   ******************************************************************************
-  * @file    bsp_sdio_sd.h   
+  * @file    stm324xg_eval_sdio_sd.h
   * @author  MCD Application Team
-  * @version V1.0.2
-  * @date    09-March-2012
+  * @version V1.1.2
+  * @date    19-September-2013
   * @brief   This file contains all the functions prototypes for the SD Card
   *          stm324xg_eval_sdio_sd driver firmware library.
+  *
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; COPYRIGHT 2012 STMicroelectronics</center></h2>
+  * <h2><center>&copy; COPYRIGHT 2013 STMicroelectronics</center></h2>
   *
   * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
   * You may not use this file except in compliance with the License.
@@ -28,11 +33,10 @@
   ******************************************************************************
   */
 
-/* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __STM324xG_EVAL_SDIO_SD_H
-#define __STM324xG_EVAL_SDIO_SD_H
+#ifndef BSP_BSP_STM32F4_INC_BSP_SDIO_SD_H_
+#define BSP_BSP_STM32F4_INC_BSP_SDIO_SD_H_
 
-#include "stdint.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
  extern "C" {
@@ -226,7 +230,7 @@ typedef struct
 {
   SD_CSD SD_csd;
   SD_CID SD_cid;
-  uint32_t CardCapacity;  /*!< Card Capacity */
+  uint64_t CardCapacity;  /*!< Card Capacity */
   uint32_t CardBlockSize; /*!< Card Block Size */
   uint16_t RCA;
   uint8_t CardType;
@@ -236,9 +240,17 @@ typedef struct
   * @}
   */
 
-#define SD_DETECT_PIN                    GPIO_Pin_2                 /* PE.2 */
-#define SD_DETECT_GPIO_PORT              GPIOE                       /* GPIOE */
-#define SD_DETECT_GPIO_CLK               RCC_AHB1Periph_GPIOE
+/** @addtogroup STM324xG_EVAL_LOW_LEVEL_SD_FLASH
+  * @{
+  */
+/**
+  * @brief  SD FLASH SDIO Interface
+  */
+
+//#define SD_DETECT_PIN                    GPIO_Pin_13                //  PH.13
+//#define SD_DETECT_GPIO_PORT              GPIOH                      //  GPIOH
+//#define SD_DETECT_GPIO_CLK               RCC_AHB1Periph_GPIOH
+
 
 #define SDIO_FIFO_ADDRESS                ((uint32_t)0x40012C80)
 /**
@@ -253,7 +265,7 @@ typedef struct
 #define SD_SDIO_DMA                   DMA2
 #define SD_SDIO_DMA_CLK               RCC_AHB1Periph_DMA2
 
-#define SD_SDIO_DMA_STREAM3	          3
+#define SD_SDIO_DMA_STREAM3           3
 //#define SD_SDIO_DMA_STREAM6           6
 
 #ifdef SD_SDIO_DMA_STREAM3
@@ -277,6 +289,10 @@ typedef struct
  #define SD_SDIO_DMA_IRQn              DMA2_Stream6_IRQn
  #define SD_SDIO_DMA_IRQHANDLER        DMA2_Stream6_IRQHandler
 #endif /* SD_SDIO_DMA_STREAM3 */
+
+/**
+  * @}
+  */
 
 
 /** @defgroup STM324xG_EVAL_SDIO_SD_Exported_Constants
@@ -412,48 +428,23 @@ SD_Error SD_InitializeCards(void);
 SD_Error SD_GetCardInfo(SD_CardInfo *cardinfo);
 SD_Error SD_GetCardStatus(SD_CardStatus *cardstatus);
 SD_Error SD_EnableWideBusOperation(uint32_t WideMode);
-SD_Error SD_SelectDeselect(uint32_t addr);
-SD_Error SD_ReadBlock(uint8_t *readbuff, uint32_t ReadAddr, uint16_t BlockSize);
-SD_Error SD_ReadMultiBlocks(uint8_t *readbuff, uint32_t ReadAddr, uint16_t BlockSize, uint32_t NumberOfBlocks);
-SD_Error SD_WriteBlock(uint8_t *writebuff, uint32_t WriteAddr, uint16_t BlockSize);
-SD_Error SD_WriteMultiBlocks(uint8_t *writebuff, uint32_t WriteAddr, uint16_t BlockSize, uint32_t NumberOfBlocks);
+SD_Error SD_SelectDeselect(uint64_t addr);
+SD_Error SD_ReadBlock(uint8_t *readbuff, uint64_t ReadAddr, uint16_t BlockSize);
+SD_Error SD_ReadMultiBlocks(uint8_t *readbuff, uint64_t ReadAddr, uint16_t BlockSize, uint32_t NumberOfBlocks);
+SD_Error SD_WriteBlock(uint8_t *writebuff, uint64_t WriteAddr, uint16_t BlockSize);
+SD_Error SD_WriteMultiBlocks(uint8_t *writebuff, uint64_t WriteAddr, uint16_t BlockSize, uint32_t NumberOfBlocks);
 SDTransferState SD_GetTransferState(void);
 SD_Error SD_StopTransfer(void);
-SD_Error SD_Erase(uint32_t startaddr, uint32_t endaddr);
+SD_Error SD_Erase(uint64_t startaddr, uint64_t endaddr);
 SD_Error SD_SendStatus(uint32_t *pcardstatus);
 SD_Error SD_SendSDStatus(uint32_t *psdstatus);
 SD_Error SD_ProcessIRQSrc(void);
 void SD_ProcessDMAIRQ(void);
 SD_Error SD_WaitReadOperation(void);
 SD_Error SD_WaitWriteOperation(void);
-void SD_LowLevel_DeInit(void);
-void SD_LowLevel_Init(void);
-void SD_LowLevel_DMA_TxConfig(uint32_t *BufferSRC, uint32_t BufferSize);
-void SD_LowLevel_DMA_RxConfig(uint32_t *BufferDST, uint32_t BufferSize);
+SD_Error SD_HighSpeed(void);
 #ifdef __cplusplus
 }
 #endif
 
-
-#endif /* __STM32_EVAL_SDIO_SD_H */
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
-
-/******************* (C) COPYRIGHT 2010 STMicroelectronics *****END OF FILE****/
+#endif /* BSP_BSP_STM32F4_INC_BSP_SDIO_SD_H_ */

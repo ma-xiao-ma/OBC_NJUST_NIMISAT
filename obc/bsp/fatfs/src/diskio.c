@@ -27,7 +27,8 @@ DSTATUS disk_initialize (
 		return STA_NOINIT;
 	}
 /*-------------------------- SD Init ----------------------------- */
-  Status = SD_Init();
+	Status = SD_Init();
+
 	if (Status!=SD_OK )
 	{
 		return STA_NOINIT;

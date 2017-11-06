@@ -35,6 +35,15 @@ uint8_t obc_argvs_store(void) {
 	res = bsp_ReadCpuFlash(OBC_STORE_ADDR, (uint8_t*)&obc_save, sizeof(obc_save));
 	obc_save.obc_reset_time = clock_get_time_nopara();
 	obc_save.antenna_status = antenna_status;
+	obc_save.hk_down_cnt = hk_down_cnt;
+	obc_save.hk_store_cnt = hk_store_cnt;
+    for (int i = 0; i < 5; i++)
+    {
+        if (obc_save.delay_task_recover[i].execution_time != 0xFFFFFFFF &&
+                obc_save.delay_task_recover[i].execution_time > clock_get_time_nopara())
+            obc_save.delay_task_recover[i].execution_time = 0xFFFFFFFF;
+    }
+
 	res = bsp_WriteCpuFlash(OBC_STORE_ADDR, (uint8_t*)&obc_save, sizeof(obc_save));
 
 	return res;
@@ -92,6 +101,13 @@ uint8_t obc_argvs_recover(void) {
         {
             obc_save.hk_store_cnt = 0;
         }
+	}
+	for (int i = 0; i < 5; i++)
+	{
+	    if (obc_save.delay_task_recover[i].execution_time != 0xFFFFFFFF &&
+	            obc_save.delay_task_recover[i].execution_time < clock_get_time_nopara())
+	        xTaskCreate(obc_save.delay_task_recover[i].task_function, obc_save.delay_task_recover[i].task_name,
+	                256, &obc_save.delay_task_recover[i].execution_time, 4, &obc_save.delay_task_recover[i].task_handle);
 	}
 
 	obc_boot_count = obc_save.obc_boot_count;

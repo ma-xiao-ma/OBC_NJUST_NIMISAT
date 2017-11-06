@@ -25,6 +25,8 @@ extern unsigned int __bss_regions_array_end;
 
 static FATFS fs; /* Work area (file system object) for logical drives */
 
+
+
 extern void main (void);
 void _start (void);
 
@@ -60,13 +62,11 @@ _start (void)
     /*FSMC SRAM 初始化
      *  容量：2MB*/
     bsp_InitExtSRAM();
+
     /*FSMC NorFlash 初始化
      * 容量：4MB*/
     bsp_InitNorFlash();
 
-    /*初始化micro SD卡*/
-    SD_NVIC_Configuration();
-    FRESULT result = f_mount(0,&fs);
 
 	// Copy the data sections from flash to SRAM.
     for (unsigned int* p = &__data_regions_array_start;
@@ -87,6 +87,10 @@ _start (void)
         unsigned int* region_end = (unsigned int*) (*p++);
         __initialize_bss (region_begin, region_end);
     }
+
+    /*初始化micro SD卡*/
+    SD_NVIC_Configuration();
+    f_mount(0,&fs);
 
 	main();
 

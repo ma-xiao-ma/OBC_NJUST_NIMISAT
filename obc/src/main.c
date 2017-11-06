@@ -26,7 +26,7 @@
 //任务优先级
 #define START_TASK_PRIO     1
 //任务堆栈大小
-#define START_STK_SIZE      128
+#define START_STK_SIZE      256
 //任务句柄
 TaskHandle_t StartTask_Handler;
 //任务函数
@@ -35,31 +35,24 @@ void start_task(void *pvParameters);
 //任务优先级
 #define CONSOLE_TASK_PRIO     (tskIDLE_PRIORITY + 4)
 //任务堆栈大小
-#define CONSOLE_STK_SIZE      (configMINIMAL_STACK_SIZE * 4)
+#define CONSOLE_STK_SIZE      (configMINIMAL_STACK_SIZE * 8)
 //任务句柄
 TaskHandle_t ConsoleTask_Handler;
 
 /****************电源信息采集控制任务********************/
 //任务优先级
-#define EPS_TASK_PRIO     (tskIDLE_PRIORITY + 1)
+#define COLLECT_TASK_PRIO     (tskIDLE_PRIORITY + 1)
 //任务堆栈大小
-#define EPS_STK_SIZE      (configMINIMAL_STACK_SIZE * 2)
+#define COLLECT_STK_SIZE      (configMINIMAL_STACK_SIZE * 4)
 //任务句柄
-TaskHandle_t EpsTask_Handler;
+TaskHandle_t CollectTask_Handler;
 
-/*****************调试上行串口解包任务*******************/
-//任务优先级
-#define USART2_REVEIVE_TASK_PRIO     (tskIDLE_PRIORITY + 3)
-//任务堆栈大小
-#define USART2_REVEIVE_STK_SIZE      (configMINIMAL_STACK_SIZE)
-//任务句柄
-TaskHandle_t Usart2ReceiveTask_Handler;
 
 /****************上行ISIS通信板解包任务******************/
 //任务优先级
 #define ISIS_READ_TASK_PRIO     (tskIDLE_PRIORITY + 3)
 //任务堆栈大小
-#define ISIS_READ_STK_SIZE      (configMINIMAL_STACK_SIZE * 2)
+#define ISIS_READ_STK_SIZE      (configMINIMAL_STACK_SIZE * 4)
 //任务句柄
 TaskHandle_t ISISReadTask_Handler;
 
@@ -67,7 +60,7 @@ TaskHandle_t ISISReadTask_Handler;
 //任务优先级
 #define DOWN_SAVE_TASK_PRIO     (tskIDLE_PRIORITY + 2)
 //任务堆栈大小
-#define DOWN_SAVE_STK_SIZE      (configMINIMAL_STACK_SIZE*2)
+#define DOWN_SAVE_STK_SIZE      (configMINIMAL_STACK_SIZE * 4)
 //任务句柄
 TaskHandle_t DownSaveTask_Handler;
 
@@ -75,7 +68,7 @@ TaskHandle_t DownSaveTask_Handler;
 //任务优先级
 #define OPEN_PANEL_TASK_PRIO     (tskIDLE_PRIORITY + 3)
 //任务堆栈大小
-#define OPEN_PANEL_STK_SIZE      (configMINIMAL_STACK_SIZE)
+#define OPEN_PANEL_STK_SIZE      (configMINIMAL_STACK_SIZE * 2)
 //任务句柄
 TaskHandle_t OpenPanelTask_Handler;
 
@@ -83,7 +76,7 @@ TaskHandle_t OpenPanelTask_Handler;
 //任务优先级
 #define OPEN_ANTENNA_TASK_PRIO     (tskIDLE_PRIORITY + 4)
 //任务堆栈大小
-#define OPEN_ANTENNA_STK_SIZE      (configMINIMAL_STACK_SIZE)
+#define OPEN_ANTENNA_STK_SIZE      (configMINIMAL_STACK_SIZE * 2)
 //任务句柄
 TaskHandle_t OpenAntennaTask_Handler;
 
@@ -137,36 +130,25 @@ void start_task(void *pvParameters)
                 (UBaseType_t    )CONSOLE_TASK_PRIO,
                 (TaskHandle_t*  )&ConsoleTask_Handler);
 
-    //创建电源信息采集控制任务
-    xTaskCreate((TaskFunction_t )eps_task,
-                (const char*    )"Eps",
-                (uint16_t       )EPS_STK_SIZE,
+    //创建分系统遥测采集任务
+    xTaskCreate((TaskFunction_t )hk_collect_task,
+                (const char*    )"Collect",
+                (uint16_t       )COLLECT_STK_SIZE,
                 (void*          )NULL,
-                (UBaseType_t    )EPS_TASK_PRIO,
-                (TaskHandle_t*  )&EpsTask_Handler);
+                (UBaseType_t    )COLLECT_TASK_PRIO,
+                (TaskHandle_t*  )&CollectTask_Handler);
 
-#if USE_SERIAL_PORT_DOWNLINK_INTERFACE
-    #ifndef USE_ROUTE_PROTOCOL
-    //创建调试上行串口解包任务
-    xTaskCreate((TaskFunction_t )USART2_Receive_Task,
-                (const char*    )"USART2_RX",
-                (uint16_t       )USART2_REVEIVE_STK_SIZE,
-                (void*          )NULL,
-                (UBaseType_t    )USART2_REVEIVE_TASK_PRIO,
-                (TaskHandle_t*  )&Usart2ReceiveTask_Handler);
-    #endif
-#else
+#ifndef USE_SERIAL_PORT_DOWNLINK_INTERFACE
     //创建上行ISIS通信板解包任务
-    xTaskCreate((TaskFunction_t )isis_read_task,
-                (const char*    )"ISIS",
+    xTaskCreate((TaskFunction_t )vu_isis_uplink_task,
+                (const char*    )"Uplink",
                 (uint16_t       )ISIS_READ_STK_SIZE,
                 (void*          )NULL,
                 (UBaseType_t    )ISIS_READ_TASK_PRIO,
                 (TaskHandle_t*  )&ISISReadTask_Handler);
-
 #endif
 
-//    //创建上行ISIS通信板解包任务
+//    //创建上行解理工通信板解包任务
 //    xTaskCreate((TaskFunction_t )vu_jlg_uplink_task,
 //                (const char*    )"JLG",
 //                (uint16_t       )ISIS_READ_STK_SIZE,
@@ -174,13 +156,13 @@ void start_task(void *pvParameters)
 //                (UBaseType_t    )ISIS_READ_TASK_PRIO,
 //                (TaskHandle_t*  )&ISISReadTask_Handler);
 
-//    //遥测下行和保存任务
-//    xTaskCreate((TaskFunction_t )down_save_task,
-//                (const char*    )"down",
-//                (uint16_t       )DOWN_SAVE_STK_SIZE,
-//                (void*          )NULL,
-//                (UBaseType_t    )DOWN_SAVE_TASK_PRIO,
-//                (TaskHandle_t*  )&DownSaveTask_Handler);
+    //遥测下行和保存任务
+    xTaskCreate((TaskFunction_t )down_save_task,
+                (const char*    )"down",
+                (uint16_t       )DOWN_SAVE_STK_SIZE,
+                (void*          )NULL,
+                (UBaseType_t    )DOWN_SAVE_TASK_PRIO,
+                (TaskHandle_t*  )&DownSaveTask_Handler);
 
 //    //展电池阵任务
 //    xTaskCreate((TaskFunction_t )OpenPanel_Task,

@@ -7,6 +7,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -57,6 +58,15 @@ int sram_read_handler(struct command_context * context) {
 	return CMD_ERROR_NONE;
 }
 
+int sram_err_test_handler(struct command_context * context __attribute__((unused)))
+{
+    uint8_t err_count = bsp_TestExtSRAM();
+
+    printf("SRAM write error: %u\n", err_count);
+
+    return CMD_ERROR_NONE;
+}
+
 struct command cmd_sram_sub[] = {
 	{
 		.name = "write",
@@ -68,7 +78,11 @@ struct command cmd_sram_sub[] = {
 		.help = "read sram",
 		.usage = "<addr>",
 		.handler = sram_read_handler,
-	}
+	},{
+        .name = "test",
+        .help = "test sram",
+        .handler = sram_err_test_handler,
+    }
 };
 
 command_t __root_command cmd_sram_master[] = {

@@ -160,7 +160,7 @@ typedef struct __attribute__((packed))
     dtb_tm_pack dtb_hk;
 } dtb_805_hk_t;
 
-/*遥感相机遥测，16 Byte*/
+/*遥感相机遥测，18 Byte*/
 typedef struct __attribute__((packed))
 {
     /**相机采温点1温度*/
@@ -174,9 +174,9 @@ typedef struct __attribute__((packed))
     /**增益*/
     uint8_t         gain;                   //1
     /**相机模式*/
-    cam_mode_t      work_mode;              //1
-    /**当前最新的备份图像ID*/
-    uint32_t        currt_image_id;          //4
+    cam_ctl_t       work_mode;              //3
+//    /**当前最新的备份图像ID*/
+//    uint32_t        currt_image_id;         //4
 } cam_805_hk_t;
 
 typedef struct __attribute__((packed))
@@ -387,7 +387,7 @@ int adcs_hk_get_peek(adcs805_hk_t *adcs);
 /**
  * 遥测采集任务初始化 创建6个队列， 需要在初始化函数中调用
  */
-void hk_collection_task_init(void);
+void hk_collect_task_init(void);
 
 
 #endif /* SRC_HK_H_ */
