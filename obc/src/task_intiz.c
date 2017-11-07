@@ -38,6 +38,7 @@
 #include "switches.h"
 #include "camera_805.h"
 #include "driver_debug.h"
+#include "task_monitor.h"
 
 
 //extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
@@ -48,6 +49,9 @@ void task_initz(void)
     extern uint8_t driver_debug_switch[DEBUG_ENUM_MAX+1];
 
     driver_debug_switch[DEBUG_HK] = 1;
+
+    /* 任务监视器初始化,线程超时时间15s */
+    supervisor_init(15000);
 
     /*控制开关IO口初始化*/
     bsp_InitSwitch();
@@ -63,8 +67,6 @@ void task_initz(void)
 #endif
 
 	Camera_805_Init();
-
-	printf("wang ni shi zhu!!!\n");
 
 	int_adc_init();
 

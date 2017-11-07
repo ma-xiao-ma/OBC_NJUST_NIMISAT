@@ -29,6 +29,7 @@
 #include "bsp_cis.h"
 #include "bsp_cpu_flash.h"
 #include "router_io.h"
+#include "task_monitor.h"
 
 #include "csp.h"
 
@@ -184,6 +185,8 @@ void hk_collect_task(void *pvParameters __attribute__((unused)))
 
     while (1)
     {
+        task_report_alive(Collect);
+
         obc_hk_task();
 
         eps_hk_task();
@@ -326,6 +329,7 @@ void down_save_task(void * pvParameters __attribute__((unused))) {
 
 	while (1)
 	{
+	    task_report_alive(DownSave);
 
 		//if ((up_hk_down_cmd == 1 || PassFlag == 1) && down_cnt <= 60) {
 		if ((up_hk_down_cmd == 1 ) && down_cnt <= 60)

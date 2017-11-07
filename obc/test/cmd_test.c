@@ -552,17 +552,17 @@ int cmd_obc_hk(struct command_context *ctx __attribute__((unused)))
     printf("******************************\n");
     printf("sat_id\t\t%u\n", obc->sat_id);
     printf("soft_id\t\t%u\n", obc->soft_id);
-    printf("reboot_count\t\t%u\n", obc->reboot_count);
-    printf("rec_cmd_count\t\t%u\n", obc->rec_cmd_count);
-    printf("hk_down_count\t\t%u\n", obc->hk_down_count);
-    printf("hk_store_count\t\t%u\n", obc->hk_store_count);
-    printf("i2c_error_count\t\t%u\n", obc->i2c_error_count);
-    printf("last_reset\t\t%u\n", obc->last_reset_time);
-    printf("work_mode\t\t%u\n", obc->work_mode);
-    printf("utc_time\t\t%u\n", obc->utc_time);
-    printf("tmep_mcu\t\t%u\n", obc->tmep_mcu);
-    printf("tmep_board\t\t%u\n", obc->tmep_board);
-    printf("on_off_status\t\t%u\n", obc->on_off_status);
+    printf("reboot_count\t%u\n", obc->reboot_count);
+    printf("rec_cmd_count\t%u\n", obc->rec_cmd_count);
+    printf("hk_down_count\t%u\n", obc->hk_down_count);
+    printf("hk_store_count\t%u\n", obc->hk_store_count);
+    printf("i2c_error_count\t%u\n", obc->i2c_error_count);
+    printf("last_reset\t%u\n", obc->last_reset_time);
+    printf("work_mode\t%u\n", obc->work_mode);
+    printf("utc_time\t%u\n", obc->utc_time);
+    printf("tmep_mcu\t%.2f\n", obc->tmep_mcu / 100.0);
+    printf("tmep_board\t%u\n", obc->tmep_board);
+    printf("on_off_status\t0x%08x\n", obc->on_off_status);
     printf("mindex\t\t%u\n", obc->mindex);
     printf("aindex\t\t%u\n", obc->aindex);
 

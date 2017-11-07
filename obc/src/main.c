@@ -21,6 +21,7 @@
 #include "cube_com.h"
 #include "contrl.h"
 #include "hk.h"
+#include "task_monitor.h"
 
 /***************开始任务********************/
 //任务优先级
@@ -31,6 +32,14 @@
 TaskHandle_t StartTask_Handler;
 //任务函数
 void start_task(void *pvParameters);
+/***************看门狗任务********************/
+//任务优先级
+#define SUPERVISOR_TASK_PRIO     (tskIDLE_PRIORITY + 5)
+//任务堆栈大小
+#define SUPERVISOR_STK_SIZE      (configMINIMAL_STACK_SIZE)
+//任务句柄
+TaskHandle_t SupervisorTask_Handler;
+
 /***************调试台任务********************/
 //任务优先级
 #define CONSOLE_TASK_PRIO     (tskIDLE_PRIORITY + 4)
@@ -121,6 +130,14 @@ int main(void)
 void start_task(void *pvParameters)
 {
     taskENTER_CRITICAL();           //进入临界区
+
+    //创建监视任务
+    xTaskCreate((TaskFunction_t )supervisor_task,
+                (const char*    )"IWDG",
+                (uint16_t       )SUPERVISOR_STK_SIZE,
+                (void*          )NULL,
+                (UBaseType_t    )SUPERVISOR_TASK_PRIO,
+                (TaskHandle_t*  )&SupervisorTask_Handler);
 
     //创建调试台任务
     xTaskCreate((TaskFunction_t )debug_console,
