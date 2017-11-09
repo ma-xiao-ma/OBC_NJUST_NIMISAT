@@ -12,7 +12,7 @@
 #include "crc.h"
 #include "semphr.h"
 #include "cube_com.h"
-#include "QB50_mem.h"
+#include "obc_mem.h"
 #include "if_jlgvu.h"
 #include "hexdump.h"
 
@@ -39,7 +39,7 @@ int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len)
     uint8_t Error, TxRemainBufSize, FrameDataSize, RemainSize = len;
     pdata = (uint8_t *)pdata;
 
-    route_frame_t *downlink = qb50Malloc(I2C_MTU);
+    route_frame_t *downlink = ObcMemMalloc(I2C_MTU);
     if(downlink == NULL)
         return E_MALLOC_FAIL;
 
@@ -76,7 +76,7 @@ int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len)
      /**若发送完成或者错误次数超过10次，则跳出循环 */
     }while ((RemainSize > 0) && (Error < 10));
 
-    qb50Free(downlink);
+    ObcMemFree(downlink);
 
     if (RemainSize == 0)
         return E_NO_ERR;
@@ -101,7 +101,7 @@ int vu_isis_image_downlink(const void * image_data, uint32_t image_len, uint16_t
     uint8_t Error, TxRemainBufSize, RemainSize = image_len;
     image_data = (uint8_t *)image_data;
 
-    route_frame_t *downlink = qb50Malloc(I2C_MTU);
+    route_frame_t *downlink = ObcMemMalloc(I2C_MTU);
     if(downlink == NULL)
         return E_MALLOC_FAIL;
 
@@ -145,7 +145,7 @@ int vu_isis_image_downlink(const void * image_data, uint32_t image_len, uint16_t
      /**若发送完成或者错误次数超过五次，则跳出循环 */
     }while ((RemainSize > 0) && (Error < 5));
 
-    qb50Free(downlink);
+    ObcMemFree(downlink);
 
     if (RemainSize == 0)
         return E_NO_ERR;
@@ -276,20 +276,20 @@ int vu_isis_router_downlink(route_packet_t *packet)
 
     if (!device[ISIS_I2C_HANDLE].is_initialised)
     {
-        qb50Free(packet);
+        ObcMemFree(packet);
         return E_NO_DEVICE;
     }
 
     if (packet->len + 4 > ISIS_MTU)
     {
-        qb50Free(packet);
+        ObcMemFree(packet);
         return E_INVALID_BUF_SIZE;
     }
 
-    i2c_frame_t * frame = (i2c_frame_t *) qb50Malloc(sizeof(i2c_frame_t));
+    i2c_frame_t * frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
     if (frame == NULL)
     {
-        qb50Free(packet);
+        ObcMemFree(packet);
         return E_NO_BUFFER;
     }
 
@@ -304,13 +304,13 @@ int vu_isis_router_downlink(route_packet_t *packet)
 
     if (i2c_send(ISIS_I2C_HANDLE, frame, 0) != E_NO_ERR)
     {
-        qb50Free(packet);
-        qb50Free(frame);
+        ObcMemFree(packet);
+        ObcMemFree(frame);
         xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;
     }
 
-    qb50Free(packet);
+    ObcMemFree(packet);
     xSemaphoreGive(i2c_lock);
     return E_NO_ERR;
 }
@@ -339,7 +339,7 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
 //        /**若缓冲区不为空，则接收帧到路由器*/
 //        if (vu_router_get_frame() != E_NO_ERR)
 //            continue;
-        rsp_frame *frame = qb50Malloc(sizeof(rsp_frame)+/*ISIS_RX_MTU*/249);
+        rsp_frame *frame = ObcMemMalloc(sizeof(rsp_frame)+/*ISIS_RX_MTU*/249);
 
         if( vu_get_frame(frame, /*ISIS_RX_MTU*/249) == E_NO_ERR)
         {
@@ -369,7 +369,7 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
             printf("\n\n");
         }
 
-        qb50Free(frame);
+        ObcMemFree(frame);
 
         /**通信机接收上行消息计数加1*/
         vu_rx_count++;

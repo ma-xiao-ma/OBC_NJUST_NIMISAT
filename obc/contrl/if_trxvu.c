@@ -14,7 +14,7 @@
 #include "if_downlink_vu.h"
 #include "semphr.h"
 #include "error.h"
-#include "QB50_mem.h"
+#include "obc_mem.h"
 #include "crc.h"
 #include "queue.h"
 
@@ -61,7 +61,7 @@ static int vu_cmd_rsp( vu_i2c_addr addr, uint8_t cmd, void * rsp, size_t rsplen 
  */
 static int vu_cmd_par(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen)
 {
-    cmd_with_para *dat = qb50Malloc(sizeof(cmd_with_para) + paralen);
+    cmd_with_para *dat = ObcMemMalloc(sizeof(cmd_with_para) + paralen);
 
     dat->command = cmd;
     if (paralen > 0)
@@ -69,7 +69,7 @@ static int vu_cmd_par(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen
 
     int ret = i2c_master_transaction(ISIS_I2C_HANDLE, addr, dat, sizeof(cmd_with_para)+paralen, NULL, 0, 0);
 
-    qb50Free(dat);
+    ObcMemFree(dat);
 	return ret;
 }
 
@@ -86,7 +86,7 @@ static int vu_cmd_par(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen
  */
 static int vu_cmd_par_rsp(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen, void * rsp, size_t rsplen)
 {
-    cmd_with_para *dat = qb50Malloc(sizeof(cmd_with_para) + paralen);
+    cmd_with_para *dat = ObcMemMalloc(sizeof(cmd_with_para) + paralen);
 
     dat->command = cmd;
     if (paralen > 0)
@@ -94,7 +94,7 @@ static int vu_cmd_par_rsp(vu_i2c_addr addr, uint8_t cmd, void * para, size_t par
 
     int ret = i2c_master_transaction(ISIS_I2C_HANDLE, addr, dat, sizeof(cmd_with_para)+paralen, rsp, rsplen, ISIS_TIMEOUT);
 
-    qb50Free(dat);
+    ObcMemFree(dat);
     return ret;
 }
 
@@ -163,7 +163,7 @@ int vu_receiver_router_get_frame(void)
 {
     rsp_frame * rsp;
 
-    i2c_frame_t * frame = (i2c_frame_t *) qb50Malloc(sizeof(i2c_frame_t));
+    i2c_frame_t * frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
     if (frame == NULL)
         return E_NO_BUFFER;
 
@@ -177,7 +177,7 @@ int vu_receiver_router_get_frame(void)
 
     if (i2c_send(ISIS_I2C_HANDLE, frame, 0) != E_NO_ERR)
     {
-        qb50Free(frame);
+        ObcMemFree(frame);
         xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;
     }
@@ -190,7 +190,7 @@ int vu_receiver_router_get_frame(void)
 
     if ((frame->len < 9) || (frame->len > I2C_MTU))
     {
-        qb50Free(frame);
+        ObcMemFree(frame);
         return E_INVALID_PARAM;
     }
 
@@ -215,7 +215,7 @@ int vu_receiver_router_get_frame(void)
 
     if (*(uint32_t *)(&rsp->Data[rsp->DateSize-4]) != crc32_memory(rsp->Data, rsp->DateSize-4))
     {
-        qb50Free(frame);
+        ObcMemFree(frame);
         return E_CRC_CHECK_ERROR;
     }
 

@@ -19,7 +19,7 @@
 #include "console.h"
 #include "if_trxvu.h"
 #include "bsp_pca9665.h"
-#include "QB50_mem.h"
+#include "obc_mem.h"
 #include "error.h"
 #include "hexdump.h"
 #include "csp_endian.h"
@@ -45,7 +45,7 @@ int vu_send_handler(struct command_context * context)
     if (frame_len < 4 || frame_len > ISIS_MTU)
         return CMD_ERROR_SYNTAX;
 
-    uint8_t *frame = qb50Malloc(frame_len/*ISIS_MTU*/);
+    uint8_t *frame = ObcMemMalloc(frame_len/*ISIS_MTU*/);
     if(frame == NULL)
         return CMD_ERROR_SYNTAX;
 
@@ -84,7 +84,7 @@ int vu_send_handler(struct command_context * context)
 
     printf("Slots %u byte, Remain %u frame, Error %u, Delay %u\r\n", rest_of_buffer_byte, num_of_frame, errors, times);
 
-    qb50Free(frame);
+    ObcMemFree(frame);
     return CMD_ERROR_NONE;
 }
 
@@ -242,7 +242,7 @@ int vu_set_call_bencon_handler(struct command_context * context __attribute__((u
     if (sscanf(args, "%u" , &Interval) != 1)
         return CMD_ERROR_SYNTAX;
 
-    par_beacon_new_call_set *frame = qb50Malloc(sizeof(par_beacon_new_call_set)+ISIS_MTU);
+    par_beacon_new_call_set *frame = ObcMemMalloc(sizeof(par_beacon_new_call_set)+ISIS_MTU);
 
     frame->RepeatInterval = Interval;
 
@@ -260,7 +260,7 @@ int vu_set_call_bencon_handler(struct command_context * context __attribute__((u
     if(vu_beacon_new_call_set(frame, ISIS_MTU) == E_NO_ERR)
         printf("Set OK!!!\r\n");
 
-    qb50Free(frame);
+    ObcMemFree(frame);
     return CMD_ERROR_NONE;
 }
 
@@ -272,7 +272,7 @@ int vu_set_beacon_handler(struct command_context * context __attribute__((unused
     if (sscanf(args, "%u" , &Interval) != 1)
         return CMD_ERROR_SYNTAX;
 
-    par_beacon_set *beacon = qb50Malloc(sizeof(par_beacon_set)+ISIS_MTU);
+    par_beacon_set *beacon = ObcMemMalloc(sizeof(par_beacon_set)+ISIS_MTU);
 
     beacon->RepeatInterval = Interval;
 
@@ -282,13 +282,13 @@ int vu_set_beacon_handler(struct command_context * context __attribute__((unused
     if (vu_beacon_set(beacon, ISIS_MTU) == E_NO_ERR)
         printf("Set OK!!!\r\n");
 
-    qb50Free(beacon);
+    ObcMemFree(beacon);
     return CMD_ERROR_NONE;
 }
 
 int vu_send_new_call_date_handler(struct command_context * context __attribute__((unused))) {
 
-    par_frame_new_call *frame = qb50Malloc(sizeof(par_frame_new_call)+ISIS_MTU);
+    par_frame_new_call *frame = ObcMemMalloc(sizeof(par_frame_new_call)+ISIS_MTU);
 
     char *str1 = "BI4ST-0";
     for(int i=0; *(str1+i) != '\0'; i++)
@@ -308,7 +308,7 @@ int vu_send_new_call_date_handler(struct command_context * context __attribute__
         printf("rsp = %u\r\n", rsp);
     }
 
-    qb50Free(frame);
+    ObcMemFree(frame);
     return CMD_ERROR_NONE;
 }
 
@@ -322,7 +322,7 @@ int vu_remove_frame_handler(struct command_context * context __attribute__((unus
 
 int vu_read_frame_handler(struct command_context * context __attribute__((unused))) {
 
-    rsp_frame *frame = qb50Malloc(sizeof(rsp_frame)+/*ISIS_RX_MTU*/200);
+    rsp_frame *frame = ObcMemMalloc(sizeof(rsp_frame)+/*ISIS_RX_MTU*/200);
 
     if( vu_get_frame(frame, /*ISIS_RX_MTU*/200) == E_NO_ERR)
     {
@@ -352,7 +352,7 @@ int vu_read_frame_handler(struct command_context * context __attribute__((unused
         }
     }
 
-    qb50Free(frame);
+    ObcMemFree(frame);
 
     return CMD_ERROR_NONE;
 }

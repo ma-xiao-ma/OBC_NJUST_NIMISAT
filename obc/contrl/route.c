@@ -106,7 +106,7 @@ void route_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken)
     if (route_queue == NULL)
     {
         printf("route queue not initialized!\r\n");
-        qb50Free(packet);
+        ObcMemFree(packet);
         return;
     }
 
@@ -118,7 +118,7 @@ void route_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken)
     if(result != pdTRUE)
     {
         printf("ERROR: Routing queue is FULL. Dropping packet.\r\n");
-        qb50Free(packet);
+        ObcMemFree(packet);
         route_queue_clean(route_queue, NULL);
         printf("Clean up route queue.\r\n");
     }
@@ -215,7 +215,7 @@ void server_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken)
     if (server_queue == NULL)
     {
         printf("server queue not initialized!\r\n");
-        qb50Free(packet);
+        ObcMemFree(packet);
         return;
     }
 
@@ -227,7 +227,7 @@ void server_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken)
     if(result != pdTRUE)
     {
         printf("ERROR: Server queue is FULL. Dropping packet.\r\n");
-        qb50Free(packet);
+        ObcMemFree(packet);
         route_queue_clean(server_queue, NULL);
         printf("Clean up server queue.\r\n");
     }
@@ -256,7 +256,7 @@ void server_task(void *param __attribute__((unused)))
         if (packet->dst != router_get_my_address())
         {
             printf("Server task packet error. Dropping packet.\r\n");
-            qb50Free(packet);
+            ObcMemFree(packet);
             continue;
         }
 
@@ -313,7 +313,7 @@ void send_processing_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWo
     if (send_processing_queue == NULL)
     {
         printf("send processing queue not initialized!\r\n");
-        qb50Free(packet);
+        ObcMemFree(packet);
         return;
     }
 
@@ -325,7 +325,7 @@ void send_processing_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWo
     if (result != pdTRUE)
     {
         printf("ERROR: Send processing queue is FULL. Dropping packet.\r\n");
-        qb50Free(packet);
+        ObcMemFree(packet);
         route_queue_clean(send_processing_queue, NULL);
         printf("Clean up send queue.\r\n");
     }
@@ -355,7 +355,7 @@ int send_processing_task(void *param __attribute__((unused)))
         if (packet->dst == router_get_my_address())
         {
             printf("Send processing task packet error. Dropping packet.\r\n");
-            qb50Free(packet);
+            ObcMemFree(packet);
             continue;
         }
 
@@ -420,7 +420,7 @@ void route_queue_clean(QueueHandle_t queue, portBASE_TYPE *pxTaskWoken)
             xQueueReceiveFromISR(queue, &packet, pxTaskWoken);
 
         if (packet != NULL)
-            qb50Free(packet);
+            ObcMemFree(packet);
 
     }while (--QueueItemNum);
 }

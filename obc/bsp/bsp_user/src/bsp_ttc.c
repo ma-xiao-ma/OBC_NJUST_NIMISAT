@@ -4,11 +4,12 @@
  *  Created on: 2017年4月28日
  *      Author: 84474
  */
+#include "string.h"
 
 #include "driver_debug.h"
 #include "bsp_ttc.h"
 #include "error.h"
-#include "qb50_mem.h"
+#include "obc_mem.h"
 #include "bsp_pca9665.h"
 #include "command.h"
 #include "crc.h"
@@ -18,8 +19,8 @@ int TTC_Cmd(uint8_t CmdNumber, uint8_t* pResp,uint16_t RespLen)
 {
 	int CmdReturn = E_NO_ERR;
 
-	ttc_cmd_t* pCmdToSend = (ttc_cmd_t*)qb50Malloc(sizeof(ttc_cmd_t));
-	ttc_resp_t* pCmdResp = (ttc_resp_t*)qb50Malloc(sizeof(ttc_resp_t) + RespLen);
+	ttc_cmd_t* pCmdToSend = (ttc_cmd_t*)ObcMemMalloc(sizeof(ttc_cmd_t));
+	ttc_resp_t* pCmdResp = (ttc_resp_t*)ObcMemMalloc(sizeof(ttc_resp_t) + RespLen);
 
 	pCmdToSend->SLH = 0x00;
 	pCmdToSend->SLL = 0x01;
@@ -50,15 +51,15 @@ int TTC_Cmd(uint8_t CmdNumber, uint8_t* pResp,uint16_t RespLen)
 		memcpy(pResp, &pCmdResp->DATA[0], RespLen);
 		CmdReturn = E_NO_ERR;
 	}
-	qb50Free(pCmdToSend);
-	qb50Free(pCmdResp);
+	ObcMemFree(pCmdToSend);
+	ObcMemFree(pCmdResp);
 	return CmdReturn;
 }
 
 int TTC_Cmd_No_Reply(uint8_t CmdNoRep)
 {
 	int CmdReturn = E_NO_ERR;
-	ttc_cmd_t * ttc_cmd = (ttc_cmd_t *)qb50Malloc(sizeof(ttc_cmd_t));
+	ttc_cmd_t * ttc_cmd = (ttc_cmd_t *)ObcMemMalloc(sizeof(ttc_cmd_t));
 
 	ttc_cmd->CMD = CmdNoRep;
 	ttc_cmd->SLH = 0x00;
@@ -68,11 +69,11 @@ int TTC_Cmd_No_Reply(uint8_t CmdNoRep)
 	if(CmdReturn != E_NO_ERR)
 	{
 		driver_debug(DEBUG_TTC,"CMD 0x%02x transmit error!\r\n", ttc_cmd->CMD);
-		qb50Free(ttc_cmd);
+		ObcMemFree(ttc_cmd);
 		return CmdReturn;
 	}
 	driver_debug(DEBUG_TTC,"CMD 0x%02x receive success!\r\n", ttc_cmd->CMD);
-	qb50Free(ttc_cmd);
+	ObcMemFree(ttc_cmd);
 	return CmdReturn;
 }
 
@@ -81,7 +82,7 @@ int TTC_Send_Date(uint8_t* pBuffer, uint8_t NumByteToSend)
 	size_t txlen = NumByteToSend + 5;
 	size_t framesize = NumByteToSend + 3;
 	size_t datasize = NumByteToSend;
-	ttc_send_t* ttc_send = (ttc_send_t*)qb50Malloc(txlen);
+	ttc_send_t* ttc_send = (ttc_send_t*)ObcMemMalloc(txlen);
 //	uint8_t* pdata = (uint8_t*)ttc_send;
 	int8_t send_return = E_NO_ERR;
 
@@ -97,11 +98,11 @@ int TTC_Send_Date(uint8_t* pBuffer, uint8_t NumByteToSend)
 	if(send_return != E_NO_ERR)
 	{
 		driver_debug(DEBUG_TTC,"TTC send data error!\r\n");
-		qb50Free(ttc_send);
+		ObcMemFree(ttc_send);
 		return send_return;
 	}
 	driver_debug(DEBUG_TTC,"TTC send data success!\r\n");
-	qb50Free(ttc_send);
+	ObcMemFree(ttc_send);
 	return send_return;
 
 }

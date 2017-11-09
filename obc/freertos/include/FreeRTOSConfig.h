@@ -89,10 +89,11 @@
 
 #if defined(__ICCARM__) || defined(__CC_ARM) || defined(__GNUC__)
     #include <stdint.h>
+    #include <stdio.h>
     extern uint32_t SystemCoreClock;
 #endif
 
-#define MEMORY_MANAGE_MODE_2
+#define MEMORY_MANAGE_MODE_4
 
 /* 操作系统断言定义 */
 #define vAssertCalled(char,int)                         \

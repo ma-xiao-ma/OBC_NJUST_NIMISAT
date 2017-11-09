@@ -12,7 +12,7 @@
 #include "command.h"
 
 #include "bsp_ad7490.h"
-#include "QB50_mem.h"
+#include "obc_mem.h"
 #include "contrl.h"
 #include "ctrl_cmd_types.h"
 #include "driver_debug.h"
@@ -21,6 +21,7 @@
 //#include "bsp_camera.h"
 #include "switches.h"
 #include "hk.h"
+#include "bsp_pca9665.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -37,16 +38,8 @@ extern char __vectors_start;
 extern char __exidx_start;
 extern char __exidx_end;
 extern char __etext;
-extern char _hk_absolute;
-extern char _hk_lma;
-extern char __hk_start__;
-extern char __hk_end__;
-extern char _data_lma;
 extern char __data_start__;
 extern char __data_end__;
-extern char _ccr_lma;
-extern char __ccr_start__;
-extern char __ccr_end__;
 extern char __bss_start__;
 extern char __bss_end__;
 extern char _noinit;
@@ -60,7 +53,7 @@ extern char __heap_start__;
 //
 //	bsp_EraseCpuFlash(ADDR_FLASH_SECTOR_8);
 //
-//	cup_flash_content_t * pointer = (cup_flash_content_t *)qb50Malloc(sizeof(cup_flash_content_t));
+//	cup_flash_content_t * pointer = (cup_flash_content_t *)ObcMemMalloc(sizeof(cup_flash_content_t));
 //
 //	pointer->index = 0;
 //	pointer->len = 91;
@@ -91,7 +84,7 @@ int write_flansh(struct command_context *ctx ){
 	char * args = command_args(ctx);
 
 	cup_flash_content_t * pointer = NULL;
-	pointer = (cup_flash_content_t *)qb50Malloc(sizeof(cup_flash_content_t));
+	pointer = (cup_flash_content_t *)ObcMemMalloc(sizeof(cup_flash_content_t));
 	if(sscanf(args, "%u %u %u", &index, &id, &len) != 3)
 		return CMD_ERROR_SYNTAX;
 
@@ -103,7 +96,7 @@ int write_flansh(struct command_context *ctx ){
 		pointer->data[i] = i;
 	SavePermanentAudioFiles(pointer);
 
-	qb50Free(pointer);
+	ObcMemFree(pointer);
 
 	return CMD_ERROR_NONE;
 }
@@ -115,7 +108,7 @@ int continuously_write_Permanent_flansh(struct command_context *ctx ){
 	cup_flash_content_t * pointer = NULL;
 	char * args = command_args(ctx);
 
-	pointer = (cup_flash_content_t *)qb50Malloc(sizeof(cup_flash_content_t));
+	pointer = (cup_flash_content_t *)ObcMemMalloc(sizeof(cup_flash_content_t));
 	if(sscanf(args, "%u %u %u %u", &index, &id, &len, &framesize) != 4)
 		return CMD_ERROR_SYNTAX;
 	if((index < 0) || (index > 3)){
@@ -149,7 +142,7 @@ int continuously_write_Permanent_flansh(struct command_context *ctx ){
 		SavePermanentAudioFiles(pointer);
 	}
 
-	qb50Free(pointer);
+	ObcMemFree(pointer);
 	return CMD_ERROR_NONE;
 }
 
@@ -161,7 +154,7 @@ int continuously_write_new_flansh(struct command_context *ctx ){
 	cup_flash_content_t * pointer = NULL;
 	char * args = command_args(ctx);
 
-	pointer = (cup_flash_content_t *)qb50Malloc(sizeof(cup_flash_content_t));
+	pointer = (cup_flash_content_t *)ObcMemMalloc(sizeof(cup_flash_content_t));
 	if(sscanf(args, "%u %u %u %u", &index, &id, &len, &framesize) != 4)
 		return CMD_ERROR_SYNTAX;
 	if((index < 0) || (index > 3)){
@@ -193,7 +186,7 @@ int continuously_write_new_flansh(struct command_context *ctx ){
 		SaveNewAudioFiles(pointer);
 	}
 
-	qb50Free(pointer);
+	ObcMemFree(pointer);
 	return CMD_ERROR_NONE;
 }
 
@@ -205,7 +198,7 @@ int read_Permanent_flansh(struct command_context *ctx )
 	uint32_t index, id, len;
 	cup_flash_cmd_t * pointer = NULL;
 
-	pointer = (cup_flash_cmd_t *)qb50Malloc(sizeof(cup_flash_cmd_t));
+	pointer = (cup_flash_cmd_t *)ObcMemMalloc(sizeof(cup_flash_cmd_t));
 
 	if(sscanf(args, "%u %u %u", &index, &id, &len) != 3)
 			return CMD_ERROR_SYNTAX;
@@ -218,7 +211,7 @@ int read_Permanent_flansh(struct command_context *ctx )
 	xTaskCreate(DownloadSavedAudioFiles, "DownloadSavedAudioFiles", configMINIMAL_STACK_SIZE * 2,
 			pointer, tskIDLE_PRIORITY + 4, NULL);
 
-	qb50Free(pointer);
+	ObcMemFree(pointer);
 	return CMD_ERROR_NONE;
 
 }
@@ -230,7 +223,7 @@ int read_new_flansh(struct command_context *ctx )
 	uint32_t index, id, len;
 	cup_flash_cmd_t * pointer = NULL;
 
-	pointer = (cup_flash_cmd_t *)qb50Malloc(sizeof(cup_flash_cmd_t));
+	pointer = (cup_flash_cmd_t *)ObcMemMalloc(sizeof(cup_flash_cmd_t));
 
 	if(sscanf(args, "%u %u %u", &index, &id, &len) != 3)
 			return CMD_ERROR_SYNTAX;
@@ -243,7 +236,7 @@ int read_new_flansh(struct command_context *ctx )
 	xTaskCreate(DownloadNewAudioFiles, "DownloadNewAudioFiles", configMINIMAL_STACK_SIZE * 2,
 			pointer, tskIDLE_PRIORITY + 4, NULL);
 
-	qb50Free(pointer);
+	ObcMemFree(pointer);
 	return CMD_ERROR_NONE;
 
 }
@@ -262,7 +255,7 @@ int I2C_SendToADChip(struct command_context * context __attribute__((unused))){
 }
 
 int crc16_generate(struct command_context * context __attribute__((unused))){
-	uint8_t* pdata = qb50Malloc(21);
+	uint8_t* pdata = ObcMemMalloc(21);
 	pdata[0] = 0x42;
 	pdata[1] = 0x55;
 	pdata[2] = 0x53;
@@ -291,7 +284,7 @@ int crc16_generate(struct command_context * context __attribute__((unused))){
 
 	printf("%02x %02x\r\n",mycrchighbyte,mycrclowbyte);
 
-	qb50Free(pdata);
+	ObcMemFree(pdata);
 	return CMD_ERROR_NONE;
 }
 
@@ -391,7 +384,7 @@ int dtb_tc(struct command_context *ctx )
 int dtb_tm(struct command_context * context __attribute__((unused)))
 {
 
-    dtb_tm_pack * tm = qb50Malloc(sizeof(dtb_tm_pack));
+    dtb_tm_pack * tm = ObcMemMalloc(sizeof(dtb_tm_pack));
     if (tm == NULL)
         return CMD_ERROR_NONE;
 
@@ -403,13 +396,13 @@ int dtb_tm(struct command_context * context __attribute__((unused)))
     else
         printf("DTB tm receive fail!\r\n\r\n");
 
-    qb50Free(tm);
+    ObcMemFree(tm);
     return CMD_ERROR_NONE;
 }
 
 int ttc_send_cmd(uint8_t handle, uint8_t cmd, uint8_t slen, uint8_t rlen)
 {
-    uint8_t *pbuffer = qb50Malloc((slen>rlen)?slen:rlen);
+    uint8_t *pbuffer = ObcMemMalloc((slen>rlen)?slen:rlen);
 
     if (slen > 3)
         rlen = 0;
@@ -441,7 +434,7 @@ int ttc_send_cmd(uint8_t handle, uint8_t cmd, uint8_t slen, uint8_t rlen)
 //        printf("\r\n");
 //    }
 
-    qb50Free(pbuffer);
+    ObcMemFree(pbuffer);
 
     return 0;
 }
@@ -475,7 +468,7 @@ int route_queue_send_pack(struct command_context *ctx)
     if (len > 232)
         return CMD_ERROR_SYNTAX;
 
-    route_packet_t *packet = (route_packet_t *)qb50Malloc(sizeof(route_packet_t)+len);
+    route_packet_t *packet = (route_packet_t *)ObcMemMalloc(sizeof(route_packet_t)+len);
 
     packet->len = len;
     packet->dst = dst;
@@ -498,7 +491,7 @@ int CubeUnPacket_test(struct command_context *ctx)
     if(sscanf(args, "%u", &cmd_type) != 1)
         return CMD_ERROR_SYNTAX;
 
-    route_packet_t *packet = (route_packet_t *)qb50Malloc(sizeof(route_packet_t)+10);
+    route_packet_t *packet = (route_packet_t *)ObcMemMalloc(sizeof(route_packet_t)+10);
 
     packet->len = 10;
     packet->dst = router_get_my_address();
@@ -538,13 +531,13 @@ int cam_related_test(struct command_context *ctx __attribute__((unused)))
 
 int cmd_obc_hk(struct command_context *ctx __attribute__((unused)))
 {
-    obc_hk_t * obc = (obc_hk_t *)qb50Malloc(sizeof(obc_hk_t));
+    obc_hk_t * obc = (obc_hk_t *)ObcMemMalloc(sizeof(obc_hk_t));
     if (obc == NULL)
         return CMD_ERROR_SYNTAX;
 
     if (obc_hk_get_peek(obc) != pdTRUE)
     {
-        qb50Free(obc);
+        ObcMemFree(obc);
         return CMD_ERROR_SYNTAX;
     }
 
@@ -566,7 +559,7 @@ int cmd_obc_hk(struct command_context *ctx __attribute__((unused)))
     printf("mindex\t\t%u\n", obc->mindex);
     printf("aindex\t\t%u\n", obc->aindex);
 
-    qb50Free(obc);
+    ObcMemFree(obc);
     return CMD_ERROR_NONE;
 }
 

@@ -17,7 +17,7 @@
 #include "command.h"
 #include "console.h"
 #include "bsp_pca9665.h"
-#include "QB50_mem.h"
+#include "obc_mem.h"
 #include "error.h"
 #include "csp_endian.h"
 #include "hk.h"
@@ -42,7 +42,7 @@ int isis_send_handler(struct command_context * context)
     if (frame_len < 4 || frame_len > ISIS_MTU)
         return CMD_ERROR_SYNTAX;
 
-	uint8_t *frame = qb50Malloc(frame_len/*ISIS_MTU*/);
+	uint8_t *frame = ObcMemMalloc(frame_len/*ISIS_MTU*/);
 	if(frame == NULL)
 	    return CMD_ERROR_SYNTAX;
 
@@ -80,7 +80,7 @@ int isis_send_handler(struct command_context * context)
 
 	printf("Slots %u frame, Remain %u frame, Error %u, Delay %u\r\n", rest_of_frame, num_of_frame, errors, times);
 
-	qb50Free(frame);
+	ObcMemFree(frame);
 	return CMD_ERROR_NONE;
 }
 
@@ -274,7 +274,7 @@ int isis_set_call_beacon_handler(struct command_context * context __attribute__(
     if (sscanf(args, "%u" , &Interval) != 1)
         return CMD_ERROR_SYNTAX;
 
-    par_beacon_new_call_set *frame = qb50Malloc(sizeof(par_beacon_new_call_set)+ISIS_MTU);
+    par_beacon_new_call_set *frame = ObcMemMalloc(sizeof(par_beacon_new_call_set)+ISIS_MTU);
 
     frame->RepeatInterval = Interval;
 
@@ -292,7 +292,7 @@ int isis_set_call_beacon_handler(struct command_context * context __attribute__(
 	if(vu_transmitter_beacon_new_call_set(frame, ISIS_MTU) == E_NO_ERR)
 	    printf("Set beacon with new callsigns OK!!!\r\n");
 
-	qb50Free(frame);
+	ObcMemFree(frame);
 	return CMD_ERROR_NONE;
 }
 
@@ -305,7 +305,7 @@ int isis_set_beacon_handler(struct command_context * context __attribute__((unus
     if (sscanf(args, "%u" , &Interval) != 1)
         return CMD_ERROR_SYNTAX;
 
-    par_beacon_set *beacon = qb50Malloc(sizeof(par_beacon_set)+ISIS_MTU);
+    par_beacon_set *beacon = ObcMemMalloc(sizeof(par_beacon_set)+ISIS_MTU);
 
     beacon->RepeatInterval = Interval;
 
@@ -315,14 +315,14 @@ int isis_set_beacon_handler(struct command_context * context __attribute__((unus
 	if (vu_transmitter_beacon_set(beacon, ISIS_MTU) == E_NO_ERR)
 	    printf("Set beacon with default callsigns OK\r\n");
 
-	qb50Free(beacon);
+	ObcMemFree(beacon);
 	return CMD_ERROR_NONE;
 }
 
 int isis_sendAXdate_handler(struct command_context * context __attribute__((unused)))
 {
 
-	par_frame_new_call *frame = qb50Malloc(sizeof(par_frame_new_call)+ISIS_MTU);
+	par_frame_new_call *frame = ObcMemMalloc(sizeof(par_frame_new_call)+ISIS_MTU);
 
     char *str1 = "BI4ST-0";
     for(int i=0; *(str1+i) != '\0'; i++)
@@ -342,7 +342,7 @@ int isis_sendAXdate_handler(struct command_context * context __attribute__((unus
 	    printf("Slot = %u\r\n", slot);
 	}
 
-	qb50Free(frame);
+	ObcMemFree(frame);
 	return CMD_ERROR_NONE;
 }
 
@@ -358,7 +358,7 @@ int isis_clearbutter_handler(struct command_context * context __attribute__((unu
 int isis_read_frame_handler(struct command_context * context __attribute__((unused)))
 {
 
-    rsp_frame *frame = qb50Malloc(sizeof(rsp_frame)+ISIS_RX_MTU);
+    rsp_frame *frame = ObcMemMalloc(sizeof(rsp_frame)+ISIS_RX_MTU);
 
 	if( vu_receiver_get_frame(frame, ISIS_RX_MTU) == E_NO_ERR)
 	{
@@ -375,7 +375,7 @@ int isis_read_frame_handler(struct command_context * context __attribute__((unus
 	    printf("\r\n");
 	}
 
-	qb50Free(frame);
+	ObcMemFree(frame);
 
 	return CMD_ERROR_NONE;
 }
@@ -478,7 +478,7 @@ int isis_measure_of_reciever_handler(struct command_context * context __attribut
 int isis_all_tm_handler(struct command_context * context __attribute__((unused)))
 {
 
-    vu_isis_hk_t *hk = (vu_isis_hk_t *)qb50Malloc(sizeof(vu_isis_hk_t));
+    vu_isis_hk_t *hk = (vu_isis_hk_t *)ObcMemMalloc(sizeof(vu_isis_hk_t));
     if (hk == NULL)
         return CMD_ERROR_SYNTAX;
 

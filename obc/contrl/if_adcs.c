@@ -13,7 +13,7 @@
 #include "router_io.h"
 #include "hk.h"
 #include "contrl.h"
-#include "QB50_mem.h"
+#include "obc_mem.h"
 
 #include "if_adcs.h"
 
@@ -65,7 +65,7 @@ void adcs_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken)
 
     if (adcs_queue == NULL)
     {
-        qb50Free(packet);
+        ObcMemFree(packet);
         printf("ADCS queue not initialized!\r\n");
         return;
     }
@@ -78,7 +78,7 @@ void adcs_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken)
     if(result != pdTRUE)
     {
         printf("ERROR: ADCS queue is FULL. Dropping packet.\r\n");
-        qb50Free(packet);
+        ObcMemFree(packet);
         printf("Clean up ADCS queue.\r\n");
         route_queue_clean(adcs_queue, NULL);
     }
@@ -96,7 +96,7 @@ void adcs_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken)
  */
 int adcs_transaction(uint8_t type, void * txbuf, size_t txlen, void * rxbuf, size_t rxlen, uint16_t timeout)
 {
-    route_packet_t * packet = (route_packet_t *)qb50Malloc(sizeof(route_packet_t) + txlen);
+    route_packet_t * packet = (route_packet_t *)ObcMemMalloc(sizeof(route_packet_t) + txlen);
 
     if (packet == NULL)
         return E_NO_BUFFER;
@@ -130,7 +130,7 @@ int adcs_transaction(uint8_t type, void * txbuf, size_t txlen, void * rxbuf, siz
 
     memcpy(rxbuf, &packet->dat[0], rxlen);
 
-    qb50Free(packet);
+    ObcMemFree(packet);
     return E_NO_ERR;
 }
 /**
@@ -151,7 +151,7 @@ int adcs_transaction_direct(uint8_t type, void * txbuf, size_t txlen, void * rxb
     /*取txlen和rxlen之间较大值*/
     rlen = (txlen>rxlen) ? txlen: rxlen;
 
-    route_frame_t * frame = (route_frame_t *)qb50Malloc(sizeof(route_frame_t) + rlen);
+    route_frame_t * frame = (route_frame_t *)ObcMemMalloc(sizeof(route_frame_t) + rlen);
 
     if (frame == NULL)
         return E_NO_BUFFER;
@@ -177,7 +177,7 @@ int adcs_transaction_direct(uint8_t type, void * txbuf, size_t txlen, void * rxb
     if ((rxlen != 0) && (ret == E_NO_ERR))
         memcpy(rxbuf, &frame->dat[0], rxlen);
 
-    qb50Free(frame);
+    ObcMemFree(frame);
 
     return ret;
 }

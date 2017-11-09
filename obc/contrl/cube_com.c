@@ -11,7 +11,7 @@
 #include "bsp_ds1302.h"
 #include "bsp_switch.h"
 #include "dtb_805.h"
-#include "QB50_mem.h"
+#include "obc_mem.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -44,7 +44,7 @@ struct USART_TypeDefStruct GCS_Usart;
 #if USE_SERIAL_PORT_DOWNLINK_INTERFACE
     void obc_cmd_ack(uint8_t type, uint8_t result)
     {
-        route_packet_t *packet = (route_packet_t *)qb50Malloc((size_t)(sizeof(route_packet_t) + 1));
+        route_packet_t *packet = (route_packet_t *)ObcMemMalloc((size_t)(sizeof(route_packet_t) + 1));
 
         packet->len = 1;
         packet->dst = GND_ROUTE_ADDR;

@@ -20,7 +20,7 @@
 #include "error.h"
 #include "driver_debug.h"
 #include "command.h"
-#include "QB50_mem.h"
+#include "obc_mem.h"
 #include "ctrl_cmd_types.h"
 #include "route.h"
 
@@ -353,7 +353,7 @@ void __attribute__((noinline)) pca9665_dsr(portBASE_TYPE * task_woken) {
 
 				/* Well, this should not happen */
 				} else {
-					qb50Free(device[handle].tx.frame);
+					ObcMemFree(device[handle].tx.frame);
 					device[handle].tx.frame = NULL;
 					pca9665_try_tx_from_isr(handle, task_woken);
 					break;
@@ -441,7 +441,7 @@ void __attribute__((noinline)) pca9665_dsr(portBASE_TYPE * task_woken) {
 
 			/* Or, We are done */
 			} else {
-				qb50Free(device[handle].tx.frame);
+				ObcMemFree(device[handle].tx.frame);
 				device[handle].tx.frame = NULL;
 				pca9665_try_tx_from_isr(handle, task_woken);
 			}
@@ -454,7 +454,7 @@ void __attribute__((noinline)) pca9665_dsr(portBASE_TYPE * task_woken) {
 
 			if (device[handle].tx.frame != NULL) {
 				driver_debug(DEBUG_I2C, "I2C SLA+W NACK: 0x%02x\n\r", device[handle].tx.frame->dest);
-				qb50Free(device[handle].tx.frame);
+				ObcMemFree(device[handle].tx.frame);
 				device[handle].tx.frame = NULL;
 			}
 
@@ -489,7 +489,7 @@ void __attribute__((noinline)) pca9665_dsr(portBASE_TYPE * task_woken) {
 			if (remaining == 0) {
 				if (xQueueSendToBackFromISR(device[handle].rx.queue, &device[handle].rx.frame, task_woken)	== pdFALSE) {
 					driver_debug(DEBUG_I2C, "I2C rx queue full - freeing\n\r");
-					qb50Free(device[handle].rx.frame);
+					ObcMemFree(device[handle].rx.frame);
 				}
 				device[handle].rx.frame = NULL;
 				pca9665_try_tx_from_isr(handle, task_woken);
@@ -517,7 +517,7 @@ void __attribute__((noinline)) pca9665_dsr(portBASE_TYPE * task_woken) {
 
 			driver_debug(DEBUG_I2C, "I2C SLA+R nacked\n\r");
 
-			qb50Free(device[handle].rx.frame);
+			ObcMemFree(device[handle].rx.frame);
 			device[handle].rx.frame = NULL;
 
 			/* Start up again */
@@ -549,7 +549,7 @@ void __attribute__((noinline)) pca9665_dsr(portBASE_TYPE * task_woken) {
 				goto isr_error;
 
 			/* Allocate new frame */
-			device[handle].rx.frame = (i2c_frame_t *) qb50Malloc(I2C_MTU);
+			device[handle].rx.frame = (i2c_frame_t *) ObcMemMalloc(I2C_MTU);
 			if (device[handle].rx.frame == NULL)
 				goto isr_error;
 
@@ -600,10 +600,10 @@ void __attribute__((noinline)) pca9665_dsr(portBASE_TYPE * task_woken) {
 			} else if (device[handle].rx.queue != NULL) {
 				if (xQueueSendToBackFromISR(device[handle].rx.queue, &device[handle].rx.frame, task_woken)	== pdFALSE) {
 					driver_debug(DEBUG_I2C, "I2C RX queue full\n\r");
-					qb50Free(device[handle].rx.frame);
+					ObcMemFree(device[handle].rx.frame);
 				}
 			} else {
-			    qb50Free(device[handle].rx.frame);
+			    ObcMemFree(device[handle].rx.frame);
 			}
 
 			/* The frame has been freed now */
@@ -628,13 +628,13 @@ isr_error:
 
 			/* Clean up RX */
 			if (device[handle].rx.frame != NULL) {
-				qb50Free(device[handle].rx.frame);
+				ObcMemFree(device[handle].rx.frame);
 				device[handle].rx.frame = NULL;
 			}
 
 			/* Clean up TX */
 			if (device[handle].tx.frame != NULL) {
-				qb50Free(device[handle].tx.frame);
+				ObcMemFree(device[handle].tx.frame);
 				device[handle].tx.frame = NULL;
 			}
 
@@ -956,7 +956,7 @@ int i2c_master_transaction(int handle, uint8_t addr, void * txbuf, size_t txlen,
 	if ((txlen > I2C_MTU) || (rxlen > I2C_MTU))
 		return E_INVALID_BUF_SIZE;
 
-	i2c_frame_t * frame = (i2c_frame_t *) qb50Malloc(sizeof(i2c_frame_t));
+	i2c_frame_t * frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
 	if (frame == NULL)
 		return E_NO_BUFFER;
 
@@ -973,7 +973,7 @@ int i2c_master_transaction(int handle, uint8_t addr, void * txbuf, size_t txlen,
 	frame->len_rx = rxlen;
 
 	if (i2c_send(handle, frame, 0) != E_NO_ERR) {
-		qb50Free(frame);
+		ObcMemFree(frame);
 		device[handle].callback = tmp_callback;
 		xSemaphoreGive(i2c_lock);
 		return E_TIMEOUT;
@@ -993,7 +993,7 @@ int i2c_master_transaction(int handle, uint8_t addr, void * txbuf, size_t txlen,
 
 	memcpy(rxbuf, &frame->data[0], rxlen);
 
-	qb50Free(frame);
+	ObcMemFree(frame);
 	device[handle].callback = tmp_callback;
 	xSemaphoreGive(i2c_lock);
 	return E_NO_ERR;
@@ -1011,7 +1011,7 @@ void i2c_rx_callback(i2c_frame_t * frame, void * pxTaskWoken)
         return;
 
     if ((frame->len < 3) || (frame->len > I2C_MTU)) {
-        qb50Free(frame);
+        ObcMemFree(frame);
         return;
     }
 

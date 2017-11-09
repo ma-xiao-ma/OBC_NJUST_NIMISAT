@@ -18,7 +18,7 @@
 #include "driver_debug.h"
 #include "switches.h"
 #include "if_adcs.h"
-#include "QB50_mem.h"
+#include "obc_mem.h"
 #include "hk.h"
 #include "crc.h"
 #include "command.h"
@@ -613,7 +613,7 @@ void ObcUnpacketTask(void *pvPara)
 
     CubeUnPacket(&pdata->Packet.Id);
     /* 释放传入任务的内存块 */
-    qb50Free(pdata);
+    ObcMemFree(pdata);
     /* 删除自身任务 */
     vTaskDelete(NULL);
 }
@@ -652,7 +652,7 @@ void ObcUnpacketTask(void *pvPara)
 //					xTaskCreate(cmd_task, (const signed char*) pname, configMINIMAL_STACK_SIZE * 2,frame, tskIDLE_PRIORITY + 4, NULL);
 //				}
 //			}
-//			qb50Free(frame);
+//			ObcMemFree(frame);
 //		}
 //	}
 //}
@@ -696,7 +696,7 @@ void ObcUnpacketTask(void *pvPara)
 //                memcpy((uint8_t*)&(hk_frame.append_frame.adcs_hk), &packet->dat[2], sizeof(adcs805_hk_t));
 //            }
 //
-//            qb50Free(packet);
+//            ObcMemFree(packet);
 //		}
 //	}
 //}
@@ -732,7 +732,7 @@ void ObcUnpacketTask(void *pvPara)
 //        /* 若读数据失败 */
 //        if(I2C_ICD_get_frame_stable((uint8_t*)pdata) != E_NO_ERR)
 //        {
-//            qb50Free(pdata);
+//            ObcMemFree(pdata);
 //            continue;
 //        }
 //        /* 清空ICD接收缓冲区，为接收下一包数据做准备 */
@@ -746,7 +746,7 @@ void ObcUnpacketTask(void *pvPara)
 //        if(cmd_crc != *((uint32_t *)&pCRC[data_len]))
 //        {
 //            I2C_ICD_sweep_butter();
-//            qb50Free(pdata);
+//            ObcMemFree(pdata);
 //            continue;
 //        }
 //        /*收到正确地面正确指令，设开始下行标志为1，启动遥测数据下行*/
@@ -773,7 +773,7 @@ void ObcUnpacketTask(void *pvPara)
 //
 //        I2C_ICD_sweep_butter();
 //
-//        qb50Free(pdata);
+//        ObcMemFree(pdata);
 //    }
 //}
 

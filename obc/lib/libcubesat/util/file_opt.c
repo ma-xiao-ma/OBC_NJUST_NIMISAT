@@ -5,7 +5,7 @@
  *      Author: Ma Wenli
  */
 #include "ff.h"
-#include "QB50_mem.h"
+#include "obc_mem.h"
 
 #include "file_opt.h"
 
@@ -22,7 +22,7 @@ FRESULT file_write( const TCHAR *wpath, const void *wbuff, UINT w_num )
     FRESULT result;
     UINT nbyte_written;
 
-    FIL *file_handle = ( FIL *)qb50Malloc( sizeof(FIL) );
+    FIL *file_handle = ( FIL *)ObcMemMalloc( sizeof(FIL) );
     if ( file_handle == NULL )
         return FR_INT_ERR;
 
@@ -31,7 +31,7 @@ FRESULT file_write( const TCHAR *wpath, const void *wbuff, UINT w_num )
 
     if (result != FR_OK)
     {
-        qb50Free(file_handle);
+        ObcMemFree(file_handle);
         return result;
     }
 
@@ -42,12 +42,12 @@ FRESULT file_write( const TCHAR *wpath, const void *wbuff, UINT w_num )
     {
         f_close( file_handle );
         f_unlink( wpath );
-        qb50Free(file_handle);
+        ObcMemFree(file_handle);
         return result;
     }
 
     f_close( file_handle );
-    qb50Free(file_handle);
+    ObcMemFree(file_handle);
     return FR_OK;
 }
 
@@ -65,7 +65,7 @@ FRESULT file_read( const TCHAR *rpath, void *rbuff, UINT r_num, DWORD ofs )
     FRESULT result;
     UINT nbyte_read;
 
-    FIL *file_handle = (FIL *)qb50Malloc( sizeof(FIL) );
+    FIL *file_handle = (FIL *)ObcMemMalloc( sizeof(FIL) );
     if(file_handle == NULL)
         return FR_INT_ERR;
 
@@ -73,14 +73,14 @@ FRESULT file_read( const TCHAR *rpath, void *rbuff, UINT r_num, DWORD ofs )
 
     if ( result != FR_OK )
     {
-        qb50Free(file_handle);
+        ObcMemFree(file_handle);
         return result;
     }
 
     if ( ofs > f_size( file_handle ) )
     {
         f_close( file_handle );
-        qb50Free(file_handle);
+        ObcMemFree(file_handle);
         return FR_INVALID_PARAMETER;
     }
 
@@ -89,7 +89,7 @@ FRESULT file_read( const TCHAR *rpath, void *rbuff, UINT r_num, DWORD ofs )
     if ( result != FR_OK )
     {
         f_close( file_handle );
-        qb50Free(file_handle);
+        ObcMemFree(file_handle);
         return result;
     }
 
@@ -99,12 +99,12 @@ FRESULT file_read( const TCHAR *rpath, void *rbuff, UINT r_num, DWORD ofs )
     if (nbyte_read != r_num)
     {
         f_close( file_handle );
-        qb50Free(file_handle);
+        ObcMemFree(file_handle);
         return result;
     }
 
     f_close( file_handle );
-    qb50Free(file_handle);
+    ObcMemFree(file_handle);
 
     return FR_OK;
 }

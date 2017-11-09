@@ -13,7 +13,7 @@
 #include "contrl.h"
 #include "bsp_switch.h"
 #include "crc.h"
-#include "QB50_mem.h"
+#include "obc_mem.h"
 #include "error.h"
 #include "csp_endian.h"
 #include "bsp_ds1302.h"
@@ -1031,7 +1031,7 @@ int cam_sram_img_packet_down(uint16_t packet_id)
     if (packet_id >= CurrentImage.TotalPacket)
         return E_INVALID_PARAM;
 
-    ImagePacket_t * img_packet = qb50Malloc(sizeof(ImagePacket_t));
+    ImagePacket_t * img_packet = ObcMemMalloc(sizeof(ImagePacket_t));
     if (img_packet == NULL)
         return E_NO_BUFFER;
 
@@ -1042,7 +1042,7 @@ int cam_sram_img_packet_down(uint16_t packet_id)
     memcpy(img_packet->ImageData, &Cam.ReceiveBuffer[6 + packet_id*IMAGE_PACK_MAX_SIZE], img_packet->PacketSize);
     int ret = vu_isis_downlink(CAM_IMAGE, &img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
-    qb50Free(img_packet);
+    ObcMemFree(img_packet);
     return ret;
 }
 
@@ -1056,7 +1056,7 @@ int cam_sd_img_info_down(uint32_t id)
 {
     char path[40] = {0};
 
-    ImageInfo_t *img_info = (ImageInfo_t *)qb50Malloc(sizeof(ImageInfo_t));
+    ImageInfo_t *img_info = (ImageInfo_t *)ObcMemMalloc(sizeof(ImageInfo_t));
     if (img_info == NULL)
         return E_NO_BUFFER;
 
@@ -1065,14 +1065,14 @@ int cam_sd_img_info_down(uint32_t id)
     if (file_read(path, img_info, (UINT)sizeof(ImageInfo_t), 0) != FR_OK)
     {
         driver_debug(DEBUG_CAMERA, "Camera read ImageInfo.dat Failure!!\r\n");
-        qb50Free(img_info);
+        ObcMemFree(img_info);
         return E_NO_DEVICE;
     }
 
     /* 调用传输层接口函数下行  */
     int ret = vu_isis_downlink(CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
 
-    qb50Free(img_info);
+    ObcMemFree(img_info);
     return ret;
 }
 
@@ -1117,7 +1117,7 @@ int cam_sd_img_packet_down(uint32_t id, uint16_t packet)
 {
     char path[40] = {0};
 
-    ImageInfo_t *img_info = (ImageInfo_t *)qb50Malloc(sizeof(ImageInfo_t));
+    ImageInfo_t *img_info = (ImageInfo_t *)ObcMemMalloc(sizeof(ImageInfo_t));
     if (img_info == NULL)
         return E_NO_BUFFER;
 
@@ -1126,20 +1126,20 @@ int cam_sd_img_packet_down(uint32_t id, uint16_t packet)
     if (file_read(path, img_info, (UINT)sizeof(ImageInfo_t), 0) != FR_OK)
     {
         driver_debug(DEBUG_CAMERA, "Camera read ImageInfo.dat Failure!!\r\n");
-        qb50Free(img_info);
+        ObcMemFree(img_info);
         return E_NO_DEVICE;
     }
 
     if (packet >= img_info->TotalPacket)
     {
-        qb50Free(img_info);
+        ObcMemFree(img_info);
         return E_INVALID_PARAM;
     }
 
-    ImagePacket_t * img_packet = (ImagePacket_t *)qb50Malloc(sizeof(ImagePacket_t));
+    ImagePacket_t * img_packet = (ImagePacket_t *)ObcMemMalloc(sizeof(ImagePacket_t));
     if (img_packet == NULL)
     {
-        qb50Free(img_info);
+        ObcMemFree(img_info);
         return E_NO_BUFFER;
     }
 
@@ -1152,16 +1152,16 @@ int cam_sd_img_packet_down(uint32_t id, uint16_t packet)
     if (file_read(path, img_packet->ImageData, img_packet->PacketSize, packet * IMAGE_PACK_MAX_SIZE) != FR_OK)
     {
         driver_debug(DEBUG_CAMERA, "Camera read ImageData.dat Failure!!\r\n");
-        qb50Free(img_info);
-        qb50Free(img_packet);
+        ObcMemFree(img_info);
+        ObcMemFree(img_packet);
         return E_NO_DEVICE;
     }
 
     /* 调用传输层接口函数下行 */
     int ret = vu_isis_downlink(CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
-    qb50Free(img_info);
-    qb50Free(img_packet);
+    ObcMemFree(img_info);
+    ObcMemFree(img_packet);
     return E_NO_ERR;
 }
 
@@ -1180,7 +1180,7 @@ int cam_flash_img_info_down(uint32_t id)
     if(sector_num == 0)
         return E_INVALID_PARAM;
 
-    ImageInfo_t *img_info = (ImageInfo_t *)qb50Malloc(sizeof(ImageInfo_t));
+    ImageInfo_t *img_info = (ImageInfo_t *)ObcMemMalloc(sizeof(ImageInfo_t));
     if (img_info == NULL)
         return E_NO_BUFFER;
 
@@ -1190,7 +1190,7 @@ int cam_flash_img_info_down(uint32_t id)
     /* 调用传输层接口函数下行，创建下行图像任务  */
     int ret = vu_isis_downlink(CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
 
-    qb50Free(img_info);
+    ObcMemFree(img_info);
     return ret;
 }
 
@@ -1208,7 +1208,7 @@ int cam_flash_img_packet_down(uint32_t id, uint16_t packet)
     if(sector_num == 0)
         return E_INVALID_PARAM;
 
-    ImageInfo_t *img_info = (ImageInfo_t *)qb50Malloc(sizeof(ImageInfo_t));
+    ImageInfo_t *img_info = (ImageInfo_t *)ObcMemMalloc(sizeof(ImageInfo_t));
     if (img_info == NULL)
         return E_NO_BUFFER;
 
@@ -1217,14 +1217,14 @@ int cam_flash_img_packet_down(uint32_t id, uint16_t packet)
 
     if (packet >= img_info->TotalPacket)
     {
-        qb50Free(img_info);
+        ObcMemFree(img_info);
         return E_INVALID_PARAM;
     }
 
-    ImagePacket_t * img_packet = (ImagePacket_t * )qb50Malloc(sizeof(ImagePacket_t));
+    ImagePacket_t * img_packet = (ImagePacket_t * )ObcMemMalloc(sizeof(ImagePacket_t));
     if (img_packet == NULL)
     {
-        qb50Free(img_info);
+        ObcMemFree(img_info);
         return E_NO_BUFFER;
     }
 
@@ -1238,8 +1238,8 @@ int cam_flash_img_packet_down(uint32_t id, uint16_t packet)
     /* 调用传输层接口函数下行 */
     int ret = vu_isis_downlink(CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
-    qb50Free(img_info);
-    qb50Free(img_packet);
+    ObcMemFree(img_info);
+    ObcMemFree(img_packet);
     return ret;
 }
 
@@ -1281,7 +1281,7 @@ int cam_newest_img_info_down(void)
     if(sector_num == 0 && CurrentImage.ImageID == 0)
         return E_INVALID_PARAM;
 
-    ImageInfo_t *newest_img = (ImageInfo_t *)qb50Malloc(sizeof(ImageInfo_t));
+    ImageInfo_t *newest_img = (ImageInfo_t *)ObcMemMalloc(sizeof(ImageInfo_t));
     if (newest_img == NULL)
         return E_NO_BUFFER;
 
@@ -1303,7 +1303,7 @@ int cam_newest_img_info_down(void)
         }
     }
 
-    qb50Free(newest_img);
+    ObcMemFree(newest_img);
     return ret;
 }
 
@@ -1430,7 +1430,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //    CamDownloadObj_t *p = (CamDownloadObj_t *)pvParameters;
 //    ImageHead_t head;
 //
-//    uint8_t *pbuffer = (uint8_t *)qb50Malloc(CAM_PACK_SIZE + CAM_PACK_HEAD_SIZE);
+//    uint8_t *pbuffer = (uint8_t *)ObcMemMalloc(CAM_PACK_SIZE + CAM_PACK_HEAD_SIZE);
 //    if(pbuffer == NULL)
 //        goto error_state1;
 //
@@ -1645,7 +1645,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //    goto error_state2;
 //
 //    error_state3: f_close(&FileHandle);
-//    error_state2: qb50Free(pbuffer);
+//    error_state2: ObcMemFree(pbuffer);
 //    error_state1: vTaskDelete(NULL);
 //}
 //
@@ -1668,7 +1668,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 ///******************************************************************************/
 //int xImageInfoDownload(uint8_t IsFlash, uint16_t ImageId)
 //{
-//    uint8_t *pbuffer = (uint8_t *)qb50Malloc(6);
+//    uint8_t *pbuffer = (uint8_t *)ObcMemMalloc(6);
 //    /*下行Flash图像信息*/
 //    if(IsFlash)
 //    {
@@ -1685,7 +1685,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //         if(f_open(&FileHandle, Path, FA_READ) != FR_OK)
 //         {
 //             driver_debug(DEBUG_CAMERA, "Camera Open %s Failure!!\r\n",Path);
-//             qb50Free(pbuffer);
+//             ObcMemFree(pbuffer);
 //             return E_NO_SS;
 //         }
 //
@@ -1695,7 +1695,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //         {
 //             driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
 //             f_close(&FileHandle);
-//             qb50Free(pbuffer);
+//             ObcMemFree(pbuffer);
 //             return E_NO_SS;
 //         }
 //         /* 关闭文件 */
@@ -1705,7 +1705,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //         SendDownCmd(pbuffer, 6);
 //    }
 //
-//    qb50Free(pbuffer);
+//    ObcMemFree(pbuffer);
 //
 //    return 0;
 //}
@@ -1721,7 +1721,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //{
 //    ImageHead_t head;
 //
-//    uint8_t *pbuffer = (uint8_t *)qb50Malloc(CAM_PACK_SIZE + CAM_PACK_HEAD_SIZE);
+//    uint8_t *pbuffer = (uint8_t *)ObcMemMalloc(CAM_PACK_SIZE + CAM_PACK_HEAD_SIZE);
 //    if(pbuffer == NULL)
 //        return E_MALLOC_FAIL;
 //
@@ -1732,7 +1732,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //        if(f_open(&FileHandle, Path, FA_READ) != FR_OK)
 //        {
 //            driver_debug(DEBUG_CAMERA, "Camera Open %s Failure!!\r\n",Path);
-//            qb50Free(pbuffer);
+//            ObcMemFree(pbuffer);
 //            return E_NO_SS;
 //        }
 //
@@ -1742,7 +1742,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //        {
 //            driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
 //            f_close(&FileHandle);
-//            qb50Free(pbuffer);
+//            ObcMemFree(pbuffer);
 //            return E_NO_SS;
 //        }
 //        /* 关闭文件 */
@@ -1759,7 +1759,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //            if(f_open(&FileHandle, Path, FA_READ) != FR_OK)
 //            {
 //                driver_debug(DEBUG_CAMERA, "Camera Open %s Failure!!\r\n",Path);
-//                qb50Free(pbuffer);
+//                ObcMemFree(pbuffer);
 //                return E_NO_SS;
 //            }
 //
@@ -1773,7 +1773,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //                {
 //                    driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
 //                    f_close(&FileHandle);
-//                    qb50Free(pbuffer);
+//                    ObcMemFree(pbuffer);
 //                    return E_NO_SS;
 //                }
 //                /* 关闭文件 */
@@ -1795,7 +1795,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //                {
 //                    driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
 //                    f_close(&FileHandle);
-//                    qb50Free(pbuffer);
+//                    ObcMemFree(pbuffer);
 //                    return E_NO_SS;
 //                }
 //                f_close(&FileHandle);
@@ -1819,7 +1819,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //                if(f_open(&FileHandle, Path, FA_READ) != FR_OK)
 //                {
 //                    driver_debug(DEBUG_CAMERA, "Camera Open %s Failure!!\r\n",Path);
-//                    qb50Free(pbuffer);
+//                    ObcMemFree(pbuffer);
 //                    return E_NO_SS;
 //                }
 //
@@ -1829,7 +1829,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //                {
 //                    driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
 //                    f_close(&FileHandle);
-//                    qb50Free(pbuffer);
+//                    ObcMemFree(pbuffer);
 //                    return E_NO_SS;
 //                }
 //
@@ -1851,7 +1851,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //            if(f_open(&FileHandle, Path, FA_READ) != FR_OK)
 //            {
 //                driver_debug(DEBUG_CAMERA, "Camera Open %s Failure!!\r\n",Path);
-//                qb50Free(pbuffer);
+//                ObcMemFree(pbuffer);
 //                return E_NO_SS;
 //            }
 //            /* 读取文件 */
@@ -1860,7 +1860,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //            {
 //                driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
 //                f_close(&FileHandle);
-//                qb50Free(pbuffer);
+//                ObcMemFree(pbuffer);
 //                return E_NO_SS;
 //            }
 //            /* 关闭最后一包数据文件 */
@@ -1947,7 +1947,7 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
 //            SendDownCmd(pbuffer, head.LastPacketSize+6);
 //        }
 //    }
-//    qb50Free(pbuffer);
+//    ObcMemFree(pbuffer);
 //    return 0;
 //}
 

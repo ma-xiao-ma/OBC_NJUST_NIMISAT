@@ -137,7 +137,7 @@ int NorFlash_Read_Buffer_Handler(struct command_context * context) {
     if(NumToRead > 100)
         return CMD_ERROR_NOMEM;
 
-    pbuffer = (uint16_t *)qb50Malloc(NumToRead * sizeof(unsigned short));
+    pbuffer = (uint16_t *)ObcMemMalloc(NumToRead * sizeof(unsigned short));
     pfree = pbuffer;
 
     if(pbuffer == NULL)
@@ -152,7 +152,7 @@ int NorFlash_Read_Buffer_Handler(struct command_context * context) {
     }
     printf("\r\n");
 
-    qb50Free(pfree);
+    ObcMemFree(pfree);
 
     return CMD_ERROR_NONE;
 }

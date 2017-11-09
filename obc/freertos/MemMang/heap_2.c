@@ -153,16 +153,14 @@ void *pvReturn = NULL;
 
 	vTaskSuspendAll();
 	{
-		/* If this is the first call to malloc then the heap will require
-		initialisation to setup the list of free blocks. */
+		/* 如果是第一次调用pvPortMalloc()申请内存的话需要先初始化一次内存堆 */
 		if( xHeapHasBeenInitialised == pdFALSE )
 		{
 			prvHeapInit();
 			xHeapHasBeenInitialised = pdTRUE;
 		}
 
-		/* The wanted size is increased so it can contain a BlockLink_t
-		structure in addition to the requested amount of bytes. */
+		/* 所申请内的大小进行字节对齐 */
 		if( xWantedSize > 0 )
 		{
 			xWantedSize += heapSTRUCT_SIZE;

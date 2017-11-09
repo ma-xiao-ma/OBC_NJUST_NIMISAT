@@ -15,7 +15,7 @@
 #include "cubesat.h"
 #include "ctrl_cmd_types.h"
 #include "switches.h"
-#include "QB50_mem.h"
+#include "obc_mem.h"
 #include "cube_com.h"
 #include "hk_arg.h"
 
@@ -213,7 +213,7 @@ int ps_handler(struct command_context * context __attribute__((unused)))
     TaskStatus_t *StatusArray;
     UBaseType_t ArraySize;
     ArraySize = uxTaskGetNumberOfTasks();
-    StatusArray = qb50Malloc(ArraySize * sizeof(TaskStatus_t));
+    StatusArray = ObcMemMalloc(ArraySize * sizeof(TaskStatus_t));
 
     if(uxTaskGetSystemState((TaskStatus_t *)StatusArray, (UBaseType_t)ArraySize, (uint32_t *)&TotalRunTime) == ArraySize)
     {
@@ -232,7 +232,7 @@ int ps_handler(struct command_context * context __attribute__((unused)))
         }
     }
 
-    qb50Free(StatusArray);
+    ObcMemFree(StatusArray);
 
 	return CMD_ERROR_NONE;
 }
@@ -256,7 +256,7 @@ int TaskGetRunTimeStats(struct command_context * context __attribute__((unused))
 {
     char *RunTimeInfo;
 
-    RunTimeInfo = (char *)qb50Malloc(400);
+    RunTimeInfo = (char *)ObcMemMalloc(400);
 
     if(RunTimeInfo != NULL)
     {
@@ -267,7 +267,7 @@ int TaskGetRunTimeStats(struct command_context * context __attribute__((unused))
         printf("TaskName\tRuningTime\tPercentage\r\n");
         printf("%s\r\n",RunTimeInfo);
 
-        qb50Free(RunTimeInfo);
+        ObcMemFree(RunTimeInfo);
     }
 
     return CMD_ERROR_NONE;

@@ -10,7 +10,7 @@
 #include "bsp_cis.h"
 #include "bsp_pca9665.h"
 
-#include "QB50_mem.h"
+#include "obc_mem.h"
 
 
 //uint16_t hton16(uint16_t h16) {
@@ -39,10 +39,10 @@ int sendtocis(void *data, int length, uint32_t delay, uint8_t *cis_ret) {
 
 	cis_frame_t *pbuf = NULL;
 
-	pbuf = (cis_frame_t *)qb50Malloc(sizeof(cis_frame_t));
+	pbuf = (cis_frame_t *)ObcMemMalloc(sizeof(cis_frame_t));
 
 	if(pbuf == NULL) {
-		qb50Free(pbuf);
+		ObcMemFree(pbuf);
 		return *cis_ret;
 	}
 
@@ -58,7 +58,7 @@ int sendtocis(void *data, int length, uint32_t delay, uint8_t *cis_ret) {
 	i2c_master_transaction(CSP_HANDLE, CIS_ADDR, pbuf, sizeof(cis_frame_t), NULL, 0, delay);
 
 	*cis_ret = 0;
-	qb50Free(pbuf);
+	ObcMemFree(pbuf);
 
 	return *cis_ret;
 }
@@ -67,10 +67,10 @@ int FlanshAudioFilesToCis(void *data, uint8_t length, uint32_t delay) {
 
 	cis_frame_t *pbuf = NULL;
 
-	pbuf = (cis_frame_t *)qb50Malloc(sizeof(cis_frame_t));
+	pbuf = (cis_frame_t *)ObcMemMalloc(sizeof(cis_frame_t));
 
 	if(pbuf == NULL) {
-		qb50Free(pbuf);
+		ObcMemFree(pbuf);
 		return -1;
 	}
 
@@ -87,7 +87,7 @@ int FlanshAudioFilesToCis(void *data, uint8_t length, uint32_t delay) {
 	pbuf->id.head = hton32(pbuf->id.head);
 	int res = i2c_master_transaction(CSP_HANDLE, CIS_ADDR, pbuf, length + 6, NULL, 0, delay);
 
-	qb50Free(pbuf);
+	ObcMemFree(pbuf);
 
 	return res;
 }

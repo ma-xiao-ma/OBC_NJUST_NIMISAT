@@ -7,13 +7,14 @@
  *  描述：联调串行接口函数，实现桌面联调 串口发送星上遥测，接收地面指令
  *      H1A19--->USART2_TX H1A20--->USART2_RX
  */
-
-#include <if_downlink_serial.h>
+#include "string.h"
+#include "obc_mem.h"
 #include "ctrl_cmd_types.h"
 #include "contrl.h"
 #include "task_user.h"
 #include "route.h"
 
+#include "if_downlink_serial.h"
 static uint8_t SendBuffer[USART2_MTU] __attribute__((section(".bss.hk")));
 static uint8_t ReceiveBuffer[USART2_MTU] __attribute__((section(".bss.hk")));
 
@@ -192,7 +193,7 @@ void DMA1_Stream5_IRQHandler(void)
         if(DMA_GetCmdStatus(DMA1_Stream5) == DISABLE)
         {
             /* 为接收到的每一包数据申请内存 */
-            Rx_Trans_Obj.frame = (usart2_frame_t *)qb50Malloc(sizeof(usart2_frame_t));
+            Rx_Trans_Obj.frame = (usart2_frame_t *)ObcMemMalloc(sizeof(usart2_frame_t));
 
             if(Rx_Trans_Obj.frame != NULL)
             {
@@ -277,7 +278,7 @@ void USART2_UnpacketTask(void *pvPara)
 
     CubeUnPacket(pdata->data);
     /* 释放传入任务的内存块 */
-    qb50Free(pdata);
+    ObcMemFree(pdata);
     /* 删除自身任务 */
     vTaskDelete(NULL);
 }

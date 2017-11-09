@@ -13,7 +13,7 @@
 #include "if_adcs.h"
 #include "driver_debug.h"
 #include "cube_com.h"
-#include "QB50_mem.h"
+#include "obc_mem.h"
 
 #include "router_io.h"
 
@@ -82,7 +82,7 @@ int route_i2c0_tx(route_packet_t * packet, uint32_t timeout)
     /*添加I2C帧到发送队列*/
     if (i2c_send(0, frame, timeout) != E_NO_ERR)
     {
-        qb50Free(frame);
+        ObcMemFree(frame);
         return E_NO_DEVICE;
     }
 
@@ -111,7 +111,7 @@ int route_i2c1_tx(route_packet_t * packet, uint32_t timeout)
     /*添加I2C帧到发送队列*/
     if (i2c_send(1, frame, timeout) != E_NO_ERR)
     {
-        qb50Free(frame);
+        ObcMemFree(frame);
         return E_NO_DEVICE;
     }
 
@@ -131,10 +131,10 @@ int router_send_to_other_node(route_packet_t *packet)
         case GND_ROUTE_ADDR:
 
             SendDownCmd(&packet->dst, packet->len + 3);
-            qb50Free(packet);
+            ObcMemFree(packet);
             break;
         default:
-            qb50Free(packet);
+            ObcMemFree(packet);
             break;
     }
 
@@ -154,7 +154,7 @@ int router_unpacket(route_packet_t *packet)
     else
     {
         CubeUnPacket(packet);
-        qb50Free(packet);
+        ObcMemFree(packet);
     }
 
     return E_NO_ERR;

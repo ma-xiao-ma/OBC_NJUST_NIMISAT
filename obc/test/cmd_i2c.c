@@ -15,7 +15,7 @@
 #include "driver_debug.h"
 #include "command.h"
 #include "console.h"
-#include "qb50_mem.h"
+#include "obc_mem.h"
 
 #include "bsp_pca9665.h"
 #include "bsp_cis.h"
@@ -29,7 +29,7 @@ int i2c_csp(struct command_context * context) {
 
 	cis_frame_t *pbuf = NULL;
 
-	pbuf = (cis_frame_t *)qb50Malloc(sizeof(cis_frame_t));
+	pbuf = (cis_frame_t *)ObcMemMalloc(sizeof(cis_frame_t));
 
 	if(pbuf == NULL) {
 		return CMD_ERROR_NOMEM;
@@ -67,7 +67,7 @@ int i2c_csp(struct command_context * context) {
 	pbuf->id.head = hton32(pbuf->id.head);
 	i2c_master_transaction(CSP_HANDLE, addr, pbuf, sizeof(cis_frame_t), NULL, 0, 5000);
 
-	qb50Free(pbuf);
+	ObcMemFree(pbuf);
 
 	return CMD_ERROR_NONE;
 }
@@ -172,9 +172,13 @@ int pca9665_dump_regs_cmd(struct command_context * ctx) {
 
 int pca9665_heap_size_cmd(struct command_context * ctx __attribute__((unused))) {
 
-	size_t heap_size = qb50GetFreeHeapSize();
+	size_t heap_size = ObcMemGetFreeHeapSize();
 
 	printf("I2C free heap size: %d\r\n", heap_size);
+
+	heap_size = xPortGetFreeHeapSize();
+
+	printf("System free heap size: %d\r\n", heap_size);
 	return CMD_ERROR_NONE;
 }
 

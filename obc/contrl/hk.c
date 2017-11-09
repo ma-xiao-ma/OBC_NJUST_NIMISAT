@@ -18,7 +18,7 @@
 
 #include "ff.h"
 
-#include "QB50_mem.h"
+#include "obc_mem.h"
 #include "driver_debug.h"
 
 #include "bsp_intadc.h"
@@ -87,7 +87,7 @@ uint32_t hk_list_insert(hkList_t * pxList, uint32_t xValueOfInsertion) {
 	hkListNode_t *pxIterator = NULL;
 
 	/*为列表项申请内存*/
-	hkListNode_t *pxNewListNode = (hkListNode_t *)qb50Malloc(sizeof(hkListNode_t));
+	hkListNode_t *pxNewListNode = (hkListNode_t *)ObcMemMalloc(sizeof(hkListNode_t));
 
 	if(pxNewListNode == NULL)
 	{
@@ -253,7 +253,7 @@ uint32_t hk_list_remove(hkListNode_t * pxNodeToRemove) {
 		driver_debug(DEBUG_HK, " ^^ DELETE file: %s ^^\r\n", hkpath);
 	}
 
-	qb50Free(pxNodeToRemove);
+	ObcMemFree(pxNodeToRemove);
 
 	return pxList->uxNumberOfItems;
 }
