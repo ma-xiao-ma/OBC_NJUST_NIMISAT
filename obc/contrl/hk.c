@@ -667,7 +667,7 @@ int obc_hk_get_peek(obc_hk_t * obc)
 void eps_hk_task(void)
 {
     EpsAdcValue_t eps_hk = {0};
-    static uint32_t num_of_acquit = 0;
+    static uint32_t num_of_acquit;
 
     if (eps_hk_queue == NULL)
         return;
@@ -741,29 +741,35 @@ static int ttc_get_hk(vu_isis_hk_t *ttc)
 {
     int ret;
 
-    ret = vu_transmitter_get_state(&ttc->tx_state);
-    if (ret != E_NO_ERR)
-        return ret;
+    vu_isis_get_receiving_tm(&ttc->ru_last);
 
+    ret = vu_receiver_get_uptime(&ttc->ru_uptime);
     ret = vu_receiver_get_uptime(&ttc->ru_uptime);
     if (ret != E_NO_ERR)
         return ret;
 
-    ret = vu_receiver_measure_tm(&ttc->ru_curt);
-    if (ret != E_NO_ERR)
-        return ret;
-
-    vu_isis_get_receiving_tm(&ttc->ru_last);
-
+    ret = vu_transmitter_get_uptime(&ttc->tu_uptime);
     ret = vu_transmitter_get_uptime(&ttc->tu_uptime);
     if (ret != E_NO_ERR)
         return ret;
 
+    ret = vu_receiver_measure_tm(&ttc->ru_curt);
+    ret = vu_receiver_measure_tm(&ttc->ru_curt);
+    if (ret != E_NO_ERR)
+         return ret;
+
+    ret = vu_transmitter_measure_tm(&ttc->tu_curt);
     ret = vu_transmitter_measure_tm(&ttc->tu_curt);
     if (ret != E_NO_ERR)
         return ret;
 
     ret = vu_transmitter_get_last_tm(&ttc->tu_last);
+    ret = vu_transmitter_get_last_tm(&ttc->tu_last);
+    if (ret != E_NO_ERR)
+        return ret;
+
+    ret = vu_transmitter_get_state(&ttc->tx_state);
+    ret = vu_transmitter_get_state(&ttc->tx_state);
     if (ret != E_NO_ERR)
         return ret;
 
@@ -776,7 +782,7 @@ static int ttc_get_hk(vu_isis_hk_t *ttc)
  */
 void ttc_hk_task(void)
 {
-    vu_isis_hk_t ttc_hk = {0};
+    static vu_isis_hk_t ttc_hk;
 
     if (ttc_hk_queue == NULL)
         return;

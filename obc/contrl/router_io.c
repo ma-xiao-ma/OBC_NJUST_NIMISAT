@@ -130,8 +130,12 @@ int router_send_to_other_node(route_packet_t *packet)
             break;
         case GND_ROUTE_ADDR:
 
+#if USE_SERIAL_PORT_DOWNLINK_INTERFACE
             SendDownCmd(&packet->dst, packet->len + 3);
             ObcMemFree(packet);
+#else
+            vu_isis_router_downlink(packet);
+#endif
             break;
         default:
             ObcMemFree(packet);
@@ -144,18 +148,10 @@ int router_send_to_other_node(route_packet_t *packet)
 
 int router_unpacket(route_packet_t *packet)
 {
-    /**
-     * 根据各分系统情况做相应的处理
-     */
-    if(packet->src == ADCS_ROUTE_ADDR)
-    {
-        adcs_queue_wirte(packet, NULL);
-    }
-    else
-    {
-        CubeUnPacket(packet);
-        ObcMemFree(packet);
-    }
+
+    CubeUnPacket(packet);
+
+    ObcMemFree(packet);
 
     return E_NO_ERR;
 }

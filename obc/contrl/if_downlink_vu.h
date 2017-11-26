@@ -7,6 +7,8 @@
 #ifndef CONTRL_IF_DOWNLINK_VU_H_
 #define CONTRL_IF_DOWNLINK_VU_H_
 
+#include "route.h"
+
 #define DOWNLINK_CRC_SIZE   4
 #define DOWNLINK_OVERHEAD (ROUTE_HEAD_SIZE + DOWNLINK_CRC_SIZE)
 #define DOWNLINK_MTU (ISIS_MTU - DOWNLINK_OVERHEAD)
@@ -37,6 +39,26 @@ typedef struct
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
 int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len);
+
+/**
+ * 通过vu无线接口发送数据
+ *
+ * @param dst 目的地址
+ * @param src 源地址
+ * @param type 消息类型
+ * @param pdata 待发送数据指针
+ * @param len 待发送数据长度
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int vu_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len );
+
+/**
+ * 路由器中下行接口调用，接受一个路由包
+ *
+ * @param packet 送到路由器的待下行的数据包
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int vu_isis_router_downlink(route_packet_t *packet);
 
 /**
  * 下行整幅图片接口函数

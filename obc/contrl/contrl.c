@@ -73,57 +73,25 @@ void chcontinuetimes(uint32_t *times) {
 	Stop_Down_Time = *times;
 }
 
+/**
+ * 下行普通数据接口
+ *
+ * @param dst 目的地址
+ * @param src 源地址
+ * @param type 消息类型
+ * @param pdata 待发送数据指针
+ * @param len 待发送数据长度
+ */
+void ProtocolSendDownCmd( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
+{
+
 #if USE_SERIAL_PORT_DOWNLINK_INTERFACE
-
-    void SendDownCmd(void *pData, uint32_t Length)
-    {
-        vSerialSend(pData, Length);
-    }
-
+    ProtocolSerialSend( dst, src, type, pdata, len );
 #else
-
-    #define MaxDataToSend   220
-
-    /* ISIS.TrxVU.ICD
-     * Transmission Bitrate:        4800 Bit/s
-     * MaxDataByte each I2C packet: 220  Byte
-    */
-    /*******************************************************************************
-    函数说明:  ISIS通信板下行数据接口函数
-    入口参数:
-            pData     : 待下行数据指针
-            Datalen   : 待下行数据长度
-    返回值:   无
-    *******************************************************************************/
-    void SendDownCmd(void *pData, uint32_t Length) {
-        uint8_t rest_frames     = 0;
-        uint8_t DataLen       = 0;
-        uint8_t* DataToSend     = (uint8_t*)pData;
-        uint8_t ErrorCount      = 0;
-        if(set_transmission_bitrate_4800() != -1)
-        {
-            driver_debug(DEBUG_ICD, "isis set rate error\n");
-        }
-        vTaskDelay(10);
-        do{
-            DataLen = (Length>MaxDataToSend) ? MaxDataToSend: Length;
-            if(ICD_send(DataToSend, DataLen, &rest_frames)!= -1)
-            {
-                ErrorCount ++;
-                driver_debug(DEBUG_ICD, "isis send transaction error\n");
-            }
-            else
-            {
-                DataToSend += DataLen;
-                Length -= DataLen;
-            }
-            if(Length != 0)
-                vTaskDelay(400);
-        }while(Length != 0 && ErrorCount < 3);
-    }
-
+    vu_send( dst, src, type, pdata, len );
 #endif
 
+}
 
 
 void NormalWorkMode(void)
@@ -180,9 +148,7 @@ void hk_collect_task(void *pvParameters __attribute__((unused)))
 
     eps_start();
     hk_collect_task_init();
-
     vTaskDelay(5000);
-
     while (1)
     {
         task_report_alive(Collect);
@@ -201,7 +167,9 @@ void hk_collect_task(void *pvParameters __attribute__((unused)))
         if (OUT_SW_CAMERA_10W_PIN() && OUT_SW_CAMERA_5W_PIN())
             cam_hk_task();
 
-        adcs_hk_task();
+//        /* 若姿控上电，则获取遥测值 */
+//        if (SW_EPS_S0_PIN())
+//            adcs_hk_task();
 
         vTaskDelay(2000);
     }
@@ -373,10 +341,16 @@ void hk_down_proc_task(void)
     /*如果是实时遥测数据下行*/
 	if (IsRealTelemetry == 1)
 	{
+	    /* 遥测收集 */
         hk_collect_no_store();
-        SendDownCmd(&hk_frame.main_frame, sizeof(HK_Main_t));
+
+        ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
+                &hk_frame.main_frame, sizeof(HK_Main_t) );
+
         vTaskDelay(10 / portTICK_RATE_MS);
-        SendDownCmd(&hk_frame.append_frame, sizeof(HK_Append_t));
+
+        ProtocolSendDownCmd( GND_ROUTE_ADDR, ADCS_ROUTE_ADDR, ADCS_TELEMETRY,
+                &hk_frame.append_frame, sizeof(HK_Append_t) );
 	}
 	/*如果是延时遥测下行*/
 	else
@@ -421,18 +395,28 @@ void hk_down_proc_task(void)
             }
             vPortExitCritical();
 
-            SendDownCmd(&hk_old_frame.main_frame, sizeof(HK_Main_t));
+            ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
+                    &hk_old_frame.main_frame, sizeof(HK_Main_t) );
+
             vTaskDelay(10 / portTICK_RATE_MS);
-            SendDownCmd(&hk_old_frame.append_frame, sizeof(HK_Append_t));
+
+            ProtocolSendDownCmd( GND_ROUTE_ADDR, ADCS_ROUTE_ADDR, ADCS_TELEMETRY,
+                    &hk_old_frame.append_frame, sizeof(HK_Append_t) );
         }
 
         /* 若选择SRAM延时遥测下行 */
         if(hk_select == HK_SRAM)
         {
             memcpy(&hk_old_frame.main_frame, hk_main_fifo.frame[hk_sram_index], sizeof(HK_Main_t));
-            SendDownCmd(&hk_old_frame.main_frame, sizeof(HK_Main_t));
+
+            ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
+                    &hk_old_frame.main_frame, sizeof(HK_Main_t) );
+
             memcpy(&hk_old_frame.append_frame, hk_append_fifo.frame[hk_sram_index], sizeof(HK_Append_t));
-            SendDownCmd(&hk_old_frame.append_frame, sizeof(HK_Append_t));
+
+            ProtocolSendDownCmd( GND_ROUTE_ADDR, ADCS_ROUTE_ADDR, ADCS_TELEMETRY,
+                    &hk_old_frame.append_frame, sizeof(HK_Append_t) );
+
             if((hk_sram_index++)%HK_FIFO_BUFFER_CNT == hk_main_fifo.rear)
             {
                 IsRealTelemetry   = 1;
@@ -447,9 +431,14 @@ void hk_down_store_task(void) {
 	if (antenna_status != 0) {
 
 		hk_collect();
-		SendDownCmd(&hk_frame.main_frame, sizeof(HK_Main_t));
+
+        ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
+                &hk_frame.main_frame, sizeof(HK_Main_t) );
+
 		vTaskDelay(10 / portTICK_RATE_MS);
-		SendDownCmd(&hk_frame.append_frame, sizeof(HK_Append_t));
+
+        ProtocolSendDownCmd( GND_ROUTE_ADDR, ADCS_ROUTE_ADDR, ADCS_TELEMETRY,
+                &hk_frame.append_frame, sizeof(HK_Append_t) );
 	}
 }
 

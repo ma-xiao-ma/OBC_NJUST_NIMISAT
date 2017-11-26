@@ -78,7 +78,7 @@ short get_mcu_temp(void)
 
     result = Get_Adc_Average(ADC_Channel_16, 10);
 
-    temperate = (float)result*(/*2.49*/2.05/4096);
+    temperate = (float)result*(2.498/4096);
 
     temperate = (temperate-0.76) / 0.0025 + 25;
 

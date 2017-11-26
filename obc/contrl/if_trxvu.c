@@ -63,6 +63,9 @@ static int vu_cmd_par(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen
 {
     cmd_with_para *dat = ObcMemMalloc(sizeof(cmd_with_para) + paralen);
 
+    if (dat == NULL)
+        return E_MALLOC_FAIL;
+
     dat->command = cmd;
     if (paralen > 0)
         memcpy(dat->parameter, para, paralen);
@@ -87,6 +90,9 @@ static int vu_cmd_par(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen
 static int vu_cmd_par_rsp(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen, void * rsp, size_t rsplen)
 {
     cmd_with_para *dat = ObcMemMalloc(sizeof(cmd_with_para) + paralen);
+
+    if (dat == NULL)
+        return E_MALLOC_FAIL;
 
     dat->command = cmd;
     if (paralen > 0)
@@ -196,6 +202,12 @@ int vu_receiver_router_get_frame(void)
 
     rsp = (rsp_frame *)frame->data;
 
+    /*如果接收到错误帧*/
+    if (!rsp->DateSize)
+    {
+        ObcMemFree(frame);
+        return E_INVALID_PARAM;
+    }
 
     /* 给多普勒和信号强度遥测变量赋值 */
     if(rx_tm_queue != NULL)
@@ -208,10 +220,6 @@ int vu_receiver_router_get_frame(void)
 
         xQueueOverwrite(rx_tm_queue, &rx_tm);
     }
-
-    /*收到的字节数不等于期望的字节数*/
-    if (rsp->DateSize != MAX_UPLINK_CONTENT_SIZE)
-        return E_INVALID_PARAM;
 
     if (*(uint32_t *)(&rsp->Data[rsp->DateSize-4]) != crc32_memory(rsp->Data, rsp->DateSize-4))
     {

@@ -374,6 +374,37 @@ int vu_softwarereset_handler(struct command_context * context __attribute__((unu
     return CMD_ERROR_NONE;
 }
 
+int vu_fm_on_handler(struct command_context * context __attribute__((unused))) {
+
+    if(vu_fm_on() == E_NO_ERR)
+        printf("fm on!!!\r\n");
+
+    return CMD_ERROR_NONE;
+}
+
+int vu_fm_off_handler(struct command_context * context __attribute__((unused))) {
+
+    if(vu_fm_off() == E_NO_ERR)
+        printf("fm off!!!\r\n");
+
+    return CMD_ERROR_NONE;
+}
+
+int vu_power_on_handler(struct command_context * context __attribute__((unused))) {
+
+    if(vu_power_on() == E_NO_ERR)
+        printf("power on!!!\r\n");
+
+    return CMD_ERROR_NONE;
+}
+
+int vu_power_off_handler(struct command_context * context __attribute__((unused))) {
+
+    if(vu_power_off() == E_NO_ERR)
+        printf("power off!!!\r\n");
+
+    return CMD_ERROR_NONE;
+}
 
 struct command cmd_vu_sub[] = {
     {
@@ -445,6 +476,22 @@ struct command cmd_vu_sub[] = {
         .name = "software",
         .help = "Software reset",
         .handler = vu_softwarereset_handler,
+    },{
+        .name = "fm_on",
+        .help = "fm on",
+        .handler = vu_fm_on_handler,
+    },{
+        .name = "fm_off",
+        .help = "fm off",
+        .handler = vu_fm_off_handler,
+    },{
+        .name = "power_on",
+        .help = "receiver transmitter on",
+        .handler = vu_power_on_handler,
+    },{
+        .name = "power_off",
+        .help = "receiver transmitter off",
+        .handler = vu_power_off_handler,
     }
 };
 

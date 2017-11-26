@@ -39,7 +39,7 @@ int isis_send_handler(struct command_context * context)
     if (sscanf(args, "%u %u %u", &frame_len, &num_of_frame, &interval_ms) != 3)
         return CMD_ERROR_SYNTAX;
 
-    if (frame_len < 4 || frame_len > ISIS_MTU)
+    if (frame_len < 8 || frame_len > ISIS_MTU)
         return CMD_ERROR_SYNTAX;
 
 	uint8_t *frame = ObcMemMalloc(frame_len/*ISIS_MTU*/);
@@ -54,13 +54,17 @@ int isis_send_handler(struct command_context * context)
 	printf("Framelen %u byte, Send %u frame, Interval %u ms.\r\n", frame_len, num_of_frame, interval_ms);
 	printf("...\n");
 
+	*(uint32_t *)(frame + 4) = csp_htobe32((uint32_t)0x12345678);
 	do {
 	    *(uint32_t *)frame = csp_htobe32(j);
 
 	    ret = vu_transmitter_send_frame(frame, frame_len/*ISIS_MTU*/, &rest_of_frame);
 
         if (ret != E_NO_ERR || rest_of_frame == 0xFF)
+        {
             errors++;
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+        }
         else
         {
             j++;
@@ -563,7 +567,7 @@ struct command cmd_isis_sub[] = {
 	{
 		.name = "send",
 		.help = "Send frame with default AX2.5 callsigns",
-		.usage = "<num_of_frame><interval_ms>",
+		.usage = "<frame_len><num_of_frame><interval_ms>",
 		.handler = isis_send_handler,
 	},{
 		.name = "state",

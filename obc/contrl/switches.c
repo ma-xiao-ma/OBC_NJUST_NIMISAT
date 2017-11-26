@@ -250,6 +250,7 @@ int enable_panel(uint32_t delay, uint32_t data __attribute__((unused))){
 	EpsOutSwitch(OUT_SOLAR_EN, ENABLE);
 	result = SW_SOLAR_EN_PIN();
 
+	/* 上天前需修改 */
 	vTaskDelay(2500);
 
 	EpsOutSwitch(OUT_SOLAR_EN, DISABLE);

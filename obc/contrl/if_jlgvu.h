@@ -39,6 +39,8 @@
 
 #define FM_FORWARDING_ON            0x51
 #define FM_FORWARDING_OFF           0x52
+#define VU_POWER_ON                 0x53
+#define VU_POWER_OFF                0x54
 
 /*获取vu遥测响应结构体*/
 typedef  struct __attribute__((packed)) {
@@ -203,6 +205,20 @@ int vu_fm_on(void);
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
 int vu_fm_off(void);
+
+/**
+ * 收发机上电
+ *
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int vu_power_on(void);
+
+/**
+ * 收发机断电
+ *
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int vu_power_off(void);
 
 
 #endif /* CONTRL_IF_JLGVU_H_ */

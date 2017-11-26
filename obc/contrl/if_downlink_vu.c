@@ -23,8 +23,6 @@ QueueHandle_t rx_tm_queue;
 
 static uint32_t vu_rx_count; //ISISvu通信机接收上行消息计数
 
-extern xSemaphoreHandle i2c_lock;
-
 /**
  * ISIS通信机下行接口函数，由OBC本地调用
  *
@@ -45,6 +43,70 @@ int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len)
 
     downlink->dst = GND_ROUTE_ADDR;
     downlink->src = router_get_my_address();
+    downlink->typ = type;
+
+    do
+    {
+        FrameDataSize = (RemainSize < DOWNLINK_MTU) ? RemainSize : DOWNLINK_MTU;
+        memcpy(downlink->dat, pdata, FrameDataSize);
+
+        *(uint32_t *)(&downlink->dat[FrameDataSize]) =
+                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE+FrameDataSize);
+
+        ret = vu_transmitter_send_frame(downlink, FrameDataSize + DOWNLINK_OVERHEAD, &TxRemainBufSize);
+
+        /**如果传输成功，且通信机成功将消息加入发送缓冲区，发送指针后移 */
+        if ((ret == E_NO_ERR) && (TxRemainBufSize != 0xFF))
+        {
+            RemainSize -= FrameDataSize;
+            pdata += FrameDataSize;
+
+            /**若发射机缓冲区已满，则等待5秒钟*/
+            if(TxRemainBufSize == 0)
+                vTaskDelay(MS_WAIT_TRANS_FREE_BUFF);
+        }
+        else
+            Error++;
+
+        if (RemainSize != 0)
+            vTaskDelay(PACK_DOWN_INTERVAL);
+
+     /**若发送完成或者错误次数超过10次，则跳出循环 */
+    }while ((RemainSize > 0) && (Error < 10));
+
+    ObcMemFree(downlink);
+
+    if (RemainSize == 0)
+        return E_NO_ERR;
+    else
+    {   /**如果错误超过10次，则复位发射机*/
+        vu_transmitter_software_reset();
+        return E_TRANSMIT_ERROR;
+    }
+}
+
+/**
+ * 通过vu无线接口发送数据
+ *
+ * @param dst 目的地址
+ * @param src 源地址
+ * @param type 消息类型
+ * @param pdata 待发送数据指针
+ * @param len 待发送数据长度
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int vu_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
+{
+    int ret;
+    uint8_t Error, TxRemainBufSize, FrameDataSize, RemainSize = len;
+    pdata = (uint8_t *)pdata;
+
+    route_frame_t *downlink = ObcMemMalloc(I2C_MTU);
+    if(downlink == NULL)
+        return E_MALLOC_FAIL;
+
+    downlink->dst = dst;
+    downlink->src = src;
     downlink->typ = type;
 
     do
@@ -171,17 +233,54 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
 
     while(1)
     {
-        vTaskDelay(1000);
+        vTaskDelay(534);
         /**获取接收机缓冲区帧计数*/
-        if (vu_receiver_get_frame_num(&frame_num) != E_NO_ERR)
+        if (vu_receiver_get_frame_num(&frame_num) != E_NO_ERR ||
+                vu_receiver_get_frame_num(&frame_num) != E_NO_ERR)
             continue;
 
         if (frame_num == 0)
             continue;
 
-        /**若缓冲区不为空，则接收帧到路由器*/
-        if (vu_receiver_router_get_frame() != E_NO_ERR)
+        rsp_frame *recv_frame = (rsp_frame *)ObcMemMalloc(sizeof(route_packet_t) + MAX_UPLINK_CONTENT_SIZE);
+        if (recv_frame == NULL)
             continue;
+
+        if (vu_receiver_get_frame(recv_frame, MAX_UPLINK_CONTENT_SIZE) != E_NO_ERR ||
+                vu_receiver_get_frame(recv_frame, MAX_UPLINK_CONTENT_SIZE) != E_NO_ERR)
+        {
+            ObcMemFree(recv_frame);
+            continue;
+        }
+
+        /* 若收到的帧数据长度字段不匹配，则视为错帧 */
+        if (recv_frame->DateSize == 0 || recv_frame->DateSize > MAX_UPLINK_CONTENT_SIZE)
+        {
+            ObcMemFree(recv_frame);
+            continue;
+        }
+
+        /* 给多普勒和信号强度遥测变量赋值 */
+        if(rx_tm_queue != NULL)
+        {
+            receiving_tm rx_tm =
+            {
+                rx_tm.DopplerOffset = recv_frame->DopplerOffset,
+                rx_tm.RSSI = recv_frame->RSSI
+            };
+
+            xQueueOverwrite(rx_tm_queue, &rx_tm);
+        }
+
+        frame_num = recv_frame->DateSize;
+
+        memmove(&((route_packet_t *)recv_frame)->dst, &recv_frame->Data, frame_num);
+
+        /* 去掉路由头长度 */
+        ((route_packet_t *)recv_frame)->len = frame_num - ROUTE_HEAD_SIZE;
+
+        /* 送入路由队列 */
+        route_queue_wirte((route_packet_t *)recv_frame, NULL);
 
         /**通信机接收上行消息计数加1*/
         vu_rx_count++;
@@ -194,7 +293,7 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
                 if (vu_receiver_remove_frame() == E_NO_ERR)
                     break;
 
-                if (repeat_time == 5)
+                if (repeat_time == 4)
                 {
                     vu_receiver_software_reset();
                     vTaskDelay(50 / portTICK_PERIOD_MS);
@@ -280,39 +379,22 @@ int vu_isis_router_downlink(route_packet_t *packet)
         return E_NO_DEVICE;
     }
 
-    if (packet->len + 4 > ISIS_MTU)
+    if (packet->len + ROUTE_HEAD_SIZE > ISIS_MTU)
     {
         ObcMemFree(packet);
         return E_INVALID_BUF_SIZE;
     }
 
-    i2c_frame_t * frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
-    if (frame == NULL)
-    {
-        ObcMemFree(packet);
-        return E_NO_BUFFER;
-    }
+    uint8_t rsp;
 
-    /* Take the I2C lock */
-    xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
-
-    frame->dest = TRANSMITTER_I2C_ADDR;
-    frame->len = packet->len + 4;
-    frame->len_rx = 0;
-    frame->data[0] = TRANSMITTER_SEND_FRAME_DEFAULT;
-    memcpy(&frame->data[1], &packet->dst, packet->len + 3);
-
-    if (i2c_send(ISIS_I2C_HANDLE, frame, 0) != E_NO_ERR)
-    {
-        ObcMemFree(packet);
-        ObcMemFree(frame);
-        xSemaphoreGive(i2c_lock);
-        return E_TIMEOUT;
-    }
+    int ret = vu_transmitter_send_frame(&packet->dst, packet->len + ROUTE_HEAD_SIZE, &rsp);
 
     ObcMemFree(packet);
-    xSemaphoreGive(i2c_lock);
-    return E_NO_ERR;
+
+    if (ret == E_NO_ERR && rsp != 0xFF)
+        return E_NO_ERR;
+    else
+        return E_TRANSMIT_ERROR;
 }
 
 

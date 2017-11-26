@@ -256,6 +256,44 @@ int vSerialSend(void *pdata, uint16_t length)
     return E_NO_ERR;
 }
 
+/**
+ * 串口协议发送
+ *
+ * @param dst 目的地址
+ * @param src 源地址
+ * @param type 消息类型
+ * @param pdata 待发送数据指针
+ * @param len 待发送数据长度
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int ProtocolSerialSend( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
+{
+    pdata = (uint8_t*)pdata;
+    uint8_t DataLen = 0;
+
+    ((route_frame_t *)SendBuffer)->dst = dst;
+    ((route_frame_t *)SendBuffer)->src = src;
+    ((route_frame_t *)SendBuffer)->typ = type;
+
+    do
+    {
+        DataLen = (len > USART2_MTU) ? USART2_MTU : len;
+
+        /* 拷贝数据到发送缓冲区 */
+        memcpy(((route_frame_t *)SendBuffer)->dat, pdata, (size_t)DataLen);
+        /* 使能串口DMA发送 */
+        MYDMA_Enable(DMA1_Stream6, DataLen);
+
+        pdata += DataLen;
+        len -= DataLen;
+
+        if(len != 0)
+            vTaskDelay(300);
+    } while(len);
+
+    return E_NO_ERR;
+}
+
 void vSerialACK(void *pdata, uint16_t length)
 {
     vSerialSend(pdata, length);

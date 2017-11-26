@@ -15,7 +15,7 @@
 #include "error.h"
 
 /* 是否打开串口上下行 */
-#define USE_SERIAL_PORT_DOWNLINK_INTERFACE  1
+#define USE_SERIAL_PORT_DOWNLINK_INTERFACE  0
 
 #define USART2_MTU 235
 
@@ -23,7 +23,7 @@ typedef struct __attribute__((packed))
 {
     uint8_t  padding[8];
     uint16_t len_rx;
-    uint8_t data[235];
+    uint8_t data[USART2_MTU];
 
 } usart2_frame_t;
 
@@ -38,5 +38,17 @@ int vSerialSend(void *pdata, uint16_t length);
 void vSerialACK(void *pdata, uint16_t length);
 void vSerialInterfaceInit(void);
 void USART2_Receive_Task(void *pvPara);
+
+/**
+ * 串口协议发送
+ *
+ * @param dst 目的地址
+ * @param src 源地址
+ * @param type 消息类型
+ * @param pdata 待发送数据指针
+ * @param len 待发送数据长度
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int ProtocolSerialSend( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len );
 
 #endif /* CONTRL_IF_DOWNLINK_SERIAL_H_ */

@@ -40,31 +40,21 @@ unsigned char cube_buf[80];
 unsigned char func =0;
 uint32_t rec_cmd_cnt = 0; //obc接收本地指令计数
 
-struct USART_TypeDefStruct GCS_Usart;
+/**
+ * obc地面指令响应函数
+ *
+ * @param type
+ * @param result
+ */
+void obc_cmd_ack(uint8_t type, uint8_t result)
+{
 #if USE_SERIAL_PORT_DOWNLINK_INTERFACE
-    void obc_cmd_ack(uint8_t type, uint8_t result)
-    {
-        route_packet_t *packet = (route_packet_t *)ObcMemMalloc((size_t)(sizeof(route_packet_t) + 1));
-
-        packet->len = 1;
-        packet->dst = GND_ROUTE_ADDR;
-        packet->src = MY_ROUTE_ADDR;
-        packet->typ = type;
-        packet->dat[0] = result;
-
-        route_queue_wirte(packet, NULL);
-    }
-
+    ProtocolSerialSend( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
 #else
-    void obc_cmd_ack(void *ack, uint32_t length) {
-        uint8_t rec_len = 0;
-
-        set_transmission_bitrate_4800();
-        vTaskDelay(10);
-        I2C_ICD_send_Axdate((uint8_t *)ORGCALL, (uint8_t *)DETCALL,
-                (uint8_t *)ack, length, &rec_len);
-    }
+    vu_send( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
 #endif
+}
+
 
 void CubeUnPacket(const void *str)
 {

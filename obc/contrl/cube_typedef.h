@@ -1,80 +1,15 @@
 /*
- * hk.h
+ * cube_typedef.h
  *
- *  Created on: 2016年05月31日
- *      Author: Administrator
+ *  Created on: 2017年11月13日
+ *      Author: Ma Wenli
  */
 
-#ifndef SRC_HK_H_
-#define SRC_HK_H_
+#ifndef CONTRL_CUBE_TYPEDEF_H_
+#define CONTRL_CUBE_TYPEDEF_H_
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdint.h>
-#include <time.h>
-
-#include "FreeRTOS.h"
-#include "task.h"
-#include "timers.h"
-#include "semphr.h"
-
-#include "ff.h"
-#include "dtb_805.h"
-#include "camera_805.h"
-#include "if_trxvu.h"
-
-#define HK_SDCARD					0x00
-#define HK_SRAM						0x01
-
-#define HK_FIFO_EMPTY 				0x00
-#define HK_FIFO_FULL 				0x01
-#define HK_FIFO_OK 					0x02
-
-#define HK_FIFO_BUFFER_SIZE 		255U
-#define HK_FIFO_BUFFER_CNT	 		20U
-
-#define HK_FRAME_MAIN				0x01
-#define HK_FRAME_APPEND				0x02
-
-#define HK_MAIN_LENGTH			    sizeof(HK_Main_t)
-#define HK_APPEND_LENGTH			sizeof(HK_Append_t)
-
-#define HK_LIST_NODE_CNT			(1000U+1)
-#define HK_STORAGE_INTERVAL         15
-#define HK_OFFSET_H_MS				(uint32_t)(HK_STORAGE_INTERVAL * HK_FILE_MAX_COUNT / 2)
-
-/*一个遥测文件最多存储200条遥测信息*/
-#define HK_FILE_MAX_COUNT			200
-
-typedef struct hkListNode {
-	uint32_t TimeValue;
-	struct hkListNode * pxNext;
-	struct hkListNode * pxPrevious;
-	void * pvContainer;
-}hkListNode_t;
-
-typedef struct __attribute__((packed))
-{
-	uint32_t TimeValue;
-	struct hkListNode * pxNext;
-	struct hkListNode * pxPrevious;
-}hkMiniListnode_t;
-
-typedef struct __attribute__((packed))
-{
-	uint32_t uxNumberOfItems;
-	struct hkListNode * pxIndex;
-	hkMiniListnode_t xListEnd;
-} hkList_t;
-
-typedef struct __attribute__((packed)) {
-	unsigned char 	frame[HK_FIFO_BUFFER_CNT][HK_FIFO_BUFFER_SIZE];
-	unsigned int 	bufferCount ;
-	unsigned int 	front ;
-	unsigned int 	rear ;
-} HK_Fifo_t;
-
-
+/*********************************主帧*********************************/
 /*星务计算机本地遥测，37 Byte*/
 typedef struct __attribute__((packed))
 {
@@ -110,7 +45,6 @@ typedef struct __attribute__((packed))
     uint8_t         aindex;                 //1
 } obc_hk_t;
 
-
 /*电源分系统遥测，64 Byte*/
 typedef struct __attribute__((packed))
 {
@@ -134,6 +68,41 @@ typedef struct __attribute__((packed))
     uint16_t        Bus_c[5];               //10
 } eps_hk_t;
 
+/*获取接收单元遥测响应结构体*/
+typedef  struct __attribute__((packed)) {
+    uint16_t DopplerOffset;
+    uint16_t TotalCurrent;
+    uint16_t BusVoltage;
+    uint16_t OscillatorTemp;
+    uint16_t AmplifierTemp;
+    uint16_t RSSI;
+} rsp_rx_tm;
+
+/*接收机收到上行数据时的遥测*/
+typedef  struct __attribute__((packed)) {
+    uint16_t DopplerOffset;
+    uint16_t RSSI;
+} receiving_tm;
+
+/*获取发射单元遥测响应结构体*/
+typedef  struct __attribute__((packed)) {
+    uint16_t ReflectedPower;
+    uint16_t ForwardPower;
+    uint16_t BusVoltage;
+    uint16_t TotalCurrent;
+    uint16_t AmplifierTemp;
+    uint16_t OscillatorTemp;
+} rsp_tx_tm;
+
+/*获取发射单元遥测响应结构体*/
+typedef  struct __attribute__((packed)) {
+    uint8_t IdleState: 1;    // bit0
+    uint8_t BeaconAct: 1;    // bit1
+    uint8_t BitRate: 2;      // bit2~bit3
+    uint8_t FM_On: 1;        // bit4
+    uint8_t padding: 3;
+} rsp_transmitter_state;
+
 /*ISISvu通信机遥测，46 Byte*/
 typedef struct __attribute__((packed))
 {
@@ -154,11 +123,126 @@ typedef struct __attribute__((packed))
 
 } vu_isis_hk_t;
 
+typedef struct __attribute__((__packed__))
+{
+        /**数传发射机本振锁定遥测*/
+        uint8_t TM_STA; //W0
+        /**数传发射机本振锁定遥测*/
+        uint8_t AF_PWR; //W1
+        /**数传发射机固放温度遥测*/
+        uint8_t AF_TEMP; //W2
+        /*************************************/
+        /**下位机复位计数*/
+        uint8_t RS_CNT:4; //W3B3～B0
+        /**下位机“看门狗”定时计数*/
+        uint8_t WD_CNT:3; //W3B6～B4
+        /**下位机总线状态遥测*/
+        uint8_t IS_CAN:1; //W3B7
+
+        /*************************************/
+        /**下位机I2C总线复位计数*/
+        uint8_t IIC_RS_CNT:4; //W4B3～B0
+        /**下位机CAN总线复位计数*/
+        uint8_t CAN_RS_CNT:4; //W4B7～B4
+        /*************************************/
+        /**数传下传码速率状态*/
+        uint8_t DOWN_RATE:3; //W5B2～B0
+        /**数传发射机开关机状态*/
+        uint8_t TRANS_ON:1; //W5B3
+        /**下位机间接指令计数*/
+        uint8_t RX_INS_CNT:4; //W5B7～B4
+
+        /*************************************/
+        /**备用*/
+        uint8_t PADDING:1; //W6B0
+        /**数传工作模式*/
+        uint8_t WORK_MODE:3; //W6B3～B1
+        /**数据处理记录数据帧头遥测*/
+        uint8_t RECORD_CORRECT:1; //W6B4
+        /**数据处理回放正确遥测*/
+        uint8_t BACK_CORRECT:1; //W6B5
+        /**数据处理伪码状态遥测*/
+        uint8_t PSD_CODE_ON:1; //W6B6
+        /**数据处理+3.3V电源遥测*/
+        uint8_t PWR_3V3_ON:1; //W6B7
+
+        /*************************************/
+        /**下位机总线状态遥测*/
+        uint8_t MEM4_STA:2; //W7B1～B0
+        /**下位机总线状态遥测*/
+        uint8_t MEM3_STA:2; //W7B3～B2
+        /**下位机总线状态遥测*/
+        uint8_t MEM2_STA:2; //W7B5～B4
+        /**下位机总线状态遥测*/
+        uint8_t MEM1_STA:2; //W7B7～B6
+
+        /*************************************/
+        /**存储器4区状态遥测*/
+        uint8_t MEM4_MARGIN:2; //W8B1～B0
+        /**存储器3区状态遥测*/
+        uint8_t MEM3_MARGIN:2; //W8B3～B2
+        /**存储器2区状态遥测*/
+        uint8_t MEM2_MARGIN:2; //W8B5～B4
+        /**存储器1区状态遥测*/
+        uint8_t MEM1_MARGIN:2; //W8B7～B6
+
+        /*************************************/
+        /**存储器1区记录数据量计数*/
+        uint8_t MEM1_RECORD_CNT; //W9
+        /**存储器2区记录数据量计数*/
+        uint8_t MEM2_RECORD_CNT; //W10
+        /**存储器3区记录数据量计数*/
+        uint8_t MEM3_RECORD_CNT; //W11
+        /**存储器4区记录数据量计数*/
+        uint8_t MEM4_RECORD_CNT; //W12
+        /**存储器1区回放数据量计数*/
+        uint8_t MEM1_BACK_CNT; //W13
+        /**存储器2区回放数据量计数*/
+        uint8_t MEM2_BACK_CNT; //W14
+        /**存储器3区回放数据量计数*/
+        uint8_t MEM3_BACK_CNT; //W15
+        /**存储器4区回放数据量计数*/
+        uint8_t MEM4_BACK_CNT; //W16
+} dtb_tm_pack;
+
 /*数传机遥测，17 Byte*/
 typedef struct __attribute__((packed))
 {
     dtb_tm_pack dtb_hk;
 } dtb_805_hk_t;
+
+
+/**传输方式*/
+typedef enum __attribute__((__packed__))
+{
+    TransOff = 0,
+    LVDS,
+    TTL
+} trans_mode;
+
+/**工作模式*/
+typedef enum __attribute__((__packed__))
+{
+    ImageRaw = 0,
+    Image1fps,
+    Video,
+    Backup
+} work_mode;
+
+/**曝光模式*/
+typedef enum __attribute__((__packed__))
+{
+    AutoExpoOn = 0,
+    AutoExpoOff
+} expo_mode;
+
+/** 相机控制模式 */
+typedef struct __attribute__((__packed__))
+{
+    trans_mode tran;
+    work_mode mode;
+    expo_mode expo;
+} cam_ctl_t;
 
 /*遥感相机遥测，14 Byte*/
 typedef struct __attribute__((packed))
@@ -187,6 +271,8 @@ typedef struct __attribute__((packed))
     dtb_805_hk_t    dtb;
     cam_805_hk_t    cam;
 } HK_Main_t;
+
+/**********************************辅帧********************************/
 
 typedef struct __attribute__((packed)) {
     uint16_t        rst_cnt;
@@ -257,137 +343,7 @@ typedef struct __attribute__((packed)) {
 }adcs805_hk_t;
 
 typedef struct __attribute__((packed)) {
-	adcs805_hk_t		adcs_hk;
+    adcs805_hk_t        adcs_hk;
 }HK_Append_t;
 
-
-typedef struct __attribute__((packed)) {
-	HK_Main_t 	main_frame;
-	HK_Append_t append_frame;
-}HK_Store_t;
-
-extern HK_Store_t		hk_frame;
-extern HK_Store_t		hk_old_frame;
-
-extern uint8_t 			hk_select;
-extern uint16_t			hk_sram_index;
-extern uint32_t			hk_sd_time;
-extern uint8_t 			hk_sd_path[25];
-extern FIL 				hkfile;
-extern UINT				hkrbytes;
-extern uint32_t			hkleek;
-extern uint32_t         i2c_error_count;
-
-extern uint16_t  hk_frame_index;
-extern HK_Fifo_t hk_main_fifo;
-extern HK_Fifo_t hk_append_fifo;
-extern hkList_t  hk_list;
-
-void hk_list_init(hkList_t * pxList);
-uint32_t hk_list_insert(hkList_t * pxList, uint32_t xValueOfInsertion);
-void * hk_list_find(uint32_t time);
-uint32_t hk_list_recover(void);
-uint32_t hk_list_remove(hkListNode_t * pxNodeToRemove);
-void HK_fifoInit(HK_Fifo_t *Q);
-uint8_t HK_fifoIn(HK_Fifo_t *Q, unsigned char *pdata, uint8_t opt);
-uint8_t HK_fifoOut(HK_Fifo_t *Q, unsigned char *pdata, uint8_t opt);
-uint16_t hk_fifo_find(const HK_Fifo_t *Q, uint32_t timevalue);
-void hk_collect_no_store(void);
-void hk_collect(void);
-int hk_store_init(void);
-void hk_out(void);
-int hk_store_add(void);
-void hk_file_task(void * paragram);
-void vTelemetryFileManage(void * paragram);
-
-/**
- * 星务遥测采集任务
- */
-void obc_hk_task(void);
-
-/**
- * 星务遥测获取函数
- *
- * @param obc 星务遥测结构体指针
- * @return pdTRUE为正常，pdFALSE不正常
- */
-int obc_hk_get_peek(obc_hk_t * obc);
-
-/**
- * 电源系统遥测采集任务，采集数值放入eps_hk_queue队列中
- *
- */
-void eps_hk_task(void);
-
-/**
- * 通过eps_hk_queue队列获取EPS遥测值
- *
- * @param tm 接收缓冲区指针
- * @return pdTRUE为正常，pdFALSE不正常
- */
-int eps_hk_get_peek(eps_hk_t *eps);
-
-/**
- * TTC遥测采集任务，采集到的数据送入ttc_hk_queue队列
- *
- */
-void ttc_hk_task(void);
-
-/**
- * 通过队列获取TTC遥测值
- *
- * @param tm 接收缓冲区指针
- * @return pdTRUE为正常，pdFALSE不正常
- */
-int ttc_hk_get_peek(vu_isis_hk_t *ttc);
-
-/**
- * 数传机数据采集任务，采集数值放入eps_hk_queue中
- *
- */
-void dtb_hk_task(void);
-
-/**
- * 通过队列获取dtb遥测值
- *
- * @param tm 接收缓冲区指针
- * @return pdTRUE为正常，pdFALSE不正常
- */
-int dtb_hk_get_peek(dtb_805_hk_t *dtb);
-
-/**
- * 相机遥测采集任务，采集到的遥测放入cam_hk_queue队列中
- *
- * 遥测值获取调用int cam_hk_get_peek(cam_805_hk_t *cam)函数
- */
-void cam_hk_task(void);
-
-/**
- * 通过队列获取TTC遥测值
- *
- * @param tm 接收缓冲区指针
- * @return pdTRUE为正常，pdFALSE不正常
- */
-int cam_hk_get_peek(cam_805_hk_t *cam);
-
-/**
- * 姿控系统数据采集任务，采集数值放入adcs_hk_queue中
- *
- */
-void adcs_hk_task(void);
-
-/**
- * 通过队列获取ADCS遥测值
- *
- * @param tm 接收缓冲区指针
- * @return pdTRUE为正常，pdFALSE不正常
- */
-int adcs_hk_get_peek(adcs805_hk_t *adcs);
-
-/**
- * 遥测采集任务初始化 创建6个队列， 需要在初始化函数中调用
- */
-void hk_collect_task_init(void);
-
-
-#endif /* SRC_HK_H_ */
+#endif /* CONTRL_CUBE_TYPEDEF_H_ */

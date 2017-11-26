@@ -111,7 +111,7 @@ int main(void)
 
     /* 创建开始任务 */
     xTaskCreate((TaskFunction_t )start_task,            //任务函数
-                (const char*    )"start_task",          //任务名
+                (const char*    )"START",          //任务名
                 (uint16_t       )START_STK_SIZE,        //任务堆栈大小
                 (void*          )NULL,                  //传递给任务的参数
                 (UBaseType_t    )START_TASK_PRIO,       //任务优先级
@@ -131,13 +131,13 @@ void start_task(void *pvParameters)
 {
     taskENTER_CRITICAL();           //进入临界区
 
-    //创建监视任务
-    xTaskCreate((TaskFunction_t )supervisor_task,
-                (const char*    )"IWDG",
-                (uint16_t       )SUPERVISOR_STK_SIZE,
-                (void*          )NULL,
-                (UBaseType_t    )SUPERVISOR_TASK_PRIO,
-                (TaskHandle_t*  )&SupervisorTask_Handler);
+//    //创建监视任务
+//    xTaskCreate((TaskFunction_t )supervisor_task,
+//                (const char*    )"SV",
+//                (uint16_t       )SUPERVISOR_STK_SIZE,
+//                (void*          )NULL,
+//                (UBaseType_t    )SUPERVISOR_TASK_PRIO,
+//                (TaskHandle_t*  )&SupervisorTask_Handler);
 
     //创建调试台任务
     xTaskCreate((TaskFunction_t )debug_console,
@@ -155,7 +155,8 @@ void start_task(void *pvParameters)
                 (UBaseType_t    )COLLECT_TASK_PRIO,
                 (TaskHandle_t*  )&CollectTask_Handler);
 
-#ifndef USE_SERIAL_PORT_DOWNLINK_INTERFACE
+#if USE_SERIAL_PORT_DOWNLINK_INTERFACE
+#else
     //创建上行ISIS通信板解包任务
     xTaskCreate((TaskFunction_t )vu_isis_uplink_task,
                 (const char*    )"Uplink",
@@ -173,13 +174,13 @@ void start_task(void *pvParameters)
 //                (UBaseType_t    )ISIS_READ_TASK_PRIO,
 //                (TaskHandle_t*  )&ISISReadTask_Handler);
 
-    //遥测下行和保存任务
-    xTaskCreate((TaskFunction_t )down_save_task,
-                (const char*    )"down",
-                (uint16_t       )DOWN_SAVE_STK_SIZE,
-                (void*          )NULL,
-                (UBaseType_t    )DOWN_SAVE_TASK_PRIO,
-                (TaskHandle_t*  )&DownSaveTask_Handler);
+//    //遥测下行和保存任务
+//    xTaskCreate((TaskFunction_t )down_save_task,
+//                (const char*    )"Down",
+//                (uint16_t       )DOWN_SAVE_STK_SIZE,
+//                (void*          )NULL,
+//                (UBaseType_t    )DOWN_SAVE_TASK_PRIO,
+//                (TaskHandle_t*  )&DownSaveTask_Handler);
 
 //    //展电池阵任务
 //    xTaskCreate((TaskFunction_t )OpenPanel_Task,
@@ -191,7 +192,7 @@ void start_task(void *pvParameters)
 //
 //    //展天线任务
 //    xTaskCreate((TaskFunction_t )OpenAntenna_Task,
-//                (const char*    )"ants",
+//                (const char*    )"Ants",
 //                (uint16_t       )OPEN_ANTENNA_STK_SIZE,
 //                (void*          )NULL,
 //                (UBaseType_t    )OPEN_ANTENNA_TASK_PRIO,
