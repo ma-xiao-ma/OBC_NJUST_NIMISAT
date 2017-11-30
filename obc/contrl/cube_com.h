@@ -129,10 +129,10 @@
 #define INS_Max_MagTorque_Set  0xA5
 
 /*星务和姿控之间的消息类型*/
-#define INS_OBC_GET_ADCS_HK    0xA6
-#define INS_GET_CROSSING_FLAG  0xA7
-#define INS_GET_SAT_TIME       0xA8
-#define INS_GET_SAT_POSITION   0xA9 //获取GPS位置
+#define INS_OBC_GET_ADCS_HK    0xC0
+#define INS_GET_CROSSING_FLAG  0xC1
+#define INS_GET_SAT_TIME       0xC2
+#define INS_GET_SAT_POSITION   0xC3   //获取GPS位置
 
 /*下行消息类型*/
 #define OBC_TELEMETRY          0xE1

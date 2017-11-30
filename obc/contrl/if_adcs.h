@@ -23,6 +23,14 @@ int adcs_get_hk(void *hk, uint16_t timeout);
 
 int adcs_send_mode(uint8_t eps_mode);
 
+/**
+ * 姿控时间同步
+ *
+ * @param secs utc时间
+ * @return E_NO_ERR为正常
+ */
+int adcstimesync(uint32_t secs);
+
 int adcs_queue_init(void);
 
 int adcs_queue_read(route_packet_t ** packet, TickType_t timeout);

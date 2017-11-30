@@ -185,36 +185,36 @@ void Camera_805_Init(void)
     EpsOutSwitch(OUT_CAMERA_HEAT_1, ENABLE);
 }
 
-void CAMERA_TX_ISR_HANDLER(void)
-{
-    if(DMA_GetFlagStatus(CAMERA_DMA_TX_STREAM, DMA_FLAG_TCIF7) != RESET)
-    {
-        DMA_ClearFlag(CAMERA_DMA_TX_STREAM, DMA_FLAG_TCIF7);
-    }
-}
+//void CAMERA_TX_ISR_HANDLER(void)
+//{
+//    if(DMA_GetFlagStatus(CAMERA_DMA_TX_STREAM, DMA_FLAG_TCIF7) != RESET)
+//    {
+//        DMA_ClearFlag(CAMERA_DMA_TX_STREAM, DMA_FLAG_TCIF7);
+//    }
+//}
 
 #define RESERVED_MASK   (uint32_t)0x0F7D0F7D
 static uint32_t DataOffset = 1; //用来表征发起了几次DMA传输，还有用来计算
                                 //需要设置的存储器地址，初始值为1
 
-/* DMA传输完成中断设置，因为DMA每次最大传输65535个字
- * 节数据，为了实现连续串口接收超过65535字节数据 */
-void DMA2_Stream2_IRQHandler(void)
-{
-    if ((DMA2_Stream2->CR & (uint32_t)DMA_SxCR_EN) != SET)
-    {
-        DMA2->LIFCR = (uint32_t)(DMA_FLAG_TCIF2 & RESERVED_MASK);  //清传输完成标志
-
-        if(!DataOffset)
-            DMA2_Stream2->NDTR = 0;
-
-        DMA2_Stream2->M0AR = (uint32_t)&Cam.ReceiveBuffer[CamerarReceiveBufferSize*DataOffset -
-                                        DMA2_Stream2->NDTR];  //设置存储器地址
-        DMA2_Stream2->NDTR = (uint16_t)CamerarReceiveBufferSize;//编程DMA接收字节数
-        DMA2_Stream2->CR |= DMA_SxCR_EN;    //使能 串口1 DMA接收
-        DataOffset ++;
-    }
-}
+///* DMA传输完成中断设置，因为DMA每次最大传输65535个字
+// * 节数据，为了实现连续串口接收超过65535字节数据 */
+//void DMA2_Stream2_IRQHandler(void)
+//{
+//    if ((DMA2_Stream2->CR & (uint32_t)DMA_SxCR_EN) != SET)
+//    {
+//        DMA2->LIFCR = (uint32_t)(DMA_FLAG_TCIF2 & RESERVED_MASK);  //清传输完成标志
+//
+//        if(!DataOffset)
+//            DMA2_Stream2->NDTR = 0;
+//
+//        DMA2_Stream2->M0AR = (uint32_t)&Cam.ReceiveBuffer[CamerarReceiveBufferSize*DataOffset -
+//                                        DMA2_Stream2->NDTR];  //设置存储器地址
+//        DMA2_Stream2->NDTR = (uint16_t)CamerarReceiveBufferSize;//编程DMA接收字节数
+//        DMA2_Stream2->CR |= DMA_SxCR_EN;    //使能 串口1 DMA接收
+//        DataOffset ++;
+//    }
+//}
 
 /* NorFlash相关定义 */
 //uint16_t DataToNor;

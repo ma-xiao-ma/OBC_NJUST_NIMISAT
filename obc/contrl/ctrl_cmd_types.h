@@ -42,9 +42,9 @@ typedef struct __attribute__((packed)) {
 }crc_nopara_t;
 
 typedef struct __attribute__((packed)) {
-	uint8_t 	    id;
-	uint8_t		cmd;
-	uint32_t	    delay;
+//	uint8_t 	    id;
+//	uint8_t		    cmd;
+//	uint32_t	    delay;
 	uint32_t    	msecs;
 }ctrl_syntime_t;
 

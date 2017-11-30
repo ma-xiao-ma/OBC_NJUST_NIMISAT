@@ -179,6 +179,7 @@ typedef struct __attribute__((packed))
 //    uint32_t        currt_image_id;         //4
 } cam_805_hk_t;
 
+/* 主遥测帧, 178 byte*/
 typedef struct __attribute__((packed))
 {
     obc_hk_t        obc;
@@ -188,7 +189,8 @@ typedef struct __attribute__((packed))
     cam_805_hk_t    cam;
 } HK_Main_t;
 
-typedef struct __attribute__((packed)) {
+typedef struct __attribute__((packed))
+{
     uint16_t        rst_cnt;
     uint16_t        rcv_cnt;
     uint16_t        ack_cnt;
@@ -200,10 +202,10 @@ typedef struct __attribute__((packed)) {
     uint16_t        downAdcsPitFltComCnt;
     uint16_t        downAdcsAttStaCnt;
     uint8_t         error;
+} adcs805_hk_workmode_t;
 
-}adcs805_hk_workmode_t;
-
-typedef struct __attribute__((packed)) {
+typedef struct __attribute__((packed))
+{
     uint16_t        sw_status;
     int16_t         downAdcsMagnetometer[3];
     int16_t         downAdcsGyro_Meas[3];
@@ -216,9 +218,10 @@ typedef struct __attribute__((packed)) {
     int16_t         downAdcsMTQOut[3];
     int16_t         downAdcsMagInO[3];
 
-}adcs805_hk_component_t;
+} adcs805_hk_component_t;
 
-typedef struct __attribute__((packed)) {
+typedef struct __attribute__((packed))
+{
     int16_t         downAdcsPitAngle;
     int16_t         downAdcsPitFltState[2];
     float           downAdcsPitFltNormP;
@@ -232,39 +235,42 @@ typedef struct __attribute__((packed)) {
     float           downAdcsMagGyroFltQ[4];
     float           downAdcsMagGyroFltw[3];
     float           downAdcsMagGyroFltNormP;
+} adcs805_hk_attitude_t;
 
-}adcs805_hk_attitude_t;
-
-typedef struct __attribute__((packed)) {
+typedef struct __attribute__((packed))
+{
     float           downAdcsOrbPos[3];
     int16_t         downAdcsOrbVel[3];
     uint8_t         GPS_status;
     uint8_t         GPS_numV;
     uint16_t        GPS_pdop;
+} adcs805_hk_orbit_t;
 
-}adcs805_hk_orbit_t;
+typedef struct __attribute__((packed))
+{
+    int16_t         adc[10];
+} adcs805_hk_temp_t;
 
-typedef struct __attribute__((packed)) {
-    int16_t          adc[10];
-}adcs805_hk_temp_t;
-
-typedef struct __attribute__((packed)) {
+typedef struct __attribute__((packed))
+{
     adcs805_hk_workmode_t     adcs805_hk_workmode;
     adcs805_hk_component_t    adcs805_hk_component;
     adcs805_hk_attitude_t     adcs805_hk_attitude;
     adcs805_hk_orbit_t        adcs805_hk_orbit;
     adcs805_hk_temp_t         adcs805_hk_temp;
-}adcs805_hk_t;
+} adcs805_hk_t;
 
-typedef struct __attribute__((packed)) {
+typedef struct __attribute__((packed))
+{
 	adcs805_hk_t		adcs_hk;
-}HK_Append_t;
+} HK_Append_t;
 
 
-typedef struct __attribute__((packed)) {
+typedef struct __attribute__((packed))
+{
 	HK_Main_t 	main_frame;
 	HK_Append_t append_frame;
-}HK_Store_t;
+} HK_Store_t;
 
 extern HK_Store_t		hk_frame;
 extern HK_Store_t		hk_old_frame;

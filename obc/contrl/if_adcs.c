@@ -4,8 +4,10 @@
  *  Created on: 2017年9月29日
  *      Author: Ma Wenli
  */
-#include "string.h"
+#include <string.h>
+
 #include "FreeRTOS.h"
+#include "semphr.h"
 
 #include "bsp_pca9665.h"
 #include "error.h"
@@ -39,7 +41,7 @@ int adcs_queue_init(void)
 int adcs_queue_read(route_packet_t ** packet, TickType_t timeout)
 {
     if (adcs_queue == NULL)
-        return E_NO_DEVICE;
+        adcs_queue_init();
 
     if (xQueueReceive(adcs_queue, packet, timeout) == pdFALSE)
         return E_TIMEOUT;
@@ -57,16 +59,12 @@ void adcs_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken)
 {
     int result;
 
+    if (adcs_queue == NULL)
+        adcs_queue_init();
+
     if(packet == NULL)
     {
         printf("adcs_queue_wirte called with NULL packet\r\n");
-        return;
-    }
-
-    if (adcs_queue == NULL)
-    {
-        ObcMemFree(packet);
-        printf("ADCS queue not initialized!\r\n");
         return;
     }
 
@@ -146,40 +144,77 @@ int adcs_transaction(uint8_t type, void * txbuf, size_t txlen, void * rxbuf, siz
  */
 int adcs_transaction_direct(uint8_t type, void * txbuf, size_t txlen, void * rxbuf, size_t rxlen, uint16_t timeout)
 {
-    int ret, rlen;
 
-    /*取txlen和rxlen之间较大值*/
-    rlen = (txlen>rxlen) ? txlen: rxlen;
-
-    route_frame_t * frame = (route_frame_t *)ObcMemMalloc(sizeof(route_frame_t) + rlen);
-
+    i2c_frame_t * frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
     if (frame == NULL)
         return E_NO_BUFFER;
 
-    frame->dst = ADCS_ROUTE_ADDR;
-    frame->src = OBC_ROUTE_ADDR;
-    frame->typ = type;
+//    extern xSemaphoreHandle i2c_lock;
+//    /* Take the I2C lock */
+//    xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
 
-    if ((txlen > I2C_MTU - ROUTE_HEAD_SIZE) || (rxlen > I2C_MTU - ROUTE_HEAD_SIZE))
-        return E_INVALID_BUF_SIZE;
+//    extern pca9665_device_object_t device[2];
+//    /* 暂时禁回调函数 */
+//    void * tmp_callback = device[OBC_TO_ADCS_HANDLE].callback;
+//    device[OBC_TO_ADCS_HANDLE].callback = NULL;
 
-    if (txlen != 0)
-        memcpy(&frame->dat[0], txbuf, txlen);
+    frame->dest = ADCS_I2C_ADDR;
+    frame->len = txlen + ROUTE_HEAD_SIZE;
+    frame->len_rx = 0;
 
-    if (rxlen)
-        rlen = rxlen + 3;
-    else
-        rlen = 0;
+    route_frame_t * r_frame = (route_frame_t *)frame->data;
 
-    ret = i2c_master_transaction(OBC_TO_ADCS_HANDLE, ADCS_I2C_ADDR, frame,
-            txlen + ROUTE_HEAD_SIZE, frame, rlen, timeout);
+    r_frame->dst = ADCS_ROUTE_ADDR;
+    r_frame->src = OBC_ROUTE_ADDR;
+    r_frame->typ = type;
 
-    if ((rxlen != 0) && (ret == E_NO_ERR))
-        memcpy(rxbuf, &frame->dat[0], rxlen);
 
-    ObcMemFree(frame);
+    memcpy(&r_frame->dat[0], txbuf, txlen);
 
-    return ret;
+    if (i2c_send(OBC_TO_ADCS_HANDLE, frame, 0) != E_NO_ERR) {
+        ObcMemFree(frame);
+//        device[OBC_TO_ADCS_HANDLE].callback = tmp_callback;
+//        xSemaphoreGive(i2c_lock);
+        return E_TIMEOUT;
+    }
+
+    if (rxlen == 0) {
+//        device[OBC_TO_ADCS_HANDLE].callback = tmp_callback;
+//        xSemaphoreGive(i2c_lock);
+        return E_NO_ERR;
+    }
+
+//    if (i2c_receive(OBC_TO_ADCS_HANDLE, &frame, timeout) != E_NO_ERR) {
+////        device[OBC_TO_ADCS_HANDLE].callback = tmp_callback;
+//        xSemaphoreGive(i2c_lock);
+//        return E_TIMEOUT;
+//    }
+
+    route_packet_t *packet;
+
+    if (adcs_queue_read(&packet, timeout) != E_NO_ERR) {
+//        device[OBC_TO_ADCS_HANDLE].callback = tmp_callback;
+//        xSemaphoreGive(i2c_lock);
+        return E_TIMEOUT;
+    }
+
+//    r_frame = (route_frame_t *)frame->data;
+
+    /* 接收内容正确性检查 */
+    if (packet->dst != OBC_ROUTE_ADDR || packet->src != ADCS_ROUTE_ADDR ||
+            packet->typ != type || packet->len != rxlen) {
+//        device[OBC_TO_ADCS_HANDLE].callback = tmp_callback;
+//        xSemaphoreGive(i2c_lock);
+        return E_INVALID_PARAM;
+    }
+
+    memcpy(rxbuf, &packet->dat[0], rxlen);
+
+    ObcMemFree(packet);
+//    device[OBC_TO_ADCS_HANDLE].callback = tmp_callback;
+//    xSemaphoreGive(i2c_lock);
+
+    return E_NO_ERR;
 }
 
 int adcs_get_hk(void *hk, uint16_t timeout)
@@ -188,6 +223,12 @@ int adcs_get_hk(void *hk, uint16_t timeout)
     return adcs_transaction_direct(INS_OBC_GET_ADCS_HK, NULL, 0, hk, sizeof(adcs805_hk_t), timeout);
 }
 
+/**
+ * 发送电源信息到姿控计算机
+ *
+ * @param eps_mode 正常模式或者休眠模式
+ * @return E_NO_ERR为正常
+ */
 int adcs_send_mode(uint8_t eps_mode)
 {
 
@@ -196,3 +237,13 @@ int adcs_send_mode(uint8_t eps_mode)
     return adcs_transaction_direct(type, NULL, 0, NULL, 0, 0);
 }
 
+/**
+ * 姿控时间同步
+ *
+ * @param secs utc时间
+ * @return E_NO_ERR为正常
+ */
+int adcstimesync(uint32_t secs)
+{
+    return adcs_transaction_direct(INS_ADCS_TIME_IN, &secs, sizeof(uint32_t), NULL, 0, 0);
+}

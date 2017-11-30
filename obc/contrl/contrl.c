@@ -167,9 +167,9 @@ void hk_collect_task(void *pvParameters __attribute__((unused)))
         if (OUT_SW_CAMERA_10W_PIN() && OUT_SW_CAMERA_5W_PIN())
             cam_hk_task();
 
-//        /* 若姿控上电，则获取遥测值 */
-//        if (SW_EPS_S0_PIN())
-//            adcs_hk_task();
+        /* 若姿控上电，则获取遥测值 */
+        if (SW_EPS_S0_PIN())
+            adcs_hk_task();
 
         vTaskDelay(2000);
     }

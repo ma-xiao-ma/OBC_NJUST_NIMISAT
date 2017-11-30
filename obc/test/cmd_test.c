@@ -488,7 +488,7 @@ int CubeUnPacket_test(struct command_context *ctx)
     uint8_t cmd_type;
 
     char * args = command_args(ctx);
-    if(sscanf(args, "%u", &cmd_type) != 1)
+    if(sscanf(args, "%x", &cmd_type) != 1)
         return CMD_ERROR_SYNTAX;
 
     route_packet_t *packet = (route_packet_t *)ObcMemMalloc(sizeof(route_packet_t)+10);

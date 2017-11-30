@@ -4,14 +4,6 @@
  *  Created on: 2016年6月14日
  *      Author: Ma Wenli
  */
-
-#include "bsp_nor_flash.h"
-
-#include "driver_debug.h"
-#include "command.h"
-#include "console.h"
-
-
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -19,42 +11,104 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "driver_debug.h"
+#include "command.h"
+#include "console.h"
+#include "bsp_nor_flash.h"
+#include "obc_mem.h"
+
+/**
+ * norflash 字节写入测试函数
+ *
+ * @param context
+ * @return
+ */
+int nor_byte_write_handler(struct command_context * context)
+{
+    char * args = command_args(context);
+    static uint32_t Byte_Addr;
+    static uint8_t u8data;
+
+    if (sscanf(args, "%u %x", &Byte_Addr, &u8data)!= 2)
+        return CMD_ERROR_SYNTAX;
+
+    uint8_t nor_return = 1;
+    printf("WRITE: byte address: %u, data: 0x%02x\r\n", Byte_Addr, u8data);
+
+    nor_return = NOR_WriteByte(Byte_Addr, u8data);
+
+    /* 返回0说明写入正常 */
+    printf("return is :%u\n",nor_return);
+    u8data  = 0;
+    u8data = NOR_ReadByte(Byte_Addr);
+    printf("READ: byte address: %u, data: 0x%02x\r\n", Byte_Addr, u8data);
+
+    return CMD_ERROR_NONE;
+}
+
 
    /*经测试前 8K half-word(16K Byte)无法写入 */
-int norflash_write_handler(struct command_context * context) {
-
+int nor_half_write_handler(struct command_context * context)
+{
 	char * args = command_args(context);
-	uint32_t u32MyAddr;
-	uint16_t u16data;
+	static uint32_t Half_Addr; /* 实际地址会乘以2。例：往半字地址32768写入其实是往字节地址65536写入*/
+	static uint16_t u16data;
 
-	if (sscanf(args, "%x %u", &u16data, &u32MyAddr)!= 2)
+	if (sscanf(args, "%u %x", &Half_Addr, &u16data)!= 2)
 		return CMD_ERROR_SYNTAX;
 
-	uint8_t nor_re = 1;
-	printf("write addr: %u data: %u\n", u32MyAddr, u16data);
+	uint8_t nor_return = 1;
+	printf("WRITE: half word address: %u, data: 0x%04x\r\n", Half_Addr, u16data);
 
-	nor_re = FSMC_NOR_WriteHalfWord(u32MyAddr, u16data);
+	nor_return = FSMC_NOR_WriteHalfWord(Half_Addr, u16data);
 
-	printf("return is :%u\n",nor_re);
+	/* 返回0说明写入正常 */
+	printf("return is :%u\n",nor_return);
 	u16data  = 0;
-	u16data = FSMC_NOR_ReadHalfWord(u32MyAddr);
-	printf("read addr: %u data: %04x\n", u32MyAddr, u16data);
+	u16data = FSMC_NOR_ReadHalfWord(Half_Addr);
+	printf("READ: half word address: %u, data: 0x%04x\r\n", Half_Addr, u16data);
+
 	return CMD_ERROR_NONE;
 }
 
-int norflash_read_handler(struct command_context * context) {
+/**
+ * norflash字节访问模式，读取
+ *
+ * @param context
+ * @return
+ */
+int nor_byte_read_handler(struct command_context * context)
+{
+
+    char * args = command_args(context);
+    static uint32_t byte_addr;
+    uint8_t u8data;
+
+    if (sscanf(args, "%u", &byte_addr) != 1)
+        return CMD_ERROR_SYNTAX;
+
+//    FSMC_NOR_ReadID();
+    u8data = NOR_ReadByte(byte_addr);
+
+    printf("READ: byte address: %u, data: 0x%02x\r\n", byte_addr, u8data);
+
+    return CMD_ERROR_NONE;
+}
+
+int nor_half_read_handler(struct command_context * context)
+{
 
 	char * args = command_args(context);
-	uint32_t addr;
-	uint16_t u16data;
+	static uint32_t half_addr;
+	static uint16_t u16data;
 
-	if (sscanf(args, "%u", &addr) != 1)
+	if (sscanf(args, "%u", &half_addr) != 1)
 		return CMD_ERROR_SYNTAX;
 
 	FSMC_NOR_ReadID();
-	u16data = FSMC_NOR_ReadHalfWord(addr);
+	u16data = FSMC_NOR_ReadHalfWord(half_addr);
 
-	printf("Read Address: %u Data: 0x%04x \n", addr, u16data);
+	printf("READ: half word address: %u, data: 0x%04x\r\n", half_addr, u16data);
 
 	return CMD_ERROR_NONE;
 }
@@ -157,31 +211,64 @@ int NorFlash_Read_Buffer_Handler(struct command_context * context) {
     return CMD_ERROR_NONE;
 }
 
-struct command cmd_norflash_sub[] = {
+command_t __sub_command read_nor_sub[] = {
+    {
+        .name = "byte",
+        .help = "byte read",
+        .usage = "<byte address>",
+        .handler = nor_byte_read_handler,
+    },
+    {
+        .name = "half",
+        .help = "half word read",
+        .usage = "<half word address>",
+        .handler = nor_half_read_handler,
+    }
+};
+
+command_t __sub_command write_nor_sub[] = {
+    {
+        .name = "byte",
+        .help = "byte write",
+        .usage = "<byte address><byte data>",
+        .handler = nor_byte_write_handler,
+    },
+    {
+        .name = "half",
+        .help = "half word write",
+        .usage = "<half word address><half data>",
+        .handler = nor_half_write_handler,
+    }
+};
+
+command_t __sub_command cmd_norflash_sub[] = {
 	{
 		.name = "read",
 		.help = "read flash",
-		.usage = "<address>",
-		.handler = norflash_read_handler,
-	},{
+		.chain = INIT_CHAIN(read_nor_sub),
+	},
+	{
 		.name = "write",
 		.help = "write to flash",
-		.usage = "<data><address>",
-		.handler = norflash_write_handler,
-	},{
+		.chain = INIT_CHAIN(write_nor_sub),
+	},
+	{
         .name = "chip_erase",
         .help = "Erase Chip",
         .handler = NorFlash_Chip_Erase_Handler,
-    },{
+    },
+    {
         .name = "sector_erase",
         .help = "Erase Sector",
         .usage = "<SectorNum>",
         .handler = NorFlash_Sector_Erase_Handler,
-    },{
+    },
+    {
         .name = "bufferw",
         .help = "Buffer Write",
         .handler = NorFlash_WriteBuffer_Handler,
-    },{
+    },
+    {
         .name = "bufferr",
         .help = "Buffer Read",
         .usage = "<address><number>",

@@ -54,23 +54,24 @@ int isis_send_handler(struct command_context * context)
 	printf("Framelen %u byte, Send %u frame, Interval %u ms.\r\n", frame_len, num_of_frame, interval_ms);
 	printf("...\n");
 
-	*(uint32_t *)(frame + 4) = csp_htobe32((uint32_t)0x12345678);
+	*(uint32_t *)frame = csp_htobe32((uint32_t)0x12345678);
 	do {
-	    *(uint32_t *)frame = csp_htobe32(j);
+
+	    *(uint32_t *)(frame + 4)= csp_htobe32(j);
 
 	    ret = vu_transmitter_send_frame(frame, frame_len/*ISIS_MTU*/, &rest_of_frame);
 
         if (ret != E_NO_ERR || rest_of_frame == 0xFF)
         {
             errors++;
-            vTaskDelay(500 / portTICK_PERIOD_MS);
+            vTaskDelay(50 / portTICK_PERIOD_MS);
         }
         else
         {
             j++;
             num_of_frame--;
             /**若发射机缓冲区已满，则等待5000毫秒*/
-            if(rest_of_frame == 0)
+            if(rest_of_frame == 1)
             {
                 times++;
                 vTaskDelay(5000 / portTICK_PERIOD_MS);

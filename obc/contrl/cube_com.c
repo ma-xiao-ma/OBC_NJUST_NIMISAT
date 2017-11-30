@@ -28,6 +28,7 @@
 #include "bsp_cis.h"
 #include "route.h"
 #include "router_io.h"
+#include "if_downlink_vu.h"
 
 #define ORGCALL			"BI4ST0"
 #define DETCALL			"BI4ST1"
@@ -96,8 +97,8 @@ void CubeUnPacket(const void *str)
 
 void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
 	int result = 0;
-//	/* 上注时间结构体 */
-//	ctrl_syntime_t * ptime 	= (ctrl_syntime_t *)cube_buf;
+	/* 上注时间结构体 */
+	ctrl_syntime_t * ptime 	= (ctrl_syntime_t *)cube_buf;
 	/* 延时遥测指令结构体 */
 	ctrl_delayhk_t * phk	= (ctrl_delayhk_t *)cube_buf;
 	/* 普通无参命令结构体 */
@@ -177,14 +178,15 @@ void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) 
             break;
         case INS_TIME_TO_OBC:
 
-//            ptime->msecs += 2;
-//            result = timesync(ptime->msecs);
-//            if(result == -1) {
-//                result = 1;
-//            }else {
-//                result = 0;
-//            }
-//            obc_cmd_ack(cmd_id, result);
+            ptime->msecs += 2;
+            result = timesync(ptime->msecs);
+
+            if(result == -1) {
+                result = 1;
+            }else {
+                result = 0;
+            }
+            obc_cmd_ack(cmd_id, result);
             break;
         case INS_ADCS_ON:
 

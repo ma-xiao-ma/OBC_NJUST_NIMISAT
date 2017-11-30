@@ -14,6 +14,7 @@
 #include "driver_debug.h"
 #include "cube_com.h"
 #include "obc_mem.h"
+#include "if_downlink_vu.h"
 
 #include "router_io.h"
 
@@ -149,9 +150,30 @@ int router_send_to_other_node(route_packet_t *packet)
 int router_unpacket(route_packet_t *packet)
 {
 
-    CubeUnPacket(packet);
+    if (packet->src == GND_ROUTE_ADDR)
+    {
+        CubeUnPacket(packet);
+        ObcMemFree(packet);
+    }
 
-    ObcMemFree(packet);
+    else if (packet->src == ADCS_ROUTE_ADDR)
+    {
+        switch (packet->typ)
+        {
+            case INS_OBC_GET_ADCS_HK:
+                adcs_queue_wirte(packet, NULL);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    /**
+     * 处理过境标志,时间同步信息
+     */
+    else
+        ObcMemFree(packet);
 
     return E_NO_ERR;
 }

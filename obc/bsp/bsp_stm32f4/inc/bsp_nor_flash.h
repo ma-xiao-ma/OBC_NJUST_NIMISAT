@@ -6,14 +6,11 @@
 
 #define NOR_FLASH_ADDR  			((uint32_t)0x64000000)
 
+#define WORD_ADDR(addr)             ((vu16 *)(NOR_FLASH_ADDR + (2 * (addr))))
+#define NOR_WRITE(Address, Data)    (*(vu16 *)(Address) = (Data))
 
-#define ADDR_SHIFT(A) (NOR_FLASH_ADDR + (2 * (A)))
-
-#define NOR_WRITE(Address, Data)  (*(vu16 *)(Address) = (Data))
-
-
-#define GET_ADDR(addr)				((volatile uint8_t *)(NOR_FLASH_ADDR + ((addr))))
-#define NOR_BWRITE(Address, Data)  	(*(__IO uint8_t *)(Address) = (Data))
+#define BYTE_ADDR(addr)				((vu8 *)(NOR_FLASH_ADDR + ((addr))))
+#define NOR_BWRITE(Address, Data)  	(*(vu8 *)(Address) = (Data))
 
 #define NOR_SECTOR_SIZE				(128 * 1024)	/* 扇区大小 */
 #define NOR_SECTOR_COUNT			128				/* 扇区数量 */
@@ -56,9 +53,11 @@ NOR_STATUS FSMC_NOR_EraseChip(void);
 
 uint16_t FSMC_NOR_ReadHalfWord(uint32_t ReadAddr);
 void FSMC_NOR_ReadBuffer(u16* pBuffer, u32 ReadAddr, u32 NumHalfwordToRead);
-
 NOR_STATUS FSMC_NOR_WriteHalfWord(uint32_t WriteAddr, uint16_t Data);
 NOR_STATUS FSMC_NOR_WriteBuffer(u16* pBuffer, u32 WriteAddr, u32 NumHalfwordToWrite);
+
+uint8_t NOR_ReadByte(uint32_t _uiWriteAddr);
+uint8_t NOR_WriteByte(uint32_t _uiWriteAddr, uint8_t _usData);
 
 
 #endif

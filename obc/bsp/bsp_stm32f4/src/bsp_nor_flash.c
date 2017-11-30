@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <string.h>
 
+
 /* 判忙时的执行语句循环次数  */
 #define BlockErase_Timeout    	((uint32_t)0x00A00000)
 #define ChipErase_Timeout     	((uint32_t)0x00200000)
@@ -201,14 +202,14 @@ void bsp_InitNorFlash(void)
 void FSMC_NOR_ReadID(void)
 {
 	uint16_t ka,kb,kc,kd;
-  NOR_WRITE(ADDR_SHIFT(0x0555), 0x00AA);
-  NOR_WRITE(ADDR_SHIFT(0x02AA), 0x0055);
-  NOR_WRITE(ADDR_SHIFT(0x0555), 0x0090);
+  NOR_WRITE(WORD_ADDR(0x0555), 0x00AA);
+  NOR_WRITE(WORD_ADDR(0x02AA), 0x0055);
+  NOR_WRITE(WORD_ADDR(0x0555), 0x0090);
 
-  ka = *(vu16 *) ADDR_SHIFT(0x0000);
-  kb = *(vu16 *) ADDR_SHIFT(0x0001);
-  kc = *(vu16 *) ADDR_SHIFT(0x000E);
-  kd = *(vu16 *) ADDR_SHIFT(0x000F);
+  ka = *(vu16 *) WORD_ADDR(0x0000);
+  kb = *(vu16 *) WORD_ADDR(0x0001);
+  kc = *(vu16 *) WORD_ADDR(0x000E);
+  kd = *(vu16 *) WORD_ADDR(0x000F);
 
   printf("NorFlash ID = %x, %x, %x, %x\r\n",ka,kb,kc,kd);
 }
@@ -216,12 +217,12 @@ void FSMC_NOR_ReadID(void)
 
 NOR_STATUS FSMC_NOR_EraseBlock(u32 BlockAddr)
 {
-  NOR_WRITE(ADDR_SHIFT(0x05555), 0x00AA);
-  NOR_WRITE(ADDR_SHIFT(0x02AAA), 0x0055);
-  NOR_WRITE(ADDR_SHIFT(0x05555), 0x0080);
-  NOR_WRITE(ADDR_SHIFT(0x05555), 0x00AA);
-  NOR_WRITE(ADDR_SHIFT(0x02AAA), 0x0055);
-  NOR_WRITE(ADDR_SHIFT(BlockAddr), 0x0030);
+  NOR_WRITE(WORD_ADDR(0x05555), 0x00AA);
+  NOR_WRITE(WORD_ADDR(0x02AAA), 0x0055);
+  NOR_WRITE(WORD_ADDR(0x05555), 0x0080);
+  NOR_WRITE(WORD_ADDR(0x05555), 0x00AA);
+  NOR_WRITE(WORD_ADDR(0x02AAA), 0x0055);
+  NOR_WRITE(WORD_ADDR(BlockAddr), 0x0030);
 
   return (FSMC_NOR_GetStatus(BlockErase_Timeout));
 }
@@ -236,12 +237,12 @@ NOR_STATUS FSMC_NOR_EraseBlock(u32 BlockAddr)
 *******************************************************************************/
 NOR_STATUS FSMC_NOR_EraseChip(void)
 {
-  NOR_WRITE(ADDR_SHIFT(0x05555), 0x00AA);
-  NOR_WRITE(ADDR_SHIFT(0x02AAA), 0x0055);
-  NOR_WRITE(ADDR_SHIFT(0x05555), 0x0080);
-  NOR_WRITE(ADDR_SHIFT(0x05555), 0x00AA);
-  NOR_WRITE(ADDR_SHIFT(0x02AAA), 0x0055);
-  NOR_WRITE(ADDR_SHIFT(0x05555), 0x0010);
+  NOR_WRITE(WORD_ADDR(0x05555), 0x00AA);
+  NOR_WRITE(WORD_ADDR(0x02AAA), 0x0055);
+  NOR_WRITE(WORD_ADDR(0x05555), 0x0080);
+  NOR_WRITE(WORD_ADDR(0x05555), 0x00AA);
+  NOR_WRITE(WORD_ADDR(0x02AAA), 0x0055);
+  NOR_WRITE(WORD_ADDR(0x05555), 0x0010);
 
   return (FSMC_NOR_GetStatus(ChipErase_Timeout));
 }
@@ -257,11 +258,11 @@ NOR_STATUS FSMC_NOR_EraseChip(void)
 *******************************************************************************/
 NOR_STATUS FSMC_NOR_WriteHalfWord(u32 WriteAddr, u16 Data)
 {
-  NOR_WRITE(ADDR_SHIFT(0x05555), 0x00AA);
-  NOR_WRITE(ADDR_SHIFT(0x02AAA), 0x0055);
-  NOR_WRITE(ADDR_SHIFT(0x05555), 0x00A0);
-//  NOR_WRITE((NOR_FLASH_ADDR + WriteAddr), Data);
-  NOR_WRITE(ADDR_SHIFT(WriteAddr), Data);
+  NOR_WRITE(WORD_ADDR(0x05555), 0x00AA);
+  NOR_WRITE(WORD_ADDR(0x02AAA), 0x0055);
+  NOR_WRITE(WORD_ADDR(0x05555), 0x00A0);
+
+  NOR_WRITE(WORD_ADDR(WriteAddr), Data);
 
   return (FSMC_NOR_GetStatus(Program_Timeout));
 }
@@ -318,13 +319,13 @@ NOR_STATUS FSMC_NOR_ProgramBuffer(u16* pBuffer, u32 WriteAddr, u32 NumHalfwordTo
   lastloadedaddress = WriteAddr;
 
   /* Issue unlock command sequence */
-  NOR_WRITE(ADDR_SHIFT(0x005555), 0x00AA);
+  NOR_WRITE(WORD_ADDR(0x005555), 0x00AA);
 
-  NOR_WRITE(ADDR_SHIFT(0x02AAA), 0x0055);
+  NOR_WRITE(WORD_ADDR(0x02AAA), 0x0055);
 
   /* Write Write Buffer Load Command */
-  NOR_WRITE(ADDR_SHIFT(WriteAddr), 0x0025);
-  NOR_WRITE(ADDR_SHIFT(WriteAddr), (NumHalfwordToWrite - 1));
+  NOR_WRITE(WORD_ADDR(WriteAddr), 0x0025);
+  NOR_WRITE(WORD_ADDR(WriteAddr), (NumHalfwordToWrite - 1));
 
   /* Load Data into NOR Buffer */
   while(currentaddress <= endaddress)
@@ -332,11 +333,11 @@ NOR_STATUS FSMC_NOR_ProgramBuffer(u16* pBuffer, u32 WriteAddr, u32 NumHalfwordTo
     /* Store last loaded address & data value (for polling) */
     lastloadedaddress = currentaddress;
 
-    NOR_WRITE(ADDR_SHIFT(currentaddress), *pBuffer++);
+    NOR_WRITE(WORD_ADDR(currentaddress), *pBuffer++);
     currentaddress += 1;
   }
 
-  NOR_WRITE(ADDR_SHIFT(lastloadedaddress), 0x29);
+  NOR_WRITE(WORD_ADDR(lastloadedaddress), 0x29);
 
   return(FSMC_NOR_GetStatus(Program_Timeout));
 }
@@ -350,11 +351,9 @@ NOR_STATUS FSMC_NOR_ProgramBuffer(u16* pBuffer, u32 WriteAddr, u32 NumHalfwordTo
 *******************************************************************************/
 u16 FSMC_NOR_ReadHalfWord(u32 ReadAddr)
 {
-//  NOR_WRITE(ADDR_SHIFT(0x005555), 0x00AA);
-//  NOR_WRITE(ADDR_SHIFT(0x002AAA), 0x0055);
-  NOR_WRITE((NOR_FLASH_ADDR + ReadAddr), 0x00F0 );
-
-  return (*(vu16 *)(ADDR_SHIFT(ReadAddr)));
+    /* 复位NOR_FLASH */
+    NOR_WRITE((NOR_FLASH_ADDR + ReadAddr), 0x00F0);
+    return (*(vu16 *)(WORD_ADDR(ReadAddr)));
 }
 
 /*******************************************************************************
@@ -369,14 +368,13 @@ u16 FSMC_NOR_ReadHalfWord(u32 ReadAddr)
 *******************************************************************************/
 void FSMC_NOR_ReadBuffer(u16* pBuffer, u32 ReadAddr, u32 NumHalfwordToRead)
 {
-//  NOR_WRITE(ADDR_SHIFT(0x05555), 0x00AA);
-//  NOR_WRITE(ADDR_SHIFT(0x02AAA), 0x0055);
+
   NOR_WRITE((NOR_FLASH_ADDR + ReadAddr), 0x00F0);
 
   for(; NumHalfwordToRead != 0x00; NumHalfwordToRead--) /* while there is data to read */
   {
     /* Read a Halfword from the NOR */
-    *pBuffer++ = *(vu16 *)(ADDR_SHIFT(ReadAddr));
+    *pBuffer++ = *(vu16 *)(WORD_ADDR(ReadAddr));
     ReadAddr = ReadAddr + 1;
   }
 }
@@ -405,8 +403,8 @@ NOR_STATUS FSMC_NOR_ReturnToReadMode(void)
 *******************************************************************************/
 NOR_STATUS FSMC_NOR_Reset(void)
 {
-  NOR_WRITE(ADDR_SHIFT(0x005555), 0x00AA);
-  NOR_WRITE(ADDR_SHIFT(0x002AAA), 0x0055);
+  NOR_WRITE(WORD_ADDR(0x005555), 0x00AA);
+  NOR_WRITE(WORD_ADDR(0x002AAA), 0x0055);
   NOR_WRITE(NOR_FLASH_ADDR, 0x00F0);
 
   return (NOR_SUCCESS);
@@ -492,15 +490,15 @@ NOR_STATUS FSMC_NOR_GetStatus(u32 Timeout)
 *******************************************************************************/
 NOR_STATUS USER_NOR_SectorErase(u8 SectorNum)
 {
-  NOR_WRITE(ADDR_SHIFT(0x05555), 0x00AA);
-  NOR_WRITE(ADDR_SHIFT(0x02AAA), 0x0055);
-  NOR_WRITE(ADDR_SHIFT(0x05555), 0x0080);
-  NOR_WRITE(ADDR_SHIFT(0x05555), 0x00AA);
-  NOR_WRITE(ADDR_SHIFT(0x02AAA), 0x0055);
+  NOR_WRITE(WORD_ADDR(0x05555), 0x00AA);
+  NOR_WRITE(WORD_ADDR(0x02AAA), 0x0055);
+  NOR_WRITE(WORD_ADDR(0x05555), 0x0080);
+  NOR_WRITE(WORD_ADDR(0x05555), 0x00AA);
+  NOR_WRITE(WORD_ADDR(0x02AAA), 0x0055);
   if(SectorNum < 8)
-      NOR_WRITE(ADDR_SHIFT(SectorNum * 4096), 0x0030);
+      NOR_WRITE(WORD_ADDR(SectorNum * 4096), 0x0030);
   else
-      NOR_WRITE(ADDR_SHIFT((SectorNum-7) * 32768), 0x0030);
+      NOR_WRITE(WORD_ADDR((SectorNum-7) * 32768), 0x0030);
 
   return (FSMC_NOR_GetStatus(BlockErase_Timeout));
 }
@@ -511,15 +509,15 @@ uint32_t NOR_ReadID(void)
 	uint32_t uiID;
 	uint8_t id1, id2, id3, id4;
 
-	NOR_BWRITE(GET_ADDR(0x0555), 0xAA);
-	NOR_BWRITE(GET_ADDR(0x02AA), 0x55);
-	NOR_BWRITE(GET_ADDR(0x0555), 0x90);
-	NOR_BWRITE(GET_ADDR(0x00), 0x01);
+	NOR_BWRITE(BYTE_ADDR(0x0555), 0xAA);
+	NOR_BWRITE(BYTE_ADDR(0x02AA), 0x55);
+	NOR_BWRITE(BYTE_ADDR(0x0555), 0x90);
+	NOR_BWRITE(BYTE_ADDR(0x00), 0x01);
 
-	id1 = *(__IO uint8_t *) GET_ADDR(0x00);
-	id2 = *(__IO uint8_t *) GET_ADDR(0x01);
-	id3 = *(__IO uint8_t *) GET_ADDR(0x0E);
-	id4 = *(__IO uint8_t *) GET_ADDR(0x0F);
+	id1 = *(__IO uint8_t *) BYTE_ADDR(0x00);
+	id2 = *(__IO uint8_t *) BYTE_ADDR(0x01);
+	id3 = *(__IO uint8_t *) BYTE_ADDR(0x0E);
+	id4 = *(__IO uint8_t *) BYTE_ADDR(0x0F);
 
 	uiID = ((uint32_t)id1 << 24) | ((uint32_t)id2 << 16)  | ((uint32_t)id3 << 8) | id4;
 
@@ -530,8 +528,8 @@ uint32_t NOR_ReadID(void)
 
 static void NOR_QuitToReadStatus(void)
 {
-	NOR_BWRITE(GET_ADDR(0x0555), 0xAA);
-	NOR_BWRITE(GET_ADDR(0x02AA), 0x55);
+	NOR_BWRITE(BYTE_ADDR(0x0555), 0xAA);
+	NOR_BWRITE(BYTE_ADDR(0x02AA), 0x55);
 	NOR_BWRITE(NOR_FLASH_ADDR, 0xF0);
 }
 
@@ -599,35 +597,35 @@ static uint8_t NOR_GetStatus(uint32_t Timeout)
 
 uint8_t NOR_EraseChip(void)
 {
-	NOR_BWRITE(GET_ADDR(0x0555), 0xAA);
-	NOR_BWRITE(GET_ADDR(0x02AA), 0x55);
-	NOR_BWRITE(GET_ADDR(0x0555), 0x80);
-	NOR_BWRITE(GET_ADDR(0x0555), 0xAA);
-	NOR_BWRITE(GET_ADDR(0x02AA), 0x55);
-	NOR_BWRITE(GET_ADDR(0x0555), 0x10);
+	NOR_BWRITE(BYTE_ADDR(0x0555), 0xAA);
+	NOR_BWRITE(BYTE_ADDR(0x02AA), 0x55);
+	NOR_BWRITE(BYTE_ADDR(0x0555), 0x80);
+	NOR_BWRITE(BYTE_ADDR(0x0555), 0xAA);
+	NOR_BWRITE(BYTE_ADDR(0x02AA), 0x55);
+	NOR_BWRITE(BYTE_ADDR(0x0555), 0x10);
 
 	return NOR_GetStatus(ChipErase_Timeout);
 }
 
 uint8_t NOR_StartEraseChip(void)
 {
-	NOR_BWRITE(GET_ADDR(0x0555), 0xAA);
-	NOR_BWRITE(GET_ADDR(0x02AA), 0x55);
-	NOR_BWRITE(GET_ADDR(0x0555), 0x80);
-	NOR_BWRITE(GET_ADDR(0x0555), 0xAA);
-	NOR_BWRITE(GET_ADDR(0x02AA), 0x55);
-	NOR_BWRITE(GET_ADDR(0x0555), 0x10);
+	NOR_BWRITE(BYTE_ADDR(0x0555), 0xAA);
+	NOR_BWRITE(BYTE_ADDR(0x02AA), 0x55);
+	NOR_BWRITE(BYTE_ADDR(0x0555), 0x80);
+	NOR_BWRITE(BYTE_ADDR(0x0555), 0xAA);
+	NOR_BWRITE(BYTE_ADDR(0x02AA), 0x55);
+	NOR_BWRITE(BYTE_ADDR(0x0555), 0x10);
 	
 	return NOR_GetStatus(1000);
 }
 
 uint8_t NOR_EraseSector(uint32_t _uiBlockAddr)
 {
-	NOR_BWRITE(GET_ADDR(0x0555), 0xAA);
-	NOR_BWRITE(GET_ADDR(0x02AA), 0x55);
-	NOR_BWRITE(GET_ADDR(0x0555), 0x80);
-	NOR_BWRITE(GET_ADDR(0x0555), 0xAA);
-	NOR_BWRITE(GET_ADDR(0x02AA), 0x55);
+	NOR_BWRITE(BYTE_ADDR(0x0555), 0xAA);
+	NOR_BWRITE(BYTE_ADDR(0x02AA), 0x55);
+	NOR_BWRITE(BYTE_ADDR(0x0555), 0x80);
+	NOR_BWRITE(BYTE_ADDR(0x0555), 0xAA);
+	NOR_BWRITE(BYTE_ADDR(0x02AA), 0x55);
 	NOR_BWRITE((NOR_FLASH_ADDR + _uiBlockAddr), 0x30);
 
 	return (NOR_GetStatus(BlockErase_Timeout));
@@ -635,11 +633,11 @@ uint8_t NOR_EraseSector(uint32_t _uiBlockAddr)
 
 //uint8_t NOR_EraseSector(uint32_t _uiBlockAddr)
 //{
-//	NOR_BWRITE(GET_ADDR(0xAAA), 0xAA);
-//	NOR_BWRITE(GET_ADDR(0x555), 0x55);
-//	NOR_BWRITE(GET_ADDR(0xAAA), 0x80);
-//	NOR_BWRITE(GET_ADDR(0xAAA), 0xAA);
-//	NOR_BWRITE(GET_ADDR(0x555), 0x55);
+//	NOR_BWRITE(BYTE_ADDR(0xAAA), 0xAA);
+//	NOR_BWRITE(BYTE_ADDR(0x555), 0x55);
+//	NOR_BWRITE(BYTE_ADDR(0xAAA), 0x80);
+//	NOR_BWRITE(BYTE_ADDR(0xAAA), 0xAA);
+//	NOR_BWRITE(BYTE_ADDR(0x555), 0x55);
 //	NOR_BWRITE((NOR_FLASH_ADDR + _uiBlockAddr), 0x30);
 //
 //	return (NOR_GetStatus(BlockErase_Timeout));
@@ -698,7 +696,7 @@ uint8_t NOR_CheckStatus(void)
 uint8_t NOR_ReadByte(uint32_t _uiWriteAddr)
 {
 	uint8_t data;
-	 // NOR_WRITE((NOR_FLASH_ADDR + _uiWriteAddr), 0x00F0 );
+	NOR_WRITE((NOR_FLASH_ADDR + _uiWriteAddr), 0x00F0 );
 
 	return data = *(uint8_t *)(NOR_FLASH_ADDR + _uiWriteAddr);
 }
@@ -718,9 +716,9 @@ void NOR_ReadBuffer(uint32_t _uiWriteAddr, uint8_t *_pBuf, uint32_t _uiBytes)
 
 //uint8_t NOR_WriteByte(uint32_t _uiWriteAddr, uint8_t _usData)
 //{
-//	NOR_BWRITE(GET_ADDR(0x0555), 0xAA);
-//	NOR_BWRITE(GET_ADDR(0x02AA), 0x55);
-//	NOR_BWRITE(GET_ADDR(0x0555), 0xA0);
+//	NOR_BWRITE(BYTE_ADDR(0x0555), 0xAA);
+//	NOR_BWRITE(BYTE_ADDR(0x02AA), 0x55);
+//	NOR_BWRITE(BYTE_ADDR(0x0555), 0xA0);
 //	NOR_BWRITE(NOR_FLASH_ADDR + _uiWriteAddr, _usData);
 //
 //	return (NOR_GetStatus(Program_Timeout));
@@ -728,9 +726,9 @@ void NOR_ReadBuffer(uint32_t _uiWriteAddr, uint8_t *_pBuf, uint32_t _uiBytes)
 
 uint8_t NOR_WriteByte(uint32_t _uiWriteAddr, uint8_t _usData)
 {
-	NOR_BWRITE(GET_ADDR(0xAAA), 0xAA);
-	NOR_BWRITE(GET_ADDR(0x555), 0x55);
-	NOR_BWRITE(GET_ADDR(0xAAA), 0xA0);
+	NOR_BWRITE(BYTE_ADDR(0xAAA), 0xAA);
+	NOR_BWRITE(BYTE_ADDR(0x555), 0x55);
+	NOR_BWRITE(BYTE_ADDR(0xAAA), 0xA0);
 	NOR_BWRITE(NOR_FLASH_ADDR + _uiWriteAddr, _usData);
 
 	return (NOR_GetStatus(Program_Timeout));

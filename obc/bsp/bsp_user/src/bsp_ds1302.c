@@ -552,25 +552,6 @@ void rtc_time_get(timestamp_t * timestamp){
 	timestamp->tv_nsec = 0;
 }
 
-int adcstimesync(uint32_t secs) {
-	int result = 0;
-
-	ctrl_syntime_t 	cmd;
-	crc_syntime_t	crc;
-
-	cmd.id 		= 2;
-	cmd.delay 	= 0;
-	cmd.cmd 	= 0x0E;
-	cmd.msecs	= secs;
-
-	crc.cmd = cmd;
-	crc.crc = crc32_memory((uint8_t *)&cmd, sizeof(ctrl_syntime_t));
-
-	result = i2c_master_transaction(OBC_TO_ADCS_HANDLE, ADCS_I2C1_ADDR, &crc, sizeof(crc_syntime_t), NULL, 0, 200);
-
-	return result;
-}
-
 int timesync_nopara(void){
 	int result = 0;
 

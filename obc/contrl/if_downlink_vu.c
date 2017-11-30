@@ -62,7 +62,7 @@ int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len)
             pdata += FrameDataSize;
 
             /**若发射机缓冲区已满，则等待5秒钟*/
-            if(TxRemainBufSize == 0)
+            if(TxRemainBufSize == 1)
                 vTaskDelay(MS_WAIT_TRANS_FREE_BUFF);
         }
         else
@@ -126,7 +126,7 @@ int vu_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
             pdata += FrameDataSize;
 
             /**若发射机缓冲区已满，则等待5秒钟*/
-            if(TxRemainBufSize == 0)
+            if(TxRemainBufSize == 1)
                 vTaskDelay(MS_WAIT_TRANS_FREE_BUFF);
         }
         else
@@ -195,7 +195,7 @@ int vu_isis_image_downlink(const void * image_data, uint32_t image_len, uint16_t
             packet->PacketID += 1;
 
             /**若发射机缓冲区已满，则等待5秒钟*/
-            if(TxRemainBufSize == 0)
+            if(TxRemainBufSize == 1)
                 vTaskDelay(MS_WAIT_TRANS_FREE_BUFF);
         }
         else

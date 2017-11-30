@@ -17,7 +17,7 @@
 
 #define MAX_UPLINK_CONTENT_SIZE  64
 /*obc给trxvu数据包的时间间隔*/
-#define PACK_DOWN_INTERVAL (1 / portTICK_PERIOD_MS)
+#define PACK_DOWN_INTERVAL (0 / portTICK_PERIOD_MS)
 
 /*当发射机缓冲区满时等待的时间*/
 #define MS_WAIT_TRANS_FREE_BUFF (5000 / portTICK_PERIOD_MS)

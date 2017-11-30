@@ -341,28 +341,22 @@ void hk_collect_no_store(void)
     hk_down_cnt ++;
 
 	    /*星务计算机本地遥测*/
-	if (obc_hk_get_peek(&hk_frame.main_frame.obc) != pdTRUE)
-	    return;
+    obc_hk_get_peek(&hk_frame.main_frame.obc);
 
         /*电源系统遥测获取*/
-	if (eps_hk_get_peek(&hk_frame.main_frame.eps) != pdTRUE)
-	    return;
+	eps_hk_get_peek(&hk_frame.main_frame.eps);
 
         /*测控分系统遥测获取*/
-	if (ttc_hk_get_peek(&hk_frame.main_frame.ttc) != pdTRUE)
-	    return;
+	ttc_hk_get_peek(&hk_frame.main_frame.ttc);
 
         /*数传机遥测获取*/
-	if (dtb_hk_get_peek(&hk_frame.main_frame.dtb) != pdTRUE)
-	    return;
+	dtb_hk_get_peek(&hk_frame.main_frame.dtb);
 
         /*相机遥测获取*/
-    if (cam_hk_get_peek(&hk_frame.main_frame.cam) != pdTRUE)
-        return;
+    cam_hk_get_peek(&hk_frame.main_frame.cam);
 
         /*姿控分系统遥测获取*/
-    if (adcs_hk_get_peek(&hk_frame.append_frame.adcs_hk) != pdTRUE)
-        return;
+    adcs_hk_get_peek(&hk_frame.append_frame.adcs_hk);
 }
 
 void hk_collect(void)
@@ -371,28 +365,22 @@ void hk_collect(void)
     hk_store_cnt ++;
 
         /*星务计算机本地遥测*/
-    if (obc_hk_get_peek(&hk_frame.main_frame.obc) != pdTRUE)
-        return;
+    obc_hk_get_peek(&hk_frame.main_frame.obc);
 
         /*电源系统遥测获取*/
-    if (eps_hk_get_peek(&hk_frame.main_frame.eps) != pdTRUE)
-        return;
+    eps_hk_get_peek(&hk_frame.main_frame.eps);
 
         /*测控分系统遥测获取*/
-    if (ttc_hk_get_peek(&hk_frame.main_frame.ttc) != pdTRUE)
-        return;
+    ttc_hk_get_peek(&hk_frame.main_frame.ttc);
 
         /*数传机遥测获取*/
-    if (dtb_hk_get_peek(&hk_frame.main_frame.dtb) != pdTRUE)
-        return;
+    dtb_hk_get_peek(&hk_frame.main_frame.dtb);
 
         /*相机遥测获取*/
-    if (cam_hk_get_peek(&hk_frame.main_frame.cam) != pdTRUE)
-        return;
+    cam_hk_get_peek(&hk_frame.main_frame.cam);
 
         /*姿控分系统遥测获取*/
-    if (adcs_hk_get_peek(&hk_frame.append_frame.adcs_hk) != pdTRUE)
-        return;
+    adcs_hk_get_peek(&hk_frame.append_frame.adcs_hk);
 }
 
 
@@ -666,7 +654,7 @@ int obc_hk_get_peek(obc_hk_t * obc)
  */
 void eps_hk_task(void)
 {
-    EpsAdcValue_t eps_hk = {0};
+    static EpsAdcValue_t eps_hk;
     static uint32_t num_of_acquit;
 
     if (eps_hk_queue == NULL)
@@ -678,19 +666,19 @@ void eps_hk_task(void)
     {
         xQueueOverwrite(eps_hk_queue, &eps_hk);
 
-        switch (Battery_Task(&eps_hk))
-        {
-            case 0:
-                SleepWorkMode();
-                break;
-            case 1:
-                NormalWorkMode();
-                break;
-            case 2:
-                break;
-            default:
-                break;
-        }
+//        switch (Battery_Task(&eps_hk))
+//        {
+//            case 0:
+//                SleepWorkMode();
+//                break;
+//            case 1:
+//                NormalWorkMode();
+//                break;
+//            case 2:
+//                break;
+//            default:
+//                break;
+//        }
     }
 }
 
@@ -811,7 +799,7 @@ int ttc_hk_get_peek(vu_isis_hk_t *ttc)
  */
 void dtb_hk_task(void)
 {
-    dtb_805_hk_t dtb_hk = {0};
+    static dtb_805_hk_t dtb_hk;
 
     if (dtb_hk_queue == NULL)
         return;
@@ -868,7 +856,7 @@ static int cam_get_hk(cam_805_hk_t *cam_hk)
  */
 void cam_hk_task(void)
 {
-    cam_805_hk_t cam_hk = {0};
+    static cam_805_hk_t cam_hk;
 
     if (cam_hk_queue == NULL)
         return;
@@ -897,7 +885,7 @@ int cam_hk_get_peek(cam_805_hk_t *cam)
  */
 void adcs_hk_task(void)
 {
-    adcs805_hk_t adcs_hk = {0};
+    static adcs805_hk_t adcs_hk;
 
     if (adcs_hk_queue == NULL)
         return;

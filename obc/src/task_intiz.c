@@ -46,9 +46,9 @@
 
 void task_initz(void)
 {
-    extern uint8_t driver_debug_switch[DEBUG_ENUM_MAX+1];
-
-    driver_debug_switch[DEBUG_HK] = 1;
+//    extern uint8_t driver_debug_switch[DEBUG_ENUM_MAX+1];
+//
+//    driver_debug_switch[DEBUG_HK] = 1;
 
     /* 任务监视器初始化,线程超时时间15s */
     supervisor_init(15000);
@@ -66,7 +66,10 @@ void task_initz(void)
 
 #endif
 
-	Camera_805_Init();
+//	Camera_805_Init();
+
+	extern void Camera_Enlai_Usart_Init(uint32_t baudrate);
+	Camera_Enlai_Usart_Init(115200);
 
 	int_adc_init();
 

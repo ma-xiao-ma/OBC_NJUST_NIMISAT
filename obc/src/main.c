@@ -131,13 +131,13 @@ void start_task(void *pvParameters)
 {
     taskENTER_CRITICAL();           //进入临界区
 
-//    //创建监视任务
-//    xTaskCreate((TaskFunction_t )supervisor_task,
-//                (const char*    )"SV",
-//                (uint16_t       )SUPERVISOR_STK_SIZE,
-//                (void*          )NULL,
-//                (UBaseType_t    )SUPERVISOR_TASK_PRIO,
-//                (TaskHandle_t*  )&SupervisorTask_Handler);
+    //创建监视任务
+    xTaskCreate((TaskFunction_t )supervisor_task,
+                (const char*    )"SV",
+                (uint16_t       )SUPERVISOR_STK_SIZE,
+                (void*          )NULL,
+                (UBaseType_t    )SUPERVISOR_TASK_PRIO,
+                (TaskHandle_t*  )&SupervisorTask_Handler);
 
     //创建调试台任务
     xTaskCreate((TaskFunction_t )debug_console,
@@ -174,13 +174,13 @@ void start_task(void *pvParameters)
 //                (UBaseType_t    )ISIS_READ_TASK_PRIO,
 //                (TaskHandle_t*  )&ISISReadTask_Handler);
 
-//    //遥测下行和保存任务
-//    xTaskCreate((TaskFunction_t )down_save_task,
-//                (const char*    )"Down",
-//                (uint16_t       )DOWN_SAVE_STK_SIZE,
-//                (void*          )NULL,
-//                (UBaseType_t    )DOWN_SAVE_TASK_PRIO,
-//                (TaskHandle_t*  )&DownSaveTask_Handler);
+    //遥测下行和保存任务
+    xTaskCreate((TaskFunction_t )down_save_task,
+                (const char*    )"Down",
+                (uint16_t       )DOWN_SAVE_STK_SIZE,
+                (void*          )NULL,
+                (UBaseType_t    )DOWN_SAVE_TASK_PRIO,
+                (TaskHandle_t*  )&DownSaveTask_Handler);
 
 //    //展电池阵任务
 //    xTaskCreate((TaskFunction_t )OpenPanel_Task,

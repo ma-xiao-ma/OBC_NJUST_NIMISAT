@@ -137,7 +137,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="freertos/MemMang/heap_2.c|freertos/MemMang/heap_5.c|lib/libcmd/rpcx.c|freertos/MemMang/heap_3.c|freertos/MemMang/heap_1.c|bsp/fatfs/src/option/ccsbcs.c|bsp/fatfs/src/option/cc950.c|bsp/fatfs/src/option/cc949.c|bsp/fatfs/src/option/cc936.c|bsp/fatfs/src/option/cc932.c|bsp/bsp_stm32f4/src/bsp.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="test/cmd_camera.c|freertos/MemMang/heap_2.c|freertos/MemMang/heap_5.c|lib/libcmd/rpcx.c|freertos/MemMang/heap_3.c|freertos/MemMang/heap_1.c|bsp/fatfs/src/option/ccsbcs.c|bsp/fatfs/src/option/cc950.c|bsp/fatfs/src/option/cc949.c|bsp/fatfs/src/option/cc936.c|bsp/fatfs/src/option/cc932.c|bsp/bsp_stm32f4/src/bsp.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -246,7 +246,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="freertos/MemMang/heap_2.c|freertos/MemMang/heap_5.c|lib/libcmd/rpcx.c|freertos/MemMang/heap_3.c|freertos/MemMang/heap_1.c|bsp/fatfs/src/option/ccsbcs.c|bsp/fatfs/src/option/cc950.c|bsp/fatfs/src/option/cc949.c|bsp/fatfs/src/option/cc936.c|bsp/fatfs/src/option/cc932.c|bsp/bsp_stm32f4/src/bsp.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="test/cmd_camera.c|freertos/MemMang/heap_2.c|freertos/MemMang/heap_5.c|lib/libcmd/rpcx.c|freertos/MemMang/heap_3.c|freertos/MemMang/heap_1.c|bsp/fatfs/src/option/ccsbcs.c|bsp/fatfs/src/option/cc950.c|bsp/fatfs/src/option/cc949.c|bsp/fatfs/src/option/cc936.c|bsp/fatfs/src/option/cc932.c|bsp/bsp_stm32f4/src/bsp.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
