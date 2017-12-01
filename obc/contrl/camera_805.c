@@ -22,6 +22,7 @@
 #include "hexdump.h"
 #include "if_downlink_vu.h"
 #include "cube_com.h"
+#include "router_io.h"
 
 #include "camera_805.h"
 
@@ -167,10 +168,10 @@ void Camera_805_USART_Init(void)
 }
 
 /**
- *图像存储映射表恢复
- *
+ *图像存储映射表恢复，函数声明
  */
 void img_store_block_recover(void);
+
 
 void Camera_805_Init(void)
 {
@@ -720,7 +721,7 @@ int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode)
 
         /* 图像大小 */
         CurrentImage.ImageSize = Cam.Rxlen - 11;
-        CurrentImage.ImageSize = (CurrentImage.ImageSize % 2) ? CurrentImage.ImageSize/2+1 : CurrentImage.ImageSize/2;
+        CurrentImage.ImageSize = (CurrentImage.ImageSize % 2) ? CurrentImage.ImageSize+1 : CurrentImage.ImageSize;
 
         /* 下行图像需要的总图像包数量 */
         CurrentImage.TotalPacket = (CurrentImage.ImageSize % IMAGE_PACK_MAX_SIZE) ?
@@ -728,8 +729,7 @@ int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode)
 
         /* 最后一个图像包中图像数据的大小 */
         CurrentImage.LastPacketSize = (CurrentImage.ImageSize % IMAGE_PACK_MAX_SIZE) ?
-                CurrentImage.ImageSize - (CurrentImage.TotalPacket - 1) * IMAGE_PACK_MAX_SIZE :
-                IMAGE_PACK_MAX_SIZE;
+        		CurrentImage.ImageSize % IMAGE_PACK_MAX_SIZE : IMAGE_PACK_MAX_SIZE;
 
         /* 和校验 */
         if(sum_check(Cam.ReceiveBuffer, Cam.Rxlen-1) != Cam.ReceiveBuffer[Cam.Rxlen-1])
@@ -931,11 +931,11 @@ static int ImagStoreInFlash(void)
     uint32_t write_addr = get_addr_via_sector_num(free_block_sector);
 
 
-    if (FSMC_NOR_WriteBuffer((uint16_t *)&CurrentImage, write_addr, sizeof(ImageInfo_t)) != NOR_SUCCESS)
+    if (FSMC_NOR_WriteBuffer((uint16_t *)&CurrentImage, write_addr, sizeof(ImageInfo_t) / 2) != NOR_SUCCESS)
         return E_FLASH_ERROR;
 
     if (FSMC_NOR_WriteBuffer((uint16_t *)&Cam.ReceiveBuffer[6], write_addr + sizeof(ImageInfo_t) / 2,
-            CurrentImage.ImageSize) != NOR_SUCCESS)
+            CurrentImage.ImageSize / 2) != NOR_SUCCESS)
         return E_FLASH_ERROR;
 
     if(sector_bind_id(free_block_sector, CurrentImage.ImageID) != E_NO_ERR)
@@ -992,7 +992,7 @@ static int ImagStoreInSD(void)
  */
 int cam_sram_img_info_down(void)
 {
-    return vu_isis_downlink(CAM_IMAGE_INFO, &CurrentImage, sizeof(ImageInfo_t));
+    return vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, &CurrentImage, sizeof(ImageInfo_t));
 }
 
 /**
@@ -1040,7 +1040,7 @@ int cam_sram_img_packet_down(uint16_t packet_id)
             CurrentImage.LastPacketSize : IMAGE_PACK_MAX_SIZE;
 
     memcpy(img_packet->ImageData, &Cam.ReceiveBuffer[6 + packet_id*IMAGE_PACK_MAX_SIZE], img_packet->PacketSize);
-    int ret = vu_isis_downlink(CAM_IMAGE, &img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+    int ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, &img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
     ObcMemFree(img_packet);
     return ret;
@@ -1070,7 +1070,7 @@ int cam_sd_img_info_down(uint32_t id)
     }
 
     /* 调用传输层接口函数下行  */
-    int ret = vu_isis_downlink(CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
+    int ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
 
     ObcMemFree(img_info);
     return ret;
@@ -1158,7 +1158,7 @@ int cam_sd_img_packet_down(uint32_t id, uint16_t packet)
     }
 
     /* 调用传输层接口函数下行 */
-    int ret = vu_isis_downlink(CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+    int ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
     ObcMemFree(img_info);
     ObcMemFree(img_packet);
@@ -1188,7 +1188,7 @@ int cam_flash_img_info_down(uint32_t id)
             sizeof(ImageInfo_t));
 
     /* 调用传输层接口函数下行，创建下行图像任务  */
-    int ret = vu_isis_downlink(CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
+    int ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
 
     ObcMemFree(img_info);
     return ret;
@@ -1236,7 +1236,7 @@ int cam_flash_img_packet_down(uint32_t id, uint16_t packet)
             + packet * IMAGE_PACK_MAX_SIZE, img_packet->PacketSize);
 
     /* 调用传输层接口函数下行 */
-    int ret = vu_isis_downlink(CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+    int ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
     ObcMemFree(img_info);
     ObcMemFree(img_packet);
@@ -1295,7 +1295,7 @@ int cam_newest_img_info_down(void)
     }
     else
     {
-        ret = vu_isis_downlink(CAM_IMAGE_INFO, newest_img, sizeof(ImageInfo_t));
+        ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, newest_img, sizeof(ImageInfo_t));
 
         if (ret != E_NO_ERR)
         {

@@ -22,6 +22,7 @@
 #include "switches.h"
 #include "hk.h"
 #include "bsp_pca9665.h"
+#include "error.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -563,6 +564,22 @@ int cmd_obc_hk(struct command_context *ctx __attribute__((unused)))
     return CMD_ERROR_NONE;
 }
 
+int image_download_test(struct command_context *ctx)
+{
+    uint8_t image_id;
+
+    char * args = command_args(ctx);
+    if(sscanf(args, "%u", &image_id) != 1)
+        return CMD_ERROR_SYNTAX;
+
+    if( cam_img_data_down(image_id) != E_NO_ERR)
+    	printf("ERROR: Image download task fial to create!\n");
+
+    printf("Image download task create success!\n");
+
+    return CMD_ERROR_NONE;
+}
+
 struct command test_subcommands[] = {
 	{
 		.name = "wflansh",
@@ -647,6 +664,12 @@ struct command test_subcommands[] = {
         .name = "obc",
         .help = "obc hk print",
         .handler = cmd_obc_hk,
+    },
+    {
+        .name = "down",
+        .help = "image download test",
+		.usage = "<id>",
+        .handler = image_download_test,
     }
 };
 
