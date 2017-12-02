@@ -8,8 +8,9 @@
 #define CONTRL_IF_DOWNLINK_VU_H_
 
 #include "route.h"
+#include "ff.h"
 
-#define DOWNLINK_CRC_SIZE   4
+#define DOWNLINK_CRC_SIZE   0
 #define DOWNLINK_OVERHEAD (ROUTE_HEAD_SIZE + DOWNLINK_CRC_SIZE)
 #define DOWNLINK_MTU (ISIS_MTU - DOWNLINK_OVERHEAD)
 
@@ -28,6 +29,8 @@ typedef struct
     void * pdata;
     uint32_t data_len;
     uint16_t start_pack;
+    FIL * file;
+    char * file_name;
 } downlink_request;
 
 /**
@@ -59,6 +62,15 @@ int vu_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
 int vu_isis_router_downlink(route_packet_t *packet);
+
+/**
+ * 整个文件下行接口函数
+ *
+ * @param file 文件句柄指针
+ * @param file_name 文件名指针
+ * @return E_NO_ERR 正常，任务创建成功
+ */
+int file_whole_download(FIL *file, char *file_name);
 
 /**
  * 下行整幅图片接口函数

@@ -18,6 +18,15 @@
 
 #include "if_downlink_vu.h"
 
+typedef struct __attribute__((__packed__))
+{
+	uint32_t file_size;		//文件总字节数
+    uint16_t total_packet;   //文件包总数
+    uint8_t packet_size;     //数据包大小
+    uint32_t time;
+	uint8_t filename[20];
+} file_info_down_t;
+
 /*接收单元上次接收到上行数据时遥测存储队列*/
 QueueHandle_t rx_tm_queue;
 
@@ -34,7 +43,9 @@ static uint32_t vu_rx_count; //ISISvu通信机接收上行消息计数
 int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len)
 {
     int ret;
-    uint8_t Error, TxRemainBufSize, FrameDataSize, RemainSize = len;
+    uint8_t Error = 0, TxRemainBufSize, FrameDataSize;
+    uint32_t RemainSize = len;
+
     pdata = (uint8_t *)pdata;
 
     route_frame_t *downlink = ObcMemMalloc(I2C_MTU);
@@ -50,8 +61,8 @@ int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len)
         FrameDataSize = (RemainSize < DOWNLINK_MTU) ? RemainSize : DOWNLINK_MTU;
         memcpy(downlink->dat, pdata, FrameDataSize);
 
-        *(uint32_t *)(&downlink->dat[FrameDataSize]) =
-                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE+FrameDataSize);
+//        *(uint32_t *)(&downlink->dat[FrameDataSize]) =
+//                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE+FrameDataSize);
 
         ret = vu_transmitter_send_frame(downlink, FrameDataSize + DOWNLINK_OVERHEAD, &TxRemainBufSize);
 
@@ -98,7 +109,9 @@ int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len)
 int vu_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
 {
     int ret;
-    uint8_t Error, TxRemainBufSize, FrameDataSize, RemainSize = len;
+    uint8_t Error = 0, TxRemainBufSize, FrameDataSize;
+    uint32_t RemainSize = len;
+
     pdata = (uint8_t *)pdata;
 
     route_frame_t *downlink = ObcMemMalloc(I2C_MTU);
@@ -114,8 +127,8 @@ int vu_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
         FrameDataSize = (RemainSize < DOWNLINK_MTU) ? RemainSize : DOWNLINK_MTU;
         memcpy(downlink->dat, pdata, FrameDataSize);
 
-        *(uint32_t *)(&downlink->dat[FrameDataSize]) =
-                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE+FrameDataSize);
+//        *(uint32_t *)(&downlink->dat[FrameDataSize]) =
+//                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE+FrameDataSize);
 
         ret = vu_transmitter_send_frame(downlink, FrameDataSize + DOWNLINK_OVERHEAD, &TxRemainBufSize);
 
@@ -150,6 +163,105 @@ int vu_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
 }
 
 /**
+ * 文件下行，由OBC本地调用
+ *
+ * @param file 文件句柄指针
+ * @param file_name 文件名指针
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int vu_isis_file_download(FIL *file, char *file_name)
+{
+
+	file_info_down_t *file_info = (file_info_down_t *)ObcMemMalloc(sizeof(file_info_down_t));
+
+	if( file_info == NULL )
+	{
+		printf("ERROR: Malloc fail!!\r\n");
+		return E_MALLOC_FAIL;
+	}
+
+	file_info->file_size = f_size( file );
+
+	file_info->packet_size = IMAGE_PACK_MAX_SIZE;
+
+	file_info->total_packet = (file_info->file_size % file_info->packet_size) ?
+			file_info->file_size/file_info->packet_size + 1 : file_info->file_size/file_info->packet_size;
+
+	file_info->time = clock_get_time_nopara();
+
+	memcpy( file_info->filename, file_name, strlen(file_name));
+
+	vu_send(GND_ROUTE_ADDR, OBC_ROUTE_ADDR, FILE_INFO, file_info, sizeof(file_info_down_t));
+
+    int ret;
+    uint8_t Error = 0, TxRemainBufSize;
+    uint32_t RemainSize = file_info->file_size, byte_read;
+
+    route_frame_t *downlink = ObcMemMalloc(I2C_MTU);
+    if(downlink == NULL)
+    {
+		printf("ERROR: Malloc fail!!\r\n");
+		return E_MALLOC_FAIL;
+    }
+
+    /**组路由协议包*/
+    downlink->dst = GND_ROUTE_ADDR;
+    downlink->src = OBC_ROUTE_ADDR;
+    downlink->typ = FILE_DATA;
+
+    ImagePacket_t * packet = (ImagePacket_t *)downlink->dat;
+
+    packet->PacketID = 0;
+    do
+    {
+        /**组图像数据包*/
+        packet->PacketSize = (RemainSize < file_info->packet_size) ? RemainSize : file_info->packet_size;
+
+        f_lseek( file, packet->PacketID * file_info->packet_size);
+
+        f_read( file, packet->ImageData, packet->PacketSize,  &byte_read);
+
+        if( byte_read != packet->PacketSize)
+        {
+        	printf("ERROR: File read error!!\r\n");
+			return E_INVALID_PARAM;
+        }
+
+        ret = vu_transmitter_send_frame(downlink, packet->PacketSize + IMAGE_DOWNLINK_OVERHEAD, &TxRemainBufSize);
+
+        /**如果传输成功，且通信机成功将消息加入发送缓冲区，发送指针后移 */
+        if ((ret == E_NO_ERR) && (TxRemainBufSize != 0xFF))
+        {
+            RemainSize -= packet->PacketSize;
+
+            packet->PacketID += 1;
+
+            /**若发射机缓冲区已满，则等待5秒钟*/
+            if(TxRemainBufSize == 1)
+                vTaskDelay(MS_WAIT_TRANS_FREE_BUFF);
+        }
+        else
+            Error++;
+
+        if (RemainSize != 0)
+            vTaskDelay(PACK_DOWN_INTERVAL);
+
+     /**若发送完成或者错误次数超过五次，则跳出循环 */
+    }while ((RemainSize > 0) && (Error < 5));
+
+    ObcMemFree(file_info);
+    ObcMemFree(downlink);
+
+    if (RemainSize == 0)
+        return E_NO_ERR;
+    else
+    {   /**如果错误超过五次，则复位发射机*/
+        vu_transmitter_software_reset();
+        return E_TRANSMIT_ERROR;
+    }
+}
+
+/**
  * 图像下行接口，由OBC本地调用
  *
  * @param image_data 图像数据指针
@@ -160,8 +272,9 @@ int vu_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
 int vu_isis_image_downlink(const void * image_data, uint32_t image_len, uint16_t start_pack)
 {
     int ret;
-    uint8_t Error, TxRemainBufSize, RemainSize = image_len;
+    uint8_t Error = 0, TxRemainBufSize;
     image_data = (uint8_t *)image_data;
+    uint32_t RemainSize = image_len;
 
     route_frame_t *downlink = ObcMemMalloc(I2C_MTU);
     if(downlink == NULL)
@@ -181,8 +294,8 @@ int vu_isis_image_downlink(const void * image_data, uint32_t image_len, uint16_t
         packet->PacketSize = (RemainSize < IMAGE_PACK_MAX_SIZE) ? RemainSize : IMAGE_PACK_MAX_SIZE;
         memcpy(packet->ImageData, image_data, IMAGE_PACK_MAX_SIZE);
 
-        *(uint32_t *)(&downlink->dat[IMAGE_PACK_HEAD_SIZE + packet->PacketSize]) =
-                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE + IMAGE_PACK_HEAD_SIZE + packet->PacketSize);
+//        *(uint32_t *)(&downlink->dat[IMAGE_PACK_HEAD_SIZE + packet->PacketSize]) =
+//                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE + IMAGE_PACK_HEAD_SIZE + packet->PacketSize);
 
         ret = vu_transmitter_send_frame(downlink, packet->PacketSize + IMAGE_DOWNLINK_OVERHEAD, &TxRemainBufSize);
 
@@ -304,7 +417,7 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
 }
 
 /**
- * 整幅图像图像下行任务
+ * 大数据下行任务
  *
  * @param para 任务传入参数
  */
@@ -312,16 +425,48 @@ static void vu_isis_downlink_task(void *para)
 {
     downlink_request * request = (downlink_request *)para;
 
+    if(request->tpye == FILE_DATA)
+    {
+    	vu_isis_file_download( request->file, request->file_name );
+
+    	f_close(request->file);
+    	ObcMemFree(request->file);
+    	ObcMemFree(request->file_name);
+    }
     /**
      * 访问相机接收缓冲区，需要加锁
      */
-    if(request->tpye == CAM_IMAGE)
+    else if(request->tpye == CAM_IMAGE)
         vu_isis_image_downlink(request->pdata, request->data_len, request->start_pack);
     /**
      * 下行完毕，解锁
      */
 
     vTaskDelete(NULL);
+}
+
+/**
+ * 整个文件下行接口函数
+ *
+ * @param file 文件句柄指针
+ * @param file_name 文件名指针
+ * @return E_NO_ERR 正常，任务创建成功
+ */
+int file_whole_download(FIL *file, char *file_name)
+{
+	static downlink_request request;
+
+	request.tpye = FILE_DATA;
+	request.file = file;
+	request.file_name = file_name;
+
+    int ret = xTaskCreate(vu_isis_downlink_task, "FILE", configMINIMAL_STACK_SIZE * 4, &request, tskIDLE_PRIORITY + 3, NULL);
+
+    if (ret != pdPASS)
+        return E_OUT_OF_MEM;
+
+    return E_NO_ERR;
+
 }
 
 /**
@@ -341,7 +486,7 @@ int image_whole_download(void *pdata, uint32_t len, uint16_t start_pack)
     request.data_len = len;
     request.start_pack = start_pack;
 
-    int ret = xTaskCreate(vu_isis_downlink_task, "IMG", configMINIMAL_STACK_SIZE, &request, tskIDLE_PRIORITY + 3, NULL);
+    int ret = xTaskCreate(vu_isis_downlink_task, "IMG", configMINIMAL_STACK_SIZE * 4, &request, tskIDLE_PRIORITY + 3, NULL);
 
     if (ret != pdPASS)
         return E_OUT_OF_MEM;

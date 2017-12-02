@@ -139,6 +139,8 @@
 #define ADCS_TELEMETRY         0xE2
 #define CAM_IMAGE_INFO         0xE3
 #define CAM_IMAGE              0xE4
+#define FILE_INFO			   0xE5
+#define FILE_DATA			   0xE6
 
 typedef struct __attribute__((packed))
 {

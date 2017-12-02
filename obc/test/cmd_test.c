@@ -572,8 +572,19 @@ int image_download_test(struct command_context *ctx)
     if(sscanf(args, "%u", &image_id) != 1)
         return CMD_ERROR_SYNTAX;
 
+    if( cam_img_info_down(image_id) != E_NO_ERR)
+    {
+    	printf("ERROR: Image info download fial!\r\n");
+    	return CMD_ERROR_FAIL;
+    }
+
+    printf("Image info download success!\n");
+
     if( cam_img_data_down(image_id) != E_NO_ERR)
-    	printf("ERROR: Image download task fial to create!\n");
+    {
+    	printf("ERROR: Image download task fial to create!\r\n");
+    	return CMD_ERROR_FAIL;
+    }
 
     printf("Image download task create success!\n");
 

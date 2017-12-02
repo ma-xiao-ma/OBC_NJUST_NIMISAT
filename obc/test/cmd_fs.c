@@ -21,6 +21,9 @@
 #include "task.h"
 #include "timers.h"
 #include "semphr.h"
+#include "obc_mem.h"
+#include "router_io.h"
+#include "cube_com.h"
 
 #include "command.h"
 #include "error.h"
@@ -236,11 +239,11 @@ int cmd_fat_cat(struct command_context *ctx) {
 	printf("the filename is: %s\r\n",cur_ls_path);
 
 	int result = f_open(&myfile,cur_ls_path,FA_READ | FA_OPEN_EXISTING);
+
 	if(result != FR_OK){
 		printf("the filename is not existing\r\n");
 		printf("open file error ,result is :%u\r\n",result);
 		strcpy(cur_ls_path,pre_path);
-
 		return CMD_ERROR_FAIL;
 	}
 
@@ -274,6 +277,66 @@ int cmd_fat_cat(struct command_context *ctx) {
 
 	return CMD_ERROR_NONE;
 
+}
+
+int cmd_fat_download(struct command_context *ctx)
+{
+	UINT byteread;
+	char   buffer;
+	char * args = command_args(ctx);
+	char * filename;
+	char pre_path[40];
+
+	if (sscanf(args, "%s", filename) != 1)
+		return CMD_ERROR_SYNTAX;
+
+	strcpy(pre_path,cur_ls_path);
+	strcat(cur_ls_path,"/");
+	strcat(cur_ls_path,filename);
+
+	printf( "the filename is: %s\r\n",cur_ls_path );
+
+	FIL *myfile = (FIL *)ObcMemMalloc( sizeof(FIL) );
+	if( myfile == NULL )
+	{
+		printf("ERROR: Malloc fail!\r\n");
+		strcpy(cur_ls_path,pre_path);
+		return CMD_ERROR_FAIL;
+	}
+
+	int result = f_open( myfile, cur_ls_path, FA_READ | FA_OPEN_EXISTING );
+
+	if(result != FR_OK)
+	{
+		ObcMemFree( myfile );
+		printf("the filename is not existing\r\n");
+		printf("open file error ,result is :%u\r\n",result);
+		strcpy(cur_ls_path,pre_path);
+		return CMD_ERROR_FAIL;
+	}
+
+	char *file_name = (char *)ObcMemMalloc(20);
+
+	if( file_name == NULL )
+	{
+		f_close( myfile );
+		ObcMemFree( myfile );
+		printf("ERROR: Malloc fail!\r\n");
+		strcpy(cur_ls_path,pre_path);
+		return CMD_ERROR_FAIL;
+	}
+
+	strcpy(file_name, filename);
+
+	if( file_whole_download( myfile, file_name ) != E_NO_ERR)
+	{
+		printf("ERROR: File download task create fail!\r\n");
+		return CMD_ERROR_FAIL;
+	}
+
+	strcpy(cur_ls_path,pre_path);
+
+	return CMD_ERROR_NONE;
 }
 
 int cmd_fat_mkfs(struct command_context *ctx) {
