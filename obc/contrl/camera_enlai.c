@@ -27,6 +27,9 @@
 #include "driver_debug.h"
 #include "error.h"
 #include "cube_com.h"
+#include "router_io.h"
+
+
 /*全局变量*/
 uint8_t image_times[1];         //存储拍照次数变量，flash满时会清零（全局变量，在程序运行时一直有效）
 uint32_t image_address;          //相片存储地址
@@ -341,7 +344,7 @@ int take_store_picture(uint8_t picture_size)
 		image_times[0] = 1 ;
 		driver_debug(DEBUG_CAMERA, "takep_time: %d\r\n",image_times[0]);
 		image_info_curr.ImageDddress = 65536;    //待确认
-		image_info_curr.ImageID = image_times[0] ;
+		image_info_curr.ImageID = image_times[0];
 		bsp_WriteCpuFlash(CAMERA_RECORD_ADDR, (uint8_t*)&image_info_curr, sizeof(ImageInfo_el_t));
 		bsp_WriteCpuFlash(CAMERA_TIME_ADDRESS, (uint8_t*)image_times, 1);
 	}else{
@@ -424,11 +427,12 @@ int take_store_picture(uint8_t picture_size)
 			}
 			getack_flag=0;
 			sendcom_flag=0;
-			for(int i=12;i<sizeof(ack_get_pack)-2;i=i+2)
-			{
-				pack_store_norflash[(i-12)/2]=((u16)ack_get_pack[i])|((u16)ack_get_pack[i-1]<<8);
-			}
-			norflash_status=FSMC_NOR_WriteBuffer(pack_store_norflash,(uint32_t)image_address,(uint32_t)sizeof(pack_store_norflash)/2);
+			norflash_status=FSMC_NOR_WriteBuffer((u16 *)(&ack_get_pack[11]),(uint32_t)image_address,(uint32_t)sizeof(ack_get_pack)/2);
+//			for(int i=12;i<sizeof(ack_get_pack)-2;i=i+2)
+//			{
+//				pack_store_norflash[(i-12)/2]=((u16)ack_get_pack[i])|((u16)ack_get_pack[i-1]<<8);
+//			}
+//			norflash_status=FSMC_NOR_WriteBuffer(pack_store_norflash,(uint32_t)image_address,(uint32_t)sizeof(pack_store_norflash)/2);
 			image_address += (0x100);
 			driver_debug(DEBUG_CAMERA, "norflash_status=%d\r\n",norflash_status);
 		}
@@ -498,11 +502,12 @@ int take_store_picture(uint8_t picture_size)
 		}
 		sendcom_flag=0;
 		getack_flag=0;
-		for(int i=12;i<sizeof(ack_get_pack)-2;i=i+2)
-		{
-			pack_store_norflash[(i-12)/2]=((u16)ack_get_pack[i])|((u16)ack_get_pack[i-1]<<8);
-		}
-		norflash_status=FSMC_NOR_WriteBuffer(pack_store_norflash,image_address,sizeof(pack_store_norflash)/2);
+		norflash_status=FSMC_NOR_WriteBuffer((u16 *)(&ack_get_pack[11]),(uint32_t)image_address,(uint32_t)sizeof(ack_get_pack)/2);
+//		for(int i=12;i<sizeof(ack_get_pack)-2;i=i+2)
+//		{
+//			pack_store_norflash[(i-12)/2]=((u16)ack_get_pack[i])|((u16)ack_get_pack[i-1]<<8);
+//		}
+//		norflash_status=FSMC_NOR_WriteBuffer(pack_store_norflash,image_address,sizeof(pack_store_norflash)/2);
 		image_address += (0x100);
 		driver_debug(DEBUG_CAMERA, "norflash_status=%d\r\n",norflash_status);
 	}
@@ -547,7 +552,8 @@ int cam_flash_enlaiimg_info_down(uint8_t id)
 	bsp_ReadCpuFlash(CAMERA_RECORD_ADDR + (id - 1)*sizeof(ImageInfo_el_t), (uint8_t*)img_info, sizeof(ImageInfo_el_t));
 
     /* 调用传输层接口函数下行，创建下行图像任务  */
-    int ret = vu_isis_downlink(CAM_IMAGE_INFO, img_info, (uint32_t)sizeof(ImageInfo_el_t));
+	int ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_el_t));
+    //int ret = vu_isis_downlink(CAM_IMAGE_INFO, img_info, (uint32_t)sizeof(ImageInfo_el_t));
     ObcMemFree(img_info);
     return ret;
 }
@@ -587,7 +593,8 @@ int cam_flash_enlaiimg_packet_down(uint8_t id, uint16_t packet)
     FSMC_NOR_ReadBuffer((uint16_t *)img_packet->ImageData, (uint32_t)(img_info->ImageDddress + (packet - 1) * IMAGE_PACK_MAX_SIZE), (u32)img_packet->PacketSize);
 
     /* 调用传输层接口函数下行 */
-    int ret = vu_isis_downlink(CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+    int ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+//    int ret = vu_isis_downlink(CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
     ObcMemFree(img_info);
     ObcMemFree(img_packet);
@@ -605,10 +612,8 @@ int cam_flash_enlaiimg_all_down(uint32_t id)
 	int ret;
 	ImageInfo_el_t *img_info = (ImageInfo_el_t *)ObcMemMalloc(sizeof(ImageInfo_el_t));
 	if (img_info == NULL)
-	{
-		ObcMemFree(img_info);
 		return E_NO_BUFFER;
-	}
+
 	bsp_ReadCpuFlash(CAMERA_RECORD_ADDR + (id - 1)*sizeof(ImageInfo_el_t), (uint8_t*)img_info, sizeof(ImageInfo_el_t));
 
 	for(int i=0; i < img_info->TotalPacket; i++)
@@ -622,13 +627,22 @@ int cam_flash_enlaiimg_all_down(uint32_t id)
 	    }
 
 	    img_packet->PacketID = i;
-	    img_packet->PacketSize = (i == img_info->TotalPacket) ?
+	    img_packet->PacketSize = (i == img_info->TotalPacket -1) ?
 	            img_info->LastPacketSize : IMAGE_PACK_MAX_SIZE;
 
-	    FSMC_NOR_ReadBuffer((uint16_t *)img_packet->ImageData, img_info->ImageDddress + i * IMAGE_PACK_MAX_SIZE, img_packet->PacketSize);
+	    //FSMC_NOR_ReadBuffer((uint16_t *)img_packet->ImageData, img_info->ImageDddress + i * IMAGE_PACK_MAX_SIZE / 2, img_packet->PacketSize /2);
 
+	    for(int kc = 0;kc<220;kc=kc+2)  //把norflash对应地址上的值取出来组成每帧220字节的数据
+        {
+            camera_pack_send[kc/2] = FSMC_NOR_ReadHalfWord(img_info->ImageDddress);
+            camera_pack_send_1[kc]=(camera_pack_send[kc/2]>>8);
+            camera_pack_send_1[kc+1]=(camera_pack_send[kc/2])&(0xFF);
+            img_info->ImageDddress += 1;
+        }
+	    memcpy(img_packet->ImageData,camera_pack_send_1,220);
 	    /* 调用传输层接口函数下行 */
-	    ret = vu_isis_downlink(CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+	    ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+	    //ret = vu_isis_downlink(CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
 	    ObcMemFree(img_packet);
 
@@ -674,11 +688,11 @@ int cam_flash_enlaiimg_lll_down(uint8_t id, uint16_t packet)
 	    img_packet->PacketSize = (i == img_info->TotalPacket-1) ?
 	            img_info->LastPacketSize : IMAGE_PACK_MAX_SIZE;
 
-	    FSMC_NOR_ReadBuffer((uint16_t *)img_packet->ImageData, img_info->ImageDddress + (i-1) * IMAGE_PACK_MAX_SIZE, img_packet->PacketSize);
+	    FSMC_NOR_ReadBuffer((uint16_t *)img_packet->ImageData, img_info->ImageDddress + (i-1) * IMAGE_PACK_MAX_SIZE, img_packet->PacketSize / 2);
 
 	    /* 调用传输层接口函数下行 */
-	    ret = vu_isis_downlink(CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
-
+	    //ret = vu_isis_downlink(CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+	    ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 	    ObcMemFree(img_packet);
 	}
 	ObcMemFree(img_info);
@@ -809,10 +823,10 @@ int get_wholeimage_flash(struct command_context * context)
 
 	uint8_t image_id;  //接收所拍照片大小的数值
 
-	if (sscanf(args, "%X", &image_id) != 1)
+	if (sscanf(args, "%x", &image_id) != 1)
 	     return CMD_ERROR_SYNTAX;
 
-	if(cam_flash_enlaiimg_all_down(image_id)!=0)
+	if(cam_flash_enlaiimg_all_down(image_id)!= -1)
 	{
 		printf("get the %dth picture from flash failed!\r\n",image_id);
 		return 1;
@@ -892,7 +906,13 @@ int send_picture(struct command_context * context)
 
 	bsp_ReadCpuFlash(CAMERA_RECORD_ADDR+(picture_number_1-1)*sizeof(image_info_usart), (uint8_t*)&image_info_usart, sizeof(image_info_usart));
     for(int t=0;t<image_info_usart.TotalPacket;t++)
-	 {
+	{
+        ImagePacket_enlai_t * img_packet = (ImagePacket_enlai_t * )ObcMemMalloc(sizeof(ImagePacket_enlai_t));
+
+        if (img_packet == NULL)
+        {
+            return E_NO_BUFFER;
+        }
 		for(int kc = 0;kc<220;kc=kc+2)  //把norflash对应地址上的值取出来组成每帧220字节的数据
 		{
 			camera_pack_send[kc/2] = FSMC_NOR_ReadHalfWord(image_info_usart.ImageDddress);
@@ -900,7 +920,10 @@ int send_picture(struct command_context * context)
 			camera_pack_send_1[kc+1]=(camera_pack_send[kc/2])&(0xFF);
 			image_info_usart.ImageDddress += 1;
 		}
-		vSerialSend(camera_pack_send_1,sizeof(camera_pack_send_1));
+        //FSMC_NOR_ReadBuffer((uint16_t *)img_packet->ImageData, image_info_usart.ImageDddress + t * IMAGE_PACK_MAX_SIZE / 2, image_info_usart.PacketSize /2);
+
+        vSerialSend(camera_pack_send_1,sizeof(camera_pack_send_1));
+		//vSerialSend(img_packet->ImageData,sizeof(img_packet->ImageData));
 		vTaskDelay(50);
 	 }
     return 0;

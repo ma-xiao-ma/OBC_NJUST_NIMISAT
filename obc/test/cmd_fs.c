@@ -24,6 +24,7 @@
 #include "obc_mem.h"
 #include "router_io.h"
 #include "cube_com.h"
+#include "if_downlink_vu.h"
 
 #include "command.h"
 #include "error.h"
@@ -326,6 +327,7 @@ int cmd_fat_download(struct command_context *ctx)
 		return CMD_ERROR_FAIL;
 	}
 
+	memset(file_name, 0, 20);
 	strcpy(file_name, filename);
 
 	if( file_whole_download( myfile, file_name ) != E_NO_ERR)
@@ -589,6 +591,12 @@ struct command fat_subcommands[] = {
 		.usage = "<filename>",
 		.handler = cmd_fat_cat,
 	},
+    {
+        .name = "down",
+        .help = "download file",
+        .usage = "<filename>",
+        .handler = cmd_fat_download,
+    },
 /*	{
 		.name = "program",
 		.help = "program flash",
@@ -628,7 +636,7 @@ struct command fat_subcommands[] = {
 		.name = "rst",
 		.help = "reset board",
 		.handler = cmd_reset_all,
-	},
+	}
 };
 
 struct command __root_command fat_commands[] = {

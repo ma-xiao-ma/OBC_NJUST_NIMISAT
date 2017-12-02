@@ -134,7 +134,7 @@ typedef struct __attribute__((packed))
     uint16_t        Bus_c[5];               //10
 } eps_hk_t;
 
-/*ISISvu通信机遥测，46 Byte*/
+/*ISISvu通信机遥测，49 Byte*/
 typedef struct __attribute__((packed))
 {
     /**接收单元自上次复位以来的运行时间*/
@@ -142,7 +142,7 @@ typedef struct __attribute__((packed))
     /**接收单元当前所有遥测*/
     rsp_rx_tm       ru_curt;                //12
     /**接收单元收到上行数据时遥测*/
-    receiving_tm    ru_last;                //2
+    receiving_tm    ru_last;                //4
     /**发射单元自上次复位以来的运行时间*/
     uint32_t        tu_uptime;              //4
     /**发射单元当前所有遥测*/
@@ -150,7 +150,7 @@ typedef struct __attribute__((packed))
     /**发射单元上次下行数据时所有遥测*/
     rsp_tx_tm       tu_last;                //12
     /**发射机工作状态*/
-    rsp_transmitter_state tx_state;
+    rsp_transmitter_state tx_state;         //1
 
 } vu_isis_hk_t;
 
@@ -179,7 +179,7 @@ typedef struct __attribute__((packed))
 //    uint32_t        currt_image_id;         //4
 } cam_805_hk_t;
 
-/* 主遥测帧, 178 byte*/
+/* 主遥测帧, 181 byte*/
 typedef struct __attribute__((packed))
 {
     obc_hk_t        obc;
