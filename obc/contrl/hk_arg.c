@@ -19,6 +19,7 @@ uint8_t up_hk_down_cmd = 0;  //开始下行状态标识变量
 
 uint32_t StorageIntervalCount = 5;
 uint32_t Stop_Down_Time = 400;		//
+uint32_t xDownFrequency = 3000;
 uint32_t downtimeset = 3000;		//
 //uint32_t saveinterval = 29;
 

@@ -54,6 +54,11 @@
 #define TR_12V_ON               0x27
 #define TR_12V_OFF              0x28
 
+/*vu通信机指令*/
+#define VU_INS_HARDWARE_RESET   0x2A/* 新增 */
+#define VU_INS_SOFEWARE_RESET   0x2B/* 新增 */
+#define VU_INS_IDLE_STATE_SET   0x2C/* 新增 */
+
 /*GROUP3*/
 #define CAM_SOFTWARE_RESET      0x30
 #define CAM_EXPOSURE_TIME_SET   0x31

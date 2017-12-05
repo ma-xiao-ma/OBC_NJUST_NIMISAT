@@ -24,6 +24,9 @@
 #include "cube_com.h"
 #include "router_io.h"
 
+#include "command.h"
+#include "console.h"
+
 #include "camera_805.h"
 
 #define FLASH_IMG_NUM   15
@@ -274,7 +277,7 @@ int Camera_805_reset(void)
     /* 使能 USART */
     USART_Cmd(CAMERA_PORT_NAME, ENABLE);
     /* 使能 DMA，发送指令码 */
-    DMA_Cmd(CAMERA_DMA_TX_STREAM,ENABLE);
+    DMA_Cmd(CAMERA_DMA_TX_STREAM, ENABLE);
 
     /* 如果相机没有收到回复 */
     if(xSemaphoreTake(Cam.SynchBinSem, 1000) != pdTRUE)
@@ -334,6 +337,7 @@ int Camera_Temp_Get(uint8_t Point, uint16_t *temp)
         xSemaphoreGive(Cam.AccessMutexSem);
         return E_TIMEOUT;
     }
+
     /* 安全检查，回复的温度是否为需采的温度点 */
     if( Cam.ReceiveBuffer[2] != 0x05 || Cam.ReceiveBuffer[3] != Point )
     {
@@ -829,7 +833,7 @@ static uint32_t cam_find_flash_free_sector(void)
     }
 
     /* 确保整个存储块是擦除过的状态 */
-    int sector_start_addr = get_addr_via_sector_num(image_store_falsh[i].falsh_sector);
+    int sector_start_addr = get_addr_via_sector_num(store_loc.falsh_sector);
     for ( ; sector_start_addr < sector_start_addr + 4*32768; sector_start_addr++)
     {
         if (0xFFFF != FSMC_NOR_ReadHalfWord(sector_start_addr))
@@ -839,7 +843,7 @@ static uint32_t cam_find_flash_free_sector(void)
         }
     }
 
-    return image_store_falsh[i].falsh_sector;
+    return store_loc.falsh_sector;
 }
 
 /**
@@ -909,7 +913,7 @@ void img_store_block_recover(void)
     for (int i = 0; i < FLASH_IMG_NUM; i++)
     {
         FSMC_NOR_ReadBuffer((uint16_t *)&image_store_falsh[i].image_id, get_addr_via_sector_num(image_store_falsh[i].falsh_sector),
-                    sizeof(uint32_t)/2);
+                    sizeof(uint32_t) / 2);
 
         if (image_store_falsh[i].image_id == 0xFFFFFFFF)
             image_store_falsh[i].image_id = 0;
@@ -1419,538 +1423,177 @@ int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
     return ret;
 }
 
-///*******************************************************************************
-//函数说明: 照片照片下行任务
-//入口参数:
-//        CamDownloadObj_t * 结构体指针
-//返回值:  无
-//*******************************************************************************/
-//void ImageDownloadTask(void *pvParameters)
-//{
-//    CamDownloadObj_t *p = (CamDownloadObj_t *)pvParameters;
-//    ImageHead_t head;
-//
-//    uint8_t *pbuffer = (uint8_t *)ObcMemMalloc(CAM_PACK_SIZE + CAM_PACK_HEAD_SIZE);
-//    if(pbuffer == NULL)
-//        goto error_state1;
-//
-//    if(p->Opt.is_sd)
-//    {
-//        sprintf(Path, "0:picture-%u/ImageInfo.bin", p->ImageId);
-//        if(f_open(&FileHandle, Path, FA_READ) != FR_OK)
-//        {
-//            driver_debug(DEBUG_CAMERA, "Camera Open %s Failure!!\r\n",Path);
-//            goto error_state2;
-//        }
-//        /* 读出数据 */
-//        f_read(&FileHandle, pbuffer, 6, &nByteRead);
-//        if(nByteRead != 6)
-//        {
-//            driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
-//            goto error_state3;
-//        }
-//        f_close(&FileHandle);
-//
-//        //下行文件
-//        SendDownCmd(pbuffer, 6);
-//
-//        /* 获取图像信息，为后续下传做准备 */
-//        head.ImageId = ((ImageHead_t *)pbuffer)->ImageId;
-//        head.LastPacketId = ((ImageHead_t *)pbuffer)->LastPacketId;
-//        head.LastPacketSize = ((ImageHead_t *)pbuffer)->LastPacketSize;
-//
-//        if(p->Opt.is_single)//如果为单包传输
-//        {
-//            sprintf(Path, "0:picture-%u/%u.bin", p->ImageId, p->PacketId);
-//            if(f_open(&FileHandle, Path, FA_READ) != FR_OK)
-//            {
-//                driver_debug(DEBUG_CAMERA, "Camera Open %s Failure!!\r\n",Path);
-//                goto error_state2;
-//            }
-//
-//            /* 如果不是最后一包数据，则每包400字节 */
-//            if(p->PacketId != head.LastPacketId)
-//            {
-//                f_read(&FileHandle, &pbuffer[4], CAM_PACK_SIZE, &nByteRead);
-//                if(nByteRead != CAM_PACK_SIZE)
-//                {
-//                    driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
-//                    goto error_state3;
-//                }
-//                f_close(&FileHandle);
-//
-//                /* 附加包ID，包数据长和累加和校验 */
-//                *(uint16_t *)pbuffer = p->PacketId;
-//                *(uint16_t *)&pbuffer[2] = (uint16_t)CAM_PACK_SIZE;
-//                pbuffer[404] = sum_check(pbuffer, 404);
-//                /* 下行数据包 */
-//                SendDownCmd(pbuffer, 406);
-//            }
-//            /* 如果是最后一包数据 */
-//            else
-//            {
-//                /* 读出最后一包数据 */
-//                f_read(&FileHandle, &pbuffer[4], head.LastPacketSize, &nByteRead);
-//                if(nByteRead != head.LastPacketSize)
-//                {
-//                    driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
-//                    goto error_state3;
-//                }
-//                f_close(&FileHandle);
-//
-//                /* 附加包ID，包数据长和累加和校验 */
-//                *(uint16_t *)pbuffer = head.LastPacketId;
-//                *(uint16_t *)&pbuffer[2] = head.LastPacketSize;
-//                pbuffer[head.LastPacketSize+4] = sum_check(pbuffer, head.LastPacketSize+4);
-//
-//                /* 下行数据包 */
-//                SendDownCmd(pbuffer, head.LastPacketSize+6);
-//            }
-//        }
-//        /* 如果为整幅图像下传 */
-//        else
-//        {
-//            for(uint16_t i=0; i<head.LastPacketId; i++)
-//            {
-//                sprintf(Path, "0:picture-%u/%u.bin", p->ImageId, i);
-//                /* 打开文件 */
-//                if(f_open(&FileHandle, Path, FA_READ) != FR_OK)
-//                {
-//                    driver_debug(DEBUG_CAMERA, "Camera Open %s Failure!!\r\n",Path);
-//                    goto error_state2;
-//                }
-//                /* 读取文件 */
-//                f_read(&FileHandle, &pbuffer[4], CAM_PACK_SIZE, &nByteRead);
-//                if(nByteRead != CAM_PACK_SIZE)
-//                {
-//                    driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
-//                    goto error_state3;
-//                }
-//                /* 关闭文件 */
-//                f_close(&FileHandle);
-//
-//                /* 附加包ID，包数据长和累加和校验 */
-//                *(uint16_t *)pbuffer = i;
-//                *(uint16_t *)&pbuffer[2] = (uint16_t)CAM_PACK_SIZE;
-//                pbuffer[404] = sum_check(pbuffer, 404);
-//
-//                /* 下行数据包 */
-//                SendDownCmd(pbuffer, 406);
-//            }
-//
-//            /* 最后一包数据传输 */
-//            sprintf(Path, "0:picture-%u/%u.bin", p->ImageId, head.LastPacketId);
-//            /* 打开文件 */
-//            if(f_open(&FileHandle, Path, FA_READ) != FR_OK)
-//            {
-//                driver_debug(DEBUG_CAMERA, "Camera Open %s Failure!!\r\n",Path);
-//                goto error_state2;
-//            }
-//            /* 读取文件 */
-//            f_read(&FileHandle, &pbuffer[4], head.LastPacketSize, &nByteRead);
-//            if(nByteRead != head.LastPacketSize)
-//            {
-//                driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
-//                goto error_state3;
-//            }
-//            /* 关闭文件 */
-//            f_close(&FileHandle);
-//
-//            /* 附加包ID，包数据长和累加和校验 */
-//            *(uint16_t *)pbuffer = head.LastPacketId;
-//            *(uint16_t *)&pbuffer[2] = head.LastPacketSize;
-//            pbuffer[head.LastPacketSize+4] = sum_check(pbuffer, head.LastPacketSize+4);
-//
-//            /* 下行数据包 */
-//            SendDownCmd(pbuffer, head.LastPacketSize+6);
-//        }
-//    }
-//    /* 如果需要下行NorFlash的内容 */
-//    else
-//    {
-//        /* 读出图像信息 */
-//        FSMC_NOR_ReadBuffer((uint16_t *)pbuffer, IMAGE_FLASH_STORE_BASE, 3);
-//
-//        /* 暂存图像信息 */
-//        head.ImageId = ((ImageHead_t *)pbuffer)->ImageId;
-//        head.LastPacketId = ((ImageHead_t *)pbuffer)->LastPacketId;
-//        head.LastPacketSize = ((ImageHead_t *)pbuffer)->LastPacketSize;
-//
-//        /* 下行图像信息 */
-//        SendDownCmd(pbuffer, 6);
-//        /* 如果为单包传输 */
-//        if(p->Opt.is_single)
-//        {
-//            /* 如果需要的数据包不是最后一包数据 */
-//            if(p->PacketId != head.LastPacketId)
-//            {
-//                /* 从Flash中读此ID的数据包，共400字节 */
-//                FSMC_NOR_ReadBuffer((uint16_t *)&pbuffer[4], IMAGE_FLASH_STORE_BASE+3+p->PacketId*200, 200);
-//
-//                /* 附加包ID，包数据长和累加和校验 */
-//                *(uint16_t *)pbuffer = p->PacketId;
-//                *(uint16_t *)&pbuffer[2] = (uint16_t)CAM_PACK_SIZE;
-//                pbuffer[404] = sum_check(pbuffer, 404);
-//
-//                /* 下行数据包 */
-//                SendDownCmd(pbuffer, 406);
-//            }
-//            /* 如果需要的数据包是最后一包数据 */
-//            else
-//            {
-//                /* 从Flash中读此ID的数据包，共400字节 */
-//                FSMC_NOR_ReadBuffer((uint16_t *)&pbuffer[4], IMAGE_FLASH_STORE_BASE+3+head.LastPacketId*200,
-//                        head.LastPacketSize / 2 + head.LastPacketSize % 2);
-//
-//                /* 附加包ID，包数据长和累加和校验 */
-//                *(uint16_t *)pbuffer = head.LastPacketId;
-//                *(uint16_t *)&pbuffer[2] = head.LastPacketSize;
-//                pbuffer[head.LastPacketSize+4] = sum_check(pbuffer, head.LastPacketSize+4);
-//
-//                /* 下行数据包 */
-//                SendDownCmd(pbuffer, head.LastPacketSize+6);
-//            }
-//        }
-//        /* 如果是整包传送 */
-//        else
-//        {
-//            for(uint16_t i=0; i<head.LastPacketId; i++)
-//            {
-//                /* 读取数据包 */
-//                FSMC_NOR_ReadBuffer((uint16_t *)&pbuffer[4], IMAGE_FLASH_STORE_BASE+3+i*200, 200);
-//
-//                /* 附加包ID，包数据长和累加和校验 */
-//                *(uint16_t *)pbuffer = i;
-//                *(uint16_t *)&pbuffer[2] = (uint16_t)CAM_PACK_SIZE;
-//                pbuffer[404] = sum_check(pbuffer, 404);
-//
-//                /* 下行数据包 */
-//                SendDownCmd(pbuffer, 406);
-//            }
-//
-//            /* 读取最后一包数据 */
-//            FSMC_NOR_ReadBuffer((uint16_t *)&pbuffer[4], IMAGE_FLASH_STORE_BASE+3+head.LastPacketId*200,
-//                    head.LastPacketSize / 2 + head.LastPacketSize % 2);
-//
-//            /* 附加包ID，包数据长和累加和校验 */
-//            *(uint16_t *)pbuffer = head.LastPacketId;
-//            *(uint16_t *)&pbuffer[2] = head.LastPacketSize;
-//            pbuffer[head.LastPacketSize+4] = sum_check(pbuffer, head.LastPacketSize+4);
-//
-//            /* 下行数据包 */
-//            SendDownCmd(pbuffer, head.LastPacketSize+6);
-//        }
-//    }
-//
-//    goto error_state2;
-//
-//    error_state3: f_close(&FileHandle);
-//    error_state2: ObcMemFree(pbuffer);
-//    error_state1: vTaskDelete(NULL);
-//}
-//
-//void ImageDownloadStart(CamDownloadObj_t para)
-//{
-//    tPara = para;
-//    pname[3]++;
-//    taskENTER_CRITICAL();
-//    xTaskCreate(ImageDownloadTask, pname, IMAGE_DOWN_TASK_STK, &tPara,
-//            IMAGE_DOWN_TASK_PRIO, ( TaskHandle_t * ) NULL);
-//    taskEXIT_CRITICAL();
-//}
-//
-///*******************************************************************************
-//函数说明: 照片信息下行
-//入口参数:
-//        IsFlash: 1为选择NorFlash 0为TF卡
-//        ImageId: 图像id
-//返回值:  函数执行结果：非0为错误，0为无误
-///******************************************************************************/
-//int xImageInfoDownload(uint8_t IsFlash, uint16_t ImageId)
-//{
-//    uint8_t *pbuffer = (uint8_t *)ObcMemMalloc(6);
-//    /*下行Flash图像信息*/
-//    if(IsFlash)
-//    {
-//        /* 读出图像信息 */
-//        FSMC_NOR_ReadBuffer((uint16_t *)pbuffer, IMAGE_FLASH_STORE_BASE, 3);
-//        /* 下行图像信息 */
-//        SendDownCmd(pbuffer, 6);
-//    }
-//    /*否则下行TF中图像信息*/
-//    else
-//    {
-//        /* 打开文件 */
-//         sprintf(Path, "0:picture-%u/ImageInfo.bin", ImageId);
-//         if(f_open(&FileHandle, Path, FA_READ) != FR_OK)
-//         {
-//             driver_debug(DEBUG_CAMERA, "Camera Open %s Failure!!\r\n",Path);
-//             ObcMemFree(pbuffer);
-//             return E_NO_SS;
-//         }
-//
-//         /* 读出数据 */
-//         f_read(&FileHandle, pbuffer, 6, &nByteRead);
-//         if(nByteRead != 6)
-//         {
-//             driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
-//             f_close(&FileHandle);
-//             ObcMemFree(pbuffer);
-//             return E_NO_SS;
-//         }
-//         /* 关闭文件 */
-//         f_close(&FileHandle);
-//
-//         //下行照片信息数据
-//         SendDownCmd(pbuffer, 6);
-//    }
-//
-//    ObcMemFree(pbuffer);
-//
-//    return 0;
-//}
-///*******************************************************************************
-//函数说明: 照片下载
-//入口参数:
-//        opt：最低位0为NorFlash 1为TF卡 次低位0
-//        ImageId:照片id
-//        PacketId:包id
-//返回值:  函数执行结果
-///******************************************************************************/
-//int xImageDownload(cam_opt opt, uint16_t ImageId, uint16_t PacketId)
-//{
-//    ImageHead_t head;
-//
-//    uint8_t *pbuffer = (uint8_t *)ObcMemMalloc(CAM_PACK_SIZE + CAM_PACK_HEAD_SIZE);
-//    if(pbuffer == NULL)
-//        return E_MALLOC_FAIL;
-//
-//    if(opt.is_sd) //如果为TF卡
-//    {
-//        /* 打开文件 */
-//        sprintf(Path, "0:picture-%u/ImageInfo.bin", ImageId);
-//        if(f_open(&FileHandle, Path, FA_READ) != FR_OK)
-//        {
-//            driver_debug(DEBUG_CAMERA, "Camera Open %s Failure!!\r\n",Path);
-//            ObcMemFree(pbuffer);
-//            return E_NO_SS;
-//        }
-//
-//        /* 读出数据 */
-//        f_read(&FileHandle, pbuffer, 6, &nByteRead);
-//        if(nByteRead != 6)
-//        {
-//            driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
-//            f_close(&FileHandle);
-//            ObcMemFree(pbuffer);
-//            return E_NO_SS;
-//        }
-//        /* 关闭文件 */
-//        f_close(&FileHandle);
-//
-//        /* 保存图像信息 */
-//        head.ImageId = ((ImageHead_t *)pbuffer)->ImageId;
-//        head.LastPacketId = ((ImageHead_t *)pbuffer)->LastPacketId;
-//        head.LastPacketSize = ((ImageHead_t *)pbuffer)->LastPacketSize;
-//
-//        if(opt.is_single)//如果为单包传输
-//        {
-//            sprintf(Path, "0:picture-%u/%u.bin", ImageId, PacketId);
-//            if(f_open(&FileHandle, Path, FA_READ) != FR_OK)
-//            {
-//                driver_debug(DEBUG_CAMERA, "Camera Open %s Failure!!\r\n",Path);
-//                ObcMemFree(pbuffer);
-//                return E_NO_SS;
-//            }
-//
-//            /* 如果不是最后一包数据，则每包400字节 */
-//            if(PacketId != head.LastPacketId)
-//            {
-//                /*读出此包数据*/
-//                f_read(&FileHandle, &pbuffer[4], CAM_PACK_SIZE, &nByteRead);
-//
-//                if(nByteRead != CAM_PACK_SIZE)
-//                {
-//                    driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
-//                    f_close(&FileHandle);
-//                    ObcMemFree(pbuffer);
-//                    return E_NO_SS;
-//                }
-//                /* 关闭文件 */
-//                f_close(&FileHandle);
-//
-//                /* 附加包ID，包数据长和累加和校验 */
-//                *(uint16_t *)pbuffer = PacketId;
-//                *(uint16_t *)&pbuffer[2] = (uint16_t)CAM_PACK_SIZE;
-//                pbuffer[404] = sum_check(pbuffer, 404);
-//                /* 下行数据包 */
-//                SendDownCmd(pbuffer, 406);
-//            }
-//            /* 如果是最后一包数据 */
-//            else
-//            {
-//
-//                f_read(&FileHandle, &pbuffer[4], head.LastPacketSize, &nByteRead);
-//                if(nByteRead != head.LastPacketSize)
-//                {
-//                    driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
-//                    f_close(&FileHandle);
-//                    ObcMemFree(pbuffer);
-//                    return E_NO_SS;
-//                }
-//                f_close(&FileHandle);
-//
-//                /* 附加包ID，包数据长和累加和校验 */
-//                *(uint16_t *)pbuffer = head.LastPacketId;
-//                *(uint16_t *)&pbuffer[2] = head.LastPacketSize;
-//                pbuffer[head.LastPacketSize+4] = sum_check(pbuffer, head.LastPacketSize+4);
-//
-//                /* 下行数据包 */
-//                SendDownCmd(pbuffer, head.LastPacketSize+6);
-//            }
-//        }
-//        /* 如果为整幅图像下传 */
-//        else
-//        {
-//            for(uint16_t i=0; i<head.LastPacketId; i++)
-//            {
-//                sprintf(Path, "0:picture-%u/%u.bin", ImageId, i);
-//                /* 打开文件 */
-//                if(f_open(&FileHandle, Path, FA_READ) != FR_OK)
-//                {
-//                    driver_debug(DEBUG_CAMERA, "Camera Open %s Failure!!\r\n",Path);
-//                    ObcMemFree(pbuffer);
-//                    return E_NO_SS;
-//                }
-//
-//                /* 读取文件 */
-//                f_read(&FileHandle, &pbuffer[4], CAM_PACK_SIZE, &nByteRead);
-//                if(nByteRead != CAM_PACK_SIZE)
-//                {
-//                    driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
-//                    f_close(&FileHandle);
-//                    ObcMemFree(pbuffer);
-//                    return E_NO_SS;
-//                }
-//
-//                /* 关闭文件 */
-//                f_close(&FileHandle);
-//
-//                /* 附加包ID，包数据长和累加和校验 */
-//                *(uint16_t *)pbuffer = i;
-//                *(uint16_t *)&pbuffer[2] = (uint16_t)CAM_PACK_SIZE;
-//                pbuffer[404] = sum_check(pbuffer, 404);
-//
-//                /* 下行数据包 */
-//                SendDownCmd(pbuffer, 406);
-//            }
-//
-//            /* 最后一包数据传输 */
-//            sprintf(Path, "0:picture-%u/%u.bin", ImageId, head.LastPacketId);
-//            /* 打开文件 */
-//            if(f_open(&FileHandle, Path, FA_READ) != FR_OK)
-//            {
-//                driver_debug(DEBUG_CAMERA, "Camera Open %s Failure!!\r\n",Path);
-//                ObcMemFree(pbuffer);
-//                return E_NO_SS;
-//            }
-//            /* 读取文件 */
-//            f_read(&FileHandle, &pbuffer[4], head.LastPacketSize, &nByteRead);
-//            if(nByteRead != head.LastPacketSize)
-//            {
-//                driver_debug(DEBUG_CAMERA, "Camera Read %s Failure!!\r\n",Path);
-//                f_close(&FileHandle);
-//                ObcMemFree(pbuffer);
-//                return E_NO_SS;
-//            }
-//            /* 关闭最后一包数据文件 */
-//            f_close(&FileHandle);
-//
-//            /* 附加包ID，包数据长和累加和校验 */
-//            *(uint16_t *)pbuffer = head.LastPacketId;
-//            *(uint16_t *)&pbuffer[2] = head.LastPacketSize;
-//            pbuffer[head.LastPacketSize+4] = sum_check(pbuffer, head.LastPacketSize+4);
-//
-//            /* 下行数据包 */
-//            SendDownCmd(pbuffer, head.LastPacketSize+6);
-//        }
-//    }
-//    else //如果为NorFlash
-//    {
-//        /* 读出图像信息 */
-//        FSMC_NOR_ReadBuffer((uint16_t *)pbuffer, IMAGE_FLASH_STORE_BASE, 3);
-//
-//        /* 暂存图像信息 */
-//        head.ImageId = ((ImageHead_t *)pbuffer)->ImageId;
-//        head.LastPacketId = ((ImageHead_t *)pbuffer)->LastPacketId;
-//        head.LastPacketSize = ((ImageHead_t *)pbuffer)->LastPacketSize;
-//
-//        /* 如果为单包传输 */
-//        if(opt.is_single)
-//        {
-//            /* 如果需要的数据包不是最后一包数据 */
-//            if(PacketId != head.LastPacketId)
-//            {
-//                /* 从Flash中读此ID的数据包，共400字节 */
-//                FSMC_NOR_ReadBuffer((uint16_t *)&pbuffer[4], IMAGE_FLASH_STORE_BASE+3+PacketId*200, 200);
-//
-//                /* 附加包ID，包数据长和累加和校验 */
-//                *(uint16_t *)pbuffer = PacketId;
-//                *(uint16_t *)&pbuffer[2] = (uint16_t)CAM_PACK_SIZE;
-//                pbuffer[404] = sum_check(pbuffer, 404);
-//                /* 下行数据包 */
-//                SendDownCmd(pbuffer, 406);
-//            }
-//            /* 如果需要的数据包是最后一包数据 */
-//            else
-//            {
-//                /* 从Flash中读此ID的数据包，共400字节 */
-//                FSMC_NOR_ReadBuffer((uint16_t *)&pbuffer[4], IMAGE_FLASH_STORE_BASE+3+head.LastPacketId*200,
-//                        head.LastPacketSize / 2 + head.LastPacketSize % 2);
-//
-//                /* 附加包ID，包数据长和累加和校验 */
-//                *(uint16_t *)pbuffer = head.LastPacketId;
-//                *(uint16_t *)&pbuffer[2] = head.LastPacketSize;
-//                pbuffer[head.LastPacketSize+4] = sum_check(pbuffer, head.LastPacketSize+4);
-//
-//                /* 下行数据包 */
-//                SendDownCmd(pbuffer, head.LastPacketSize+6);
-//            }
-//        }
-//        /* 如果是整包传送 */
-//        else
-//        {
-//            for(uint16_t i=0; i<head.LastPacketId; i++)
-//            {
-//                /* 读取数据包 */
-//                FSMC_NOR_ReadBuffer((uint16_t *)&pbuffer[4], IMAGE_FLASH_STORE_BASE+3+i*200, 200);
-//
-//                /* 附加包ID，包数据长和累加和校验 */
-//                *(uint16_t *)pbuffer = i;
-//                *(uint16_t *)&pbuffer[2] = (uint16_t)CAM_PACK_SIZE;
-//                pbuffer[404] = sum_check(pbuffer, 404);
-//
-//                /* 下行数据包 */
-//                SendDownCmd(pbuffer, 406);
-//            }
-//
-//            /* 读取最后一包数据 */
-//            FSMC_NOR_ReadBuffer((uint16_t *)&pbuffer[4], IMAGE_FLASH_STORE_BASE+3+head.LastPacketId*200,
-//                    head.LastPacketSize / 2 + head.LastPacketSize % 2);
-//
-//            /* 附加包ID，包数据长和累加和校验 */
-//            *(uint16_t *)pbuffer = head.LastPacketId;
-//            *(uint16_t *)&pbuffer[2] = head.LastPacketSize;
-//            pbuffer[head.LastPacketSize+4] = sum_check(pbuffer, head.LastPacketSize+4);
-//
-//            /* 下行数据包 */
-//            SendDownCmd(pbuffer, head.LastPacketSize+6);
-//        }
-//    }
-//    ObcMemFree(pbuffer);
-//    return 0;
-//}
+
+int cmd_reset_camera(struct command_context * ctx __attribute__((unused)))
+{
+    int flag=0;
+    flag=Camera_805_reset();
+    if(flag==E_NO_ERR)
+        printf("Reset successful");
+    else
+        printf("Reset failed");
+    return CMD_ERROR_NONE;
+}
+
+int cmd_Camera_Temp_Get(struct command_context *ctx)
+{
+    int flag=0;
+    char * args = command_args(ctx);
+    uint16_t Temp;
+    uint8_t point;
+    if (sscanf(args, "%x", &point)!= 1)
+            return CMD_ERROR_SYNTAX;
+    flag=Camera_Temp_Get(point,&Temp);
+    if(flag==E_NO_ERR)
+        printf("Get temperature successful and point is:%x temperature is:%x",point ,Temp);
+    else
+        printf("Get temperature failed");
+
+    return CMD_ERROR_NONE;
+}
 
 
+int cmd_Camera_Exposure_Time_Read(struct command_context * ctx __attribute__((unused)))
+{
+    int flag=0;
+    uint32_t Exp_time;
+    flag=Camera_Exposure_Time_Read(&Exp_time);
+    if(flag==E_NO_ERR)
+        printf("Get exposure time successful the result is:%x",Exp_time);
+    else
+        printf("Get exposure time failed");
+
+    return CMD_ERROR_NONE;
+}
+
+int cmd_Camera_Exposure_Time_Set(struct command_context *ctx)
+{
+    char * args = command_args(ctx);
+    uint32_t Exp_time;
+    int flag=0;
+    if (sscanf(args, "%x", &Exp_time)!= 1)
+            return CMD_ERROR_SYNTAX;
+    flag=Camera_Exposure_Time_Set(Exp_time);
+    if(flag==E_NO_ERR)
+        printf("Set exposure time successful the value is:%x",Exp_time);
+    else
+        printf("Set exposure time failed");
+    return CMD_ERROR_NONE;
+}
+
+
+int cmd_Camera_Gain_Get(struct command_context * ctx __attribute__((unused)))
+{
+    int flag=0;
+    uint8_t Gain;
+    flag=Camera_Gain_Get(&Gain);
+    if(flag==E_NO_ERR)
+        printf("Get gain  successful the result is:%x",Gain);
+    else
+        printf("Get gain failed");
+
+    return CMD_ERROR_NONE;
+}
+
+int cmd_Camera_Gain_Set(struct command_context *ctx)
+{
+    char * args = command_args(ctx);
+    uint8_t Gain;
+    int flag=0;
+    if (sscanf(args, "%x", &Gain)!= 1)
+            return CMD_ERROR_SYNTAX;
+    flag=Camera_Gain_Set(Gain);
+    if(flag==E_NO_ERR)
+        printf("Set gain successful the value is:%x",Gain);
+    else
+        printf("Set gain failed");
+    return CMD_ERROR_NONE;
+}
+
+int cmd_Camera_Work_Mode_Get(struct command_context * ctx __attribute__((unused)))
+{
+    cam_ctl_t Cam_mode;
+    int flag=0;
+    flag=Camera_Work_Mode_Get(&Cam_mode);
+    if(flag==E_NO_ERR)
+        printf("trans_mode:%x work_mode:%x  expo_mode:%x" ,Cam_mode.tran,Cam_mode.mode,Cam_mode.expo);
+    else
+        printf("Get control mode failed");
+
+    return CMD_ERROR_NONE;
+}
+
+int cmd_Camera_Work_Mode_Set(struct command_context *ctx)
+{
+    char * args = command_args(ctx);
+    uint8_t Tran;
+    uint8_t Mode;
+    uint8_t Expo;
+    cam_ctl_t Cam_mode;
+    int flag=0;
+    if (sscanf(args, "%x %x %x", &Tran, &Mode, &Expo) != 3)
+            return CMD_ERROR_SYNTAX;
+    Cam_mode.tran=Tran;
+    Cam_mode.mode=Mode;
+    Cam_mode.expo=Expo;
+    flag=Camera_Work_Mode_Set(Cam_mode);
+    if(flag==E_NO_ERR)
+        printf("Set successful trans_mode:%x work_mode:%x  expo_mode:%x" ,Cam_mode.tran,Cam_mode.mode,Cam_mode.expo);
+    else
+        printf("Set control mode failed");
+    return CMD_ERROR_NONE;
+}
+
+command_t __sub_command camera805_subcommands[] = {
+    {
+        .name = "reset",
+        .help = "reset the camera",
+        .handler = cmd_reset_camera,
+    },{
+        .name = "get_temp",
+        .help = "Get three temperature at the mining temperature(0x01,0x02,0x03)",
+        .usage = "<temperature point> ",
+        .handler = cmd_Camera_Temp_Get,
+    },{
+        .name = "get_exptime",
+        .help = "Get camera exposure time",
+        .handler = cmd_Camera_Exposure_Time_Read,
+    },{
+        .name = "set_exptime",
+        .help = "Set camera exposure time",
+        .usage = "<Exposure time> ",
+        .handler = cmd_Camera_Exposure_Time_Set,
+    },{
+        .name = "get_gain",
+        .help = "Get camera gain value",
+        .handler = cmd_Camera_Gain_Get,
+    },{
+        .name = "set_gain",
+        .help = "Set camera gain value",
+        .usage = "<Gain value> ",
+        .handler = cmd_Camera_Gain_Set,
+    },{
+        .name = "get_mode",
+        .help = "Camera control mode",
+        .handler = cmd_Camera_Work_Mode_Get,
+    },{
+        .name = "get_mode",
+        .help = "Camera control mode",
+        .usage = "<tran> <mode> <expo>",
+        .handler = cmd_Camera_Work_Mode_Set,
+    },
+
+};
+command_t __root_command cam805_commands[] = {
+    {
+        .name = "camera805",
+        .help = "camera command system",
+        .chain = INIT_CHAIN(camera805_subcommands),
+    },
+};
+
+void cmd_cam_setup(void) {
+    command_register(cam805_commands);
+}
 
 

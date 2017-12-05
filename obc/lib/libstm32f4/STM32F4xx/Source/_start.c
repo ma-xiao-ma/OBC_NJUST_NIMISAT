@@ -23,10 +23,6 @@ extern unsigned int __data_regions_array_end;
 extern unsigned int __bss_regions_array_start;
 extern unsigned int __bss_regions_array_end;
 
-static FATFS fs; /* Work area (file system object) for logical drives */
-
-
-
 extern void main (void);
 void _start (void);
 
@@ -87,10 +83,6 @@ _start (void)
         unsigned int* region_end = (unsigned int*) (*p++);
         __initialize_bss (region_begin, region_end);
     }
-
-    /*初始化micro SD卡*/
-    SD_NVIC_Configuration();
-    f_mount(0,&fs);
 
 	main();
 

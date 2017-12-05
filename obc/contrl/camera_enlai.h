@@ -66,7 +66,7 @@ typedef struct __attribute__((__packed__))
 
 int take_store_picture(uint8_t picture_size);
 void Camera_Enlai_Usart_Init(uint32_t baudrate);
-int init_camera_address();
+void init_camera_address();
 //void Camera_Tx_DMA_Config(uint32_t mar,uint16_t ndtr);
 //void Camera_Rx_DMA_Config(uint32_t mar,uint16_t ndtr);
 //void Camera_Tx_DMA_Enable(uint16_t ndtr);

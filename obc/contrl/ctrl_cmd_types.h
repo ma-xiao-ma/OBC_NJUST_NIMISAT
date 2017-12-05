@@ -160,41 +160,12 @@ typedef struct __attribute__((packed)) {
 	uint32_t lost_pwr; /* 判断是否是掉电复位 */
 }adcs_argvs_t;
 
-//typedef struct __attribute__((packed)) {
-//
-//	uint8_t 	error;
-//}adcs_hk_t;
 
 typedef struct __attribute__((packed)) {
 	uint8_t 	id;
 	uint8_t		cmd;
 	uint32_t	delay;
 }adcs_hkcmd_t;
-
-typedef struct __attribute__((packed)) {
-	uint8_t header[2];
-	union {
-		uint16_t info;
-		struct __attribute__((__packed__)) {
-			uint16_t id    : 12; //must be 0~345
-			uint16_t index : 4;  //must be 0~345
-			};
-		  };
-	uint8_t 	len; //must be 0~345
-}cup_flash_cmd_t;
-
-typedef struct __attribute__((packed)) {
-	union {
-		uint16_t info;
-		struct __attribute__((__packed__)) {
-			uint16_t id    : 12;  //must be 0~345
-			uint16_t index : 4;	  //must be 0~345
-			};
-		  };
-	uint8_t 	len;  //must be 0~345
-	uint8_t		data[91];
-}cup_flash_content_t;
-
 
 
 #endif /* CONTRL_CTRL_TYPES_H_ */

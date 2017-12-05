@@ -150,12 +150,13 @@ int router_send_to_other_node(route_packet_t *packet)
 int router_unpacket(route_packet_t *packet)
 {
 
+    /* 处理地面给星务的信息 */
     if (packet->src == GND_ROUTE_ADDR)
     {
         CubeUnPacket(packet);
         ObcMemFree(packet);
     }
-
+    /* 处理姿控给星务的信息 */
     else if (packet->src == ADCS_ROUTE_ADDR)
     {
         switch (packet->typ)
@@ -165,6 +166,7 @@ int router_unpacket(route_packet_t *packet)
                 break;
 
             default:
+                ObcMemFree(packet);
                 break;
         }
     }

@@ -22,6 +22,7 @@
 #include "hk.h"
 #include "crc.h"
 #include "command.h"
+#include "if_downlink_vu.h"
 
 #include "bsp_ds1302.h"
 #include "bsp_switch.h"
@@ -116,15 +117,50 @@ void SleepWorkMode(void)
 	adcs_send_mode(mode);
 }
 
-//void ControlTask(void * pvParameters __attribute__((unused))) {
-//
-//	portTickType xLastWakeTime = xTaskGetTickCount(); //for the 10s timer task
-//
-//	vTaskDelayUntil(&xLastWakeTime, (10000 / portTICK_RATE_MS));
-//
-//	while (1)
-//	{
-//
+typedef struct
+{
+    uint32_t vu_idle_state;
+} control_para;
+
+static control_para control_task;
+
+#define VU_IDLE_ON      (15 * 60) /*通信机空闲状态连续发射开 持续时间    单位：秒*/
+
+#define CONTROL_CYCLE   5000      /*控制周期  单位：毫秒*/
+
+/**
+ * 将秒数转换成在控制任务中的控制次数
+ * @param pvParameters 秒数
+ */
+#define JUDGMENT(x)  ( x / (CONTROL_CYCLE / configTICK_RATE_HZ) )
+
+void ControlTask(void * pvParameters __attribute__((unused)))
+{
+
+	portTickType xLastWakeTime = xTaskGetTickCount(); //for the 10s timer task
+
+	vTaskDelayUntil(&xLastWakeTime, (10000 / portTICK_RATE_MS));
+
+	vu_isis_hk_t *vu_tm = (vu_isis_hk_t *)ObcMemMalloc(sizeof(vu_isis_hk_t));
+	if (vu_tm == NULL)
+	    while(1);
+
+	while (1)
+	{
+	    ttc_hk_get_peek(vu_tm);
+
+	    if (vu_tm->tx_state.IdleState == RemainOn)
+	        control_task.vu_idle_state++;
+	    else
+	        control_task.vu_idle_state = 0;
+
+	    if (control_task.vu_idle_state++ >= JUDGMENT(VU_IDLE_ON))
+	    {
+	        vu_transmitter_set_idle_state(TurnOff);
+	        control_task.vu_idle_state = 0;
+	    }
+
+
 //		switch (Battery_Task())
 //		{
 //            case 0:
@@ -138,17 +174,19 @@ void SleepWorkMode(void)
 //            default:
 //                break;
 //		}
-//
-//		vTaskDelayUntil(&xLastWakeTime, (5000 / portTICK_RATE_MS));
-//	}
-//}
+
+		vTaskDelayUntil(&xLastWakeTime, (CONTROL_CYCLE / portTICK_RATE_MS));
+	}
+}
 
 void hk_collect_task(void *pvParameters __attribute__((unused)))
 {
 
     eps_start();
     hk_collect_task_init();
+    /* 等待个分系统启动 */
     vTaskDelay(5000);
+
     while (1)
     {
         task_report_alive(Collect);
@@ -179,9 +217,12 @@ void OpenAntenna_Task(void* param __attribute__((unused))) {
 
 	portTickType CurTime = xTaskGetTickCount();
 
-	if(obc_boot_count <= 5){
+	if(obc_boot_count <= 5)
+	{
 		vTaskDelayUntil(&CurTime, OpenAntenna_Time * (1000 / portTICK_RATE_MS));
-	}else{
+	}
+	else
+	{
 		vTaskDelayUntil(&CurTime, 120 * (1000 / portTICK_RATE_MS));
 	}
 
@@ -234,25 +275,34 @@ void OpenAntenna_Task(void* param __attribute__((unused))) {
 /////////////////////////////////////////////
 void OpenPanel_Task(void* param __attribute__((unused))) {
 
-	if (obc_boot_count > 5) {
+	if (obc_boot_count > 5)
+	{
 		vTaskDelete(NULL);
 	}
 
 	portTickType CurTime = xTaskGetTickCount();
 
-	if(obc_boot_count <= 3){
+	if(obc_boot_count <= 3)
+	{
 		vTaskDelayUntil(&CurTime, OpenBattery_Time * (1000 / portTICK_RATE_MS));
-	}else{
+	}
+	else
+	{
 		vTaskDelayUntil(&CurTime, 180 * (1000 / portTICK_RATE_MS));
 	}
 
-	while (1) {
+	while (1)
+	{
 		enable_panel(0,0);
+
 		openpanel_times++;
-		if (openpanel_times >= 2) {
+
+		if (openpanel_times >= 2)
+		{
 			disable_panel(0,0);
 			vTaskDelete(NULL);
 		}
+
 		vTaskDelay(10000 / portTICK_RATE_MS);
 	}
 }
@@ -280,20 +330,24 @@ void vContrlStopDownload(void)
     down_cnt = 0;
 }
 
-void down_save_task(void * pvParameters __attribute__((unused))) {
-
-//	portTickType xLastWakeTime_2 = xTaskGetTickCount(); //for the 2s timer task
+void down_save_task(void * pvParameters __attribute__((unused)))
+{
+    TickType_t xLastWakeTime = xTaskGetTickCount ();
 
     /*初始化主帧FIFO和辅帧FIFO*/
 	HK_fifoInit(&hk_main_fifo);
 	HK_fifoInit(&hk_append_fifo);
 
+	/*等待系统稳定*/
+	vTaskDelay(5000);
+
 	hk_store_init();
 
 	/*存储时间间隔15秒*/
-	StorageIntervalCount = (HK_STORAGE_INTERVAL*1000)/downtimeset;
+	StorageIntervalCount = (HK_STORAGE_INTERVAL * 1000)/downtimeset;
+
 	/*下行时间间隔downtimeset毫秒， 一共下行10分钟，也就是600000毫秒*/
-	Stop_Down_Time = 600000/downtimeset;
+	Stop_Down_Time = (10 * 60 * 1000)/downtimeset;
 
 	while (1)
 	{
@@ -352,6 +406,7 @@ void hk_down_proc_task(void)
         ProtocolSendDownCmd( GND_ROUTE_ADDR, ADCS_ROUTE_ADDR, ADCS_TELEMETRY,
                 &hk_frame.append_frame, sizeof(HK_Append_t) );
 	}
+
 	/*如果是延时遥测下行*/
 	else
 	{
@@ -426,10 +481,10 @@ void hk_down_proc_task(void)
 	}
 }
 
-void hk_down_store_task(void) {
-
-	if (antenna_status != 0) {
-
+void hk_down_store_task(void)
+{
+	if (antenna_status != 0)
+	{
 		hk_collect();
 
         ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
@@ -442,18 +497,19 @@ void hk_down_store_task(void) {
 	}
 }
 
-void hk_data_save_task(void) {
-
+void hk_data_save_task(void)
+{
 	hk_collect();
 	hk_store_add();
 }
 
 
-void adcs_pwr_task(void *pvParameters __attribute__((unused))) {
-
+void adcs_pwr_task(void *pvParameters __attribute__((unused)))
+{
 	EpsOutSwitch(OUT_EPS_S0, ENABLE);  //enable ADCS power
 
-	while (1) {
+	while (1)
+	{
 		EpsOutSwitch(OUT_EPS_S0, ENABLE);  //enable ADCS power
 		if(SW_EPS_S0_PIN()) {
 			vTaskDelete(NULL);
@@ -467,303 +523,5 @@ void adcs_pwr_task(void *pvParameters __attribute__((unused))) {
 	}
 
 }
-
-void DownloadSavedAudioFiles (void *para)
-{
-	uint8_t cmd_length = 0;
-	cup_flash_content_t *pdata 	= NULL;
-	cup_flash_cmd_t *cmd = (cup_flash_cmd_t *)para;
-
-
-	portTickType xLastWakeTime = xTaskGetTickCount();
-
-	uint32_t FlashAddr = ADDR_FLASH_SECTOR_8 + (uint32_t)(cmd->index * FlanshBlockSize);
-	pdata = (cup_flash_content_t *)(FlashAddr + (uint32_t)(cmd->id * sizeof(cup_flash_content_t)));
-
-	cmd_length = cmd->len;
-
-	while(cmd_length--)
-	{
-		uint8_t cis_len = 0;
-
-		(pdata->len > 91) ? (cis_len = 91) : (cis_len = pdata->len);
-
-		for (int i = 0; i < cis_len + 3; i++)
-		{
-			driver_debug(DEBUG_FLASH, "0x%x ", ((uint8_t *)(pdata))[i]);
-		}
-		driver_debug(DEBUG_FLASH, "\r\n\r\n");
-		FlanshAudioFilesToCis(pdata, cis_len + 3, CIS_DELAY);
-		pdata ++;
-		vTaskDelayUntil(&xLastWakeTime, ( 600 / portTICK_RATE_MS));
-	}
-}
-
-
-uint16_t hton16(uint16_t h16) {
-	return (((h16 & 0xff00) >> 8) |
-			((h16 & 0x00ff) << 8));
-}
-
-
-void SaveNewAudioFiles (void *para)
-{
-	cup_flash_content_t *pdata = (cup_flash_content_t *)para;
-
-	if(pdata->index < 0 || pdata->index > 3)
-		return;
-	if(pdata->id < 0 || pdata->id > 345)
-		return;
-	uint8_t cis_len = 0;
-	(pdata->len > 91) ? (cis_len = 91) : (cis_len = pdata->len);
-
-
-	uint32_t FlashAddr = ADDR_FLASH_SECTOR_9 + (uint32_t)(pdata->index * FlanshBlockSize) +
-			(uint32_t)(pdata->id * sizeof(cup_flash_content_t));
-
-	if(pdata->index == 0 && pdata->id == 0){
-		bsp_EraseCpuFlash(FlashAddr);
-		bsp_WriteCpuFlash(FlashAddr, (uint8_t *)pdata, (uint32_t)cis_len + 3);
-	}
-	else{
-		bsp_WriteCpuFlash(FlashAddr, (uint8_t *)pdata, (uint32_t)cis_len + 3);
-	}
-}
-
-void SavePermanentAudioFiles (void *para)
-{
-	cup_flash_content_t *pdata = (cup_flash_content_t *)para;
-
-	if(pdata->index < 0 || pdata->index > 3)
-		return;
-	if(pdata->id < 0 || pdata->id > 345)
-		return;
-	uint8_t cis_len = 0;
-	(pdata->len > 91) ? (cis_len = 91) : (cis_len = pdata->len);
-
-
-	uint32_t FlashAddr = ADDR_FLASH_SECTOR_8 + (uint32_t)(pdata->index * FlanshBlockSize) +
-			(uint32_t)(pdata->id * sizeof(cup_flash_content_t));
-
-	if(pdata->index == 0 && pdata->id == 0){
-		bsp_EraseCpuFlash(FlashAddr);
-		bsp_WriteCpuFlash(FlashAddr, (uint8_t *)pdata, (uint32_t)cis_len + 3);
-	}
-	else{
-		bsp_WriteCpuFlash(FlashAddr, (uint8_t *)pdata, (uint32_t)cis_len + 3);
-	}
-}
-
-
-void DownloadNewAudioFiles (void *para)
-{
-	uint8_t cmd_length = 0;
-	cup_flash_content_t *pdata 	= NULL;
-	cup_flash_cmd_t *cmd = (cup_flash_cmd_t *)para;
-	uint32_t FlashAddr = ADDR_FLASH_SECTOR_9 + (uint32_t)(cmd->index * FlanshBlockSize);
-	pdata = (cup_flash_content_t *)(FlashAddr + (uint32_t)(cmd->id * sizeof(cup_flash_content_t)));
-
-	cmd_length = cmd->len;
-
-	portTickType xLastWakeTime = xTaskGetTickCount();
-
-	while(cmd_length--)
-	{
-		uint8_t cis_len = 0;
-
-		(pdata->len > 91) ? (cis_len = 91) : (cis_len = pdata->len);
-
-		for (int i = 0; i < cis_len + 3; i++)
-		{
-			driver_debug(DEBUG_FLASH, "0x%x ", ((uint8_t *)(pdata))[i]);
-		}
-		driver_debug(DEBUG_FLASH, "\r\n\r\n");
-		FlanshAudioFilesToCis(pdata, cis_len + 3, CIS_DELAY); //cis_ret = 0 indicate that success to send data to cis
-		pdata ++;
-		vTaskDelayUntil(&xLastWakeTime, ( 600 / portTICK_RATE_MS));
-	}
-}
-
-
-///* 哈工大通信机 */
-//void cmd_task(void * para) {
-//
-//	i2c_frame_t * frame = (i2c_frame_t *)para;
-//
-//	CubeUnPacket(&frame->data[4]);
-//
-//	vTaskDelete(NULL);
-//}
-
-/* ISIS通信机 */
-void ObcUnpacketTask(void *pvPara)
-{
-    uplink_content_t *pdata = (uplink_content_t *)pvPara;
-
-    CubeUnPacket(&pdata->Packet.Id);
-    /* 释放传入任务的内存块 */
-    ObcMemFree(pdata);
-    /* 删除自身任务 */
-    vTaskDelete(NULL);
-}
-
-
-//void i2c_slave_task_zero(void *param __attribute__((unused))) {
-//
-//	int 			handle 			= 0;
-//	uint32_t 		length			= 0;
-//	uint8_t         pname[] 		= "CMD0";
-//
-//	i2c_frame_t 	* frame 		= NULL;
-//	cup_flash_cmd_t * pcmd  		= NULL;
-//	csp_id_t		* id			= NULL;
-//	ctrl_nopara_t   * cmd			= NULL;
-//	while(1)
-//	{
-//
-//		if(i2c_receive(handle, &frame, portMAX_DELAY) == E_NO_ERR){
-//
-//			length = frame->len;
-//
-//			driver_debug(DEBUG_I2C, "I2C receive handle %d, length: %u\n\r", handle, length);
-//
-//			id = (csp_id_t *)frame->data;
-//			if((id->src == 1) && (id->dst == 26))
-//			{
-//
-//				cmd = (ctrl_nopara_t *)&frame->data[4];
-//
-//				if(cmd->id == 2) //id为2的指令是地面发给ADCS的
-//					i2c_master_transaction(OBC_TO_ADCS_HANDLE, ADCS_I2C_ADDR, &frame->data[4], frame->len-4, NULL, 0, 1000);
-//				else //id为1的指令是地面发给OBC的
-//				{
-//					pname[3]++;
-//					xTaskCreate(cmd_task, (const signed char*) pname, configMINIMAL_STACK_SIZE * 2,frame, tskIDLE_PRIORITY + 4, NULL);
-//				}
-//			}
-//			ObcMemFree(frame);
-//		}
-//	}
-//}
-
-
-//void route_server_task(void *param __attribute__((unused))) {
-//
-//    route_packet_t *packet = NULL;
-//	uint16_t len	= 0;
-//
-//	while(1)
-//	{
-//		if((adcs_pwr_sta == 0) && (up_cmd_adcs_pwr == 1)) {
-//			EpsOutSwitch(OUT_EPS_S0, ENABLE);  //enable ADCS power
-//		}
-//
-//		if(xI2CServerReceive(packet, portMAX_DELAY) == E_NO_ERR)
-//		{
-//			if(packet == NULL)
-//		    {
-//            /*driver_debug(DEBUG_I2C,*/printf( "I2C server task error! %u\n\r");
-//		        continue;
-//			}
-//
-//            len = packet->len;
-//            /*driver_debug(DEBUG_I2C,*/printf( "I2C rx length: %u\n\r", len+3);
-//
-//
-//            /*姿控命令应答*/
-//            if(packet->dat[0] == 0xEB && packet->dat[1] == 0x53)
-//            {
-//                adcs_pwr_sta = 1;
-//                packet->dat[0] = 0x1A;
-//                obc_cmd_ack(&packet->dat[0], sizeof(cmd_ack_t));
-//            }
-//
-//            /*遥测辅帧*/
-//            if(packet->dat[0] == 0x1A && packet->dat[1] == 0x54)
-//            {
-//                adcs_pwr_sta = 1;
-//                memcpy((uint8_t*)&(hk_frame.append_frame.adcs_hk), &packet->dat[2], sizeof(adcs805_hk_t));
-//            }
-//
-//            ObcMemFree(packet);
-//		}
-//	}
-//}
-
-
-//void isis_read_task(void *para __attribute__((unused))) {
-//
-//    uint16_t frames_num             = 0;
-//    uint8_t * pCRC                  = NULL;
-//    uplink_content_t *pdata         = NULL;
-//    uint32_t cmd_crc                = 0;
-//    uint8_t data_len                = 0;
-//    uint8_t pname[]                 = "CMD0";
-//
-//    while(1) {
-//        /* 获取ICD接收指令计数 */
-//        I2C_ICD_read_countofframe((uint8_t*)&frames_num);
-//        vTaskDelay(1000);
-//
-//        if(frames_num == 0)
-//        {
-//            continue;
-//        }
-//        /* 清空ICD接收指令计数 */
-//        frames_num = 0;
-//
-//        /* 为每包数据申请内存 */
-//        pdata = (uplink_content_t *)qb50Malloc(I2C_MTU);
-//
-//        /* 从ICD收地面发来的数据包 */
-//        I2C_ICD_get_frame_stable((uint8_t*)pdata);
-//        vTaskDelay(1000);
-//        /* 若读数据失败 */
-//        if(I2C_ICD_get_frame_stable((uint8_t*)pdata) != E_NO_ERR)
-//        {
-//            ObcMemFree(pdata);
-//            continue;
-//        }
-//        /* 清空ICD接收缓冲区，为接收下一包数据做准备 */
-//        I2C_ICD_sweep_butter();
-//
-//        pCRC = (uint8_t *)&pdata->Packet;
-//        data_len = pdata->Packet.DataLength - 5; //除了4字节的CRC本身和1字节的Tail,其他数据都参与
-//
-//        /*CRC校验*/
-//        cmd_crc = crc32_memory((uint8_t *)pCRC, data_len);
-//        if(cmd_crc != *((uint32_t *)&pCRC[data_len]))
-//        {
-//            I2C_ICD_sweep_butter();
-//            ObcMemFree(pdata);
-//            continue;
-//        }
-//        /*收到正确地面正确指令，设开始下行标志为1，启动遥测数据下行*/
-////        up_hk_down_cmd = 1;
-//        switch(pdata->Packet.Id)
-//        {
-//            case 1:
-//                pname[3]++;
-//                /* 如果任务创建失败，则跳出switch语句，释放内存 */
-//                if(xTaskCreate(ObcUnpacketTask, (const signed char*)pname, configMINIMAL_STACK_SIZE * 2,
-//                        pdata, tskIDLE_PRIORITY + 4, NULL) != pdPASS)
-//                {
-//                    break;
-//                }
-//                /* 如果任务创建成功则在任务中释放内存，进行下一轮循环 */
-//                continue;
-//            case 2:
-//                i2c_master_transaction(OBC_TO_ADCS_HANDLE, ADCS_I2C1_ADDR, &pdata->Packet.Id,
-//                        pdata->Packet.DataLength, NULL, 0, 1000);
-//                break;
-//            default:
-//                break;
-//        }
-//
-//        I2C_ICD_sweep_butter();
-//
-//        ObcMemFree(pdata);
-//    }
-//}
 
 

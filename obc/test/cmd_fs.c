@@ -341,28 +341,15 @@ int cmd_fat_download(struct command_context *ctx)
 	return CMD_ERROR_NONE;
 }
 
-int cmd_fat_mkfs(struct command_context *ctx) {
+int cmd_fat_mount(struct command_context *ctx __attribute__((unused)))
+{
+	extern FATFS fs;
 
-	/* Get args */
-	char * args = command_args(ctx);
-	unsigned int dev;
-	if (sscanf(args, "%u", &dev) != 1)
-		return CMD_ERROR_SYNTAX;
+	FRESULT result = f_mount(0,&fs);
 
-	printf("Formatting drive %u\r\n", (BYTE) dev);
-
-	int result;
-
-	vPortEnterCritical();
-
-	result = f_mkfs((BYTE)dev, (BYTE)0, (BYTE)0);
-
-	vPortExitCritical();
-
-	printf("Format Result %u\r\n", result);
+	printf("FATFS file system f_mount() Result %u.\r\n", result);
 
 	return CMD_ERROR_NONE;
-
 }
 
 int cmd_fat_free(struct command_context *ctx __attribute__((unused))) {
@@ -568,12 +555,11 @@ struct command fat_subcommands[] = {
 		.help = "FAT reset dirptr to 0:",
 		.handler = cmd_fat_setdir,
 	},
-/*	{
-		.name = "mkfs",
-		.help = "format file system",
-		.usage = "<dev>",
-		.handler = cmd_fat_mkfs,
-	},*/
+	{
+		.name = "mount",
+		.help = "mount the fatfs file system",
+		.handler = cmd_fat_mount,
+	},
 	{
 		.name = "ls",
 		.help = "FAT file list",

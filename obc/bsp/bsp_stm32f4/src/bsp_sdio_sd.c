@@ -383,6 +383,9 @@ uint8_t convert_from_bytes_to_power_of_two(uint16_t NumberOfBytes);
   * @}
   */
 
+/**
+ * NVIC SDIO中断和SDIO DMA中断配置
+ */
 void SD_NVIC_Configuration(void)
 {
   NVIC_InitTypeDef NVIC_InitStructure;
@@ -395,8 +398,11 @@ void SD_NVIC_Configuration(void)
   NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
   NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&NVIC_InitStructure);
+
   NVIC_InitStructure.NVIC_IRQChannel = SD_SDIO_DMA_IRQn;
   NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&NVIC_InitStructure);
 }
 

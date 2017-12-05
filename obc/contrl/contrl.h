@@ -40,14 +40,9 @@ void vContrlStopDownload(void);
 void hk_data_save_task(void);
 void hk_down_proc_task(void);
 void hk_down_store_task(void);
-void DownloadSavedAudioFiles (void *para);
-void SaveNewAudioFiles (void *para);
-void DownloadNewAudioFiles (void *para);
-void SavePermanentAudioFiles (void *para);
+
 
 void adcs_pwr_task(void *pvParameters __attribute__((unused)));
-void route_server_task(void *param __attribute__((unused)));
-void isis_read_task(void *para __attribute__((unused)));
 void hk_collect_task(void *pvParameters __attribute__((unused)));
 
 #endif

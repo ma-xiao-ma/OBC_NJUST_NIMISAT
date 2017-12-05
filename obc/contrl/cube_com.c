@@ -24,6 +24,7 @@
 #include "command.h"
 #include "hk_arg.h"
 #include "hk.h"
+#include "if_trxvu.h"
 #include "driver_debug.h"
 #include "bsp_cis.h"
 #include "route.h"
@@ -519,6 +520,38 @@ void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
                 result = 1;
             else
                 result = 0;
+
+            obc_cmd_ack(cmd_id, result);
+            break;
+
+        case VU_INS_HARDWARE_RESET:
+
+            if (vu_receiver_hardware_reset() != E_NO_ERR ||
+                    vu_transmitter_hardware_reset() != E_NO_ERR)
+                result = 0;
+            else
+                result = 1;
+
+            obc_cmd_ack(cmd_id, result);
+            break;
+
+        case VU_INS_SOFEWARE_RESET:
+
+            if (vu_receiver_software_reset() != E_NO_ERR ||
+                    vu_transmitter_software_reset() != E_NO_ERR)
+                result = 0;
+            else
+                result = 1;
+
+            obc_cmd_ack(cmd_id, result);
+            break;
+
+        case VU_INS_IDLE_STATE_SET:
+
+            if (vu_transmitter_set_idle_state(*(par_idle_state *)cube_buf) != E_NO_ERR)
+                result = 0;
+            else
+                result = 1;
 
             obc_cmd_ack(cmd_id, result);
             break;

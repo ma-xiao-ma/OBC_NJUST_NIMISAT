@@ -41,8 +41,7 @@
 #include "task_monitor.h"
 
 
-//extern unsigned char driver_debug_switch[DEBUG_ENUM_MAX+1];
-
+FATFS fs; /* Work area (file system object) for logical drives */
 
 void task_initz(void)
 {
@@ -50,7 +49,10 @@ void task_initz(void)
 //
 //    driver_debug_switch[DEBUG_HK] = 1;
 
-    /* 任务监视器初始化,线程超时时间15s */
+    /** 给SD卡挂载FATFS文件系统 */
+    f_mount(0,&fs);
+
+    /* 任务监视器初始化, 最大超时时间15s */
     supervisor_init(15000);
 
     /*控制开关IO口初始化*/
@@ -74,7 +76,7 @@ void task_initz(void)
 	int_adc_init();
 
 	spi_init_dev();
-//	AD7490_Init();
+	AD7490_Init();
 	/*power related and switches*/
 	bsp_InitSPI1();
 
@@ -101,18 +103,19 @@ void task_initz(void)
 	/*house-keeping store to SD card*/
 	hk_list_init(&hk_list);
 	hk_list_recover();
-	vTelemetryFileManage(&hk_list);
+
+//	vTelemetryFileManage(&hk_list);  /* 此函数会导致文件系统崩溃， 需查原因 */
 
 #if USE_ROUTE_PROTOCOL
 
     router_init(1, 5);
 
     /*创建服务器任务*/
-    server_start_task(configMINIMAL_STACK_SIZE, tskIDLE_PRIORITY + 2);
+    server_start_task(128, 2);
     /*创建发送处理任务*/
-    send_processing_start_task(configMINIMAL_STACK_SIZE, tskIDLE_PRIORITY + 2);
+    send_processing_start_task(128, 2);
     /*创建路由任务*/
-    router_start_task(configMINIMAL_STACK_SIZE*2, tskIDLE_PRIORITY + 1);
+    router_start_task(256, 1);
 
 #endif
 

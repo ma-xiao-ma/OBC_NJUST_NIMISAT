@@ -67,7 +67,10 @@ void supervisor_task(void *para)
     if ( task_status == NULL )
         supervisor_init( monitor_window );
 
-    /* 硬件看门狗超时间20s */
+    /*等待任务进入正常循环*/
+    vTaskDelay(5000);
+
+    /*初始化片内硬件看门狗超时间， 设置超时时间20s */
     IWDG_Init(20000);
 
     while(1)

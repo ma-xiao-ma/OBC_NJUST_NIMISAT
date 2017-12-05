@@ -381,6 +381,9 @@ void hk_collect(void)
 
         /*姿控分系统遥测获取*/
     adcs_hk_get_peek(&hk_frame.append_frame.adcs_hk);
+
+    HK_fifoIn(&hk_main_fifo, (unsigned char *)&hk_frame.main_frame, (uint8_t)HK_FRAME_MAIN);
+    HK_fifoIn(&hk_append_fifo, (unsigned char *)&hk_frame.append_frame, (uint8_t)HK_FRAME_APPEND);
 }
 
 
@@ -414,6 +417,8 @@ int hk_store_init(void) {
 		fs_ok = 0;
 		return -1;
 	}
+
+	f_sync(&fd);
 
 	/*将文件名加入遥测列表*/
 	if(!hk_list_insert(&hk_list, fd_timestamp)) {
@@ -547,18 +552,11 @@ void vTelemetryFileManage(void * paragram)
     /* 把遥测列表的首列表项赋给pxIterator */
     pxIterator = ( hkListNode_t * )&pxList->xListEnd;
 
-    while(1)
+    while( (pxIterator = pxIterator->pxNext) != ( hkListNode_t * )&pxList->xListEnd )
     {
 
         /*清空路径*/
         memset(hk_path,'\0',sizeof(hk_path));
-
-        /*指针指向列表中下一个列表项*/
-        pxIterator = pxIterator->pxNext;
-
-        /* 如果首列表项与尾列表项相同，列表遍历完成 */
-        if(pxIterator == ( hkListNode_t * ) (&( pxList->xListEnd )))
-            break;
 
         sprintf(hk_path, "0:hk/%u.txt", pxIterator->TimeValue);
         driver_debug(DEBUG_HK, "Check if the file exists:%s\r\n", hk_path);
@@ -572,7 +570,7 @@ void vTelemetryFileManage(void * paragram)
         }
 
         /* 若文件存在，文件小于HK_Store_t结构体大小的文件从列表中移除 */
-        if(fno.fsize < sizeof(HK_Store_t))
+        if(fno.fsize < 4 * sizeof(HK_Store_t))
         {
             driver_debug(DEBUG_HK,"File size error: %s\r\n", hk_path);
             hk_list_remove(pxIterator);

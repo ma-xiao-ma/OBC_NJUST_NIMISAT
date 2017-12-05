@@ -149,15 +149,6 @@ int adcs_transaction_direct(uint8_t type, void * txbuf, size_t txlen, void * rxb
     if (frame == NULL)
         return E_NO_BUFFER;
 
-//    extern xSemaphoreHandle i2c_lock;
-//    /* Take the I2C lock */
-//    xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
-
-//    extern pca9665_device_object_t device[2];
-//    /* 暂时禁回调函数 */
-//    void * tmp_callback = device[OBC_TO_ADCS_HANDLE].callback;
-//    device[OBC_TO_ADCS_HANDLE].callback = NULL;
-
     frame->dest = ADCS_I2C_ADDR;
     frame->len = txlen + ROUTE_HEAD_SIZE;
     frame->len_rx = 0;
@@ -171,48 +162,31 @@ int adcs_transaction_direct(uint8_t type, void * txbuf, size_t txlen, void * rxb
 
     memcpy(&r_frame->dat[0], txbuf, txlen);
 
-    if (i2c_send(OBC_TO_ADCS_HANDLE, frame, 0) != E_NO_ERR) {
+    if (i2c_send(OBC_TO_ADCS_HANDLE, frame, 0) != E_NO_ERR)
+    {
         ObcMemFree(frame);
-//        device[OBC_TO_ADCS_HANDLE].callback = tmp_callback;
-//        xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;
     }
 
     if (rxlen == 0) {
-//        device[OBC_TO_ADCS_HANDLE].callback = tmp_callback;
-//        xSemaphoreGive(i2c_lock);
         return E_NO_ERR;
     }
 
-//    if (i2c_receive(OBC_TO_ADCS_HANDLE, &frame, timeout) != E_NO_ERR) {
-////        device[OBC_TO_ADCS_HANDLE].callback = tmp_callback;
-//        xSemaphoreGive(i2c_lock);
-//        return E_TIMEOUT;
-//    }
-
     route_packet_t *packet;
 
-    if (adcs_queue_read(&packet, timeout) != E_NO_ERR) {
-//        device[OBC_TO_ADCS_HANDLE].callback = tmp_callback;
-//        xSemaphoreGive(i2c_lock);
+    if (adcs_queue_read(&packet, timeout) != E_NO_ERR)
         return E_TIMEOUT;
-    }
-
-//    r_frame = (route_frame_t *)frame->data;
 
     /* 接收内容正确性检查 */
     if (packet->dst != OBC_ROUTE_ADDR || packet->src != ADCS_ROUTE_ADDR ||
-            packet->typ != type || packet->len != rxlen) {
-//        device[OBC_TO_ADCS_HANDLE].callback = tmp_callback;
-//        xSemaphoreGive(i2c_lock);
+            packet->typ != type || packet->len != rxlen)
+    {
         return E_INVALID_PARAM;
     }
 
     memcpy(rxbuf, &packet->dat[0], rxlen);
 
     ObcMemFree(packet);
-//    device[OBC_TO_ADCS_HANDLE].callback = tmp_callback;
-//    xSemaphoreGive(i2c_lock);
 
     return E_NO_ERR;
 }
