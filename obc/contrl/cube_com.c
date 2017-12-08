@@ -50,11 +50,19 @@ uint32_t rec_cmd_cnt = 0; //obc接收本地指令计数
  */
 void obc_cmd_ack(uint8_t type, uint8_t result)
 {
+
 #if USE_SERIAL_PORT_DOWNLINK_INTERFACE
     ProtocolSerialSend( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
-#else
-    vu_send( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
 #endif
+
+#if CONFIG_USE_ISIS_VU
+    vu_isis_send( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
+#endif
+
+#if CONFIG_USE_JLG_VU
+    vu_jlg_send( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
+#endif
+
 }
 
 

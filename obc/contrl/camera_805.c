@@ -996,7 +996,7 @@ static int ImagStoreInSD(void)
  */
 int cam_sram_img_info_down(void)
 {
-    return vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, &CurrentImage, sizeof(ImageInfo_t));
+    return vu_isis_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, &CurrentImage, sizeof(ImageInfo_t));
 }
 
 /**
@@ -1044,7 +1044,7 @@ int cam_sram_img_packet_down(uint16_t packet_id)
             CurrentImage.LastPacketSize : IMAGE_PACK_MAX_SIZE;
 
     memcpy(img_packet->ImageData, &Cam.ReceiveBuffer[6 + packet_id*IMAGE_PACK_MAX_SIZE], img_packet->PacketSize);
-    int ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, &img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+    int ret = vu_isis_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, &img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
     ObcMemFree(img_packet);
     return ret;
@@ -1074,7 +1074,7 @@ int cam_sd_img_info_down(uint32_t id)
     }
 
     /* 调用传输层接口函数下行  */
-    int ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
+    int ret = vu_isis_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
 
     ObcMemFree(img_info);
     return ret;
@@ -1162,7 +1162,7 @@ int cam_sd_img_packet_down(uint32_t id, uint16_t packet)
     }
 
     /* 调用传输层接口函数下行 */
-    int ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+    int ret = vu_isis_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
     ObcMemFree(img_info);
     ObcMemFree(img_packet);
@@ -1192,7 +1192,7 @@ int cam_flash_img_info_down(uint32_t id)
             sizeof(ImageInfo_t));
 
     /* 调用传输层接口函数下行，创建下行图像任务  */
-    int ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
+    int ret = vu_isis_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
 
     ObcMemFree(img_info);
     return ret;
@@ -1240,7 +1240,7 @@ int cam_flash_img_packet_down(uint32_t id, uint16_t packet)
             + packet * IMAGE_PACK_MAX_SIZE, img_packet->PacketSize);
 
     /* 调用传输层接口函数下行 */
-    int ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+    int ret = vu_isis_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
     ObcMemFree(img_info);
     ObcMemFree(img_packet);
@@ -1299,7 +1299,7 @@ int cam_newest_img_info_down(void)
     }
     else
     {
-        ret = vu_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, newest_img, sizeof(ImageInfo_t));
+        ret = vu_isis_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, newest_img, sizeof(ImageInfo_t));
 
         if (ret != E_NO_ERR)
         {

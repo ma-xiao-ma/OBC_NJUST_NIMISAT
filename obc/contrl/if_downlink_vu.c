@@ -106,10 +106,10 @@ int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len)
  * @param len 待发送数据长度
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
+int vu_isis_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
 {
     int ret;
-    uint8_t Error = 0, TxRemainBufSize, FrameDataSize;
+    uint8_t Error = 0, TxRemainBufSlot = 0xFF, FrameDataSize;
     uint32_t RemainSize = len;
 
     pdata = (uint8_t *)pdata;
@@ -130,16 +130,17 @@ int vu_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
 //        *(uint32_t *)(&downlink->dat[FrameDataSize]) =
 //                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE+FrameDataSize);
 
-        ret = vu_transmitter_send_frame(downlink, FrameDataSize + DOWNLINK_OVERHEAD, &TxRemainBufSize);
+        ret = vu_transmitter_send_frame(downlink, FrameDataSize + DOWNLINK_OVERHEAD, &TxRemainBufSlot);
+
 
         /**如果传输成功，且通信机成功将消息加入发送缓冲区，发送指针后移 */
-        if ((ret == E_NO_ERR) && (TxRemainBufSize != 0xFF))
+        if ((ret == E_NO_ERR) && (TxRemainBufSlot != 0xFF))
         {
             RemainSize -= FrameDataSize;
             pdata += FrameDataSize;
 
             /**若发射机缓冲区已满，则等待5秒钟*/
-            if(TxRemainBufSize == 1)
+            if(TxRemainBufSlot == 1)
                 vTaskDelay(MS_WAIT_TRANS_FREE_BUFF);
         }
         else
@@ -191,7 +192,7 @@ int vu_isis_file_download(FIL *file, char *file_name)
 
 	memcpy( file_info->filename, file_name, strlen(file_name));
 
-	vu_send(GND_ROUTE_ADDR, OBC_ROUTE_ADDR, FILE_INFO, file_info, sizeof(file_info_down_t));
+	vu_isis_send(GND_ROUTE_ADDR, OBC_ROUTE_ADDR, FILE_INFO, file_info, sizeof(file_info_down_t));
 
     int ret;
     uint8_t Error = 0, TxRemainBufSize;
@@ -542,6 +543,74 @@ int vu_isis_router_downlink(route_packet_t *packet)
         return E_TRANSMIT_ERROR;
 }
 
+/**
+ *解理工通信机下行加协议接口
+ *
+ * @param dst 目的地址
+ * @param src 源地址
+ * @param type 消息类型
+ * @param pdata 待发送数据指针
+ * @param len 待发送数据长度
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int vu_jlg_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
+{
+    int ret;
+    uint8_t Error = 0, TxRemainBufByte = 0, FrameDataSize;
+    uint32_t RemainSize = len;
+
+    pdata = (uint8_t *)pdata;
+
+    route_frame_t *downlink = ObcMemMalloc(I2C_MTU);
+    if(downlink == NULL)
+        return E_MALLOC_FAIL;
+
+    downlink->dst = dst;
+    downlink->src = src;
+    downlink->typ = type;
+
+    do
+    {
+        FrameDataSize = (RemainSize < DOWNLINK_MTU) ? RemainSize : DOWNLINK_MTU;
+        memcpy(downlink->dat, pdata, FrameDataSize);
+
+//        *(uint32_t *)(&downlink->dat[FrameDataSize]) =
+//                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE+FrameDataSize);
+
+        ret = vu_send_frame(downlink, FrameDataSize + DOWNLINK_OVERHEAD, &TxRemainBufByte);
+
+
+        /**如果传输成功，且通信机成功将消息加入发送缓冲区，发送指针后移 */
+        if (ret == E_NO_ERR)
+        {
+            RemainSize -= FrameDataSize;
+            pdata += FrameDataSize;
+
+            /**若发射机缓冲区已满，则等待5秒钟*/
+            if(TxRemainBufByte < 512)
+                vTaskDelay(MS_WAIT_TRANS_FREE_BUFF);
+        }
+        else
+            Error++;
+
+        if (RemainSize != 0)
+            vTaskDelay(PACK_DOWN_INTERVAL);
+
+     /**若发送完成或者错误次数超过10次，则跳出循环 */
+    }while ((RemainSize > 0) && (Error < 10));
+
+    ObcMemFree(downlink);
+
+    if (RemainSize == 0)
+        return E_NO_ERR;
+    else
+    {   /**如果错误超过10次，则复位发射机*/
+        vu_software_reset();
+        return E_TRANSMIT_ERROR;
+    }
+}
+
+
 
 /**
  * 解理工通信机上行接收任务（测试）
@@ -587,7 +656,6 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
             }
             else
             {
-
                 hex_dump( frame->Data, frame->DateSize );
 //                for(uint32_t i=0; i<frame->DateSize; i++)
 //                    printf("0x%02x ", frame->Data[i]);

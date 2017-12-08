@@ -88,8 +88,14 @@ void ProtocolSendDownCmd( uint8_t dst, uint8_t src, uint8_t type, void *pdata, u
 
 #if USE_SERIAL_PORT_DOWNLINK_INTERFACE
     ProtocolSerialSend( dst, src, type, pdata, len );
-#else
-    vu_send( dst, src, type, pdata, len );
+#endif
+
+#if CONFIG_USE_ISIS_VU
+    vu_isis_send( dst, src, type, pdata, len );
+#endif
+
+#if CONFIG_USE_JLG_VU
+    vu_jlg_send( dst, src, type, pdata, len );
 #endif
 
 }
@@ -159,7 +165,6 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 	        vu_transmitter_set_idle_state(TurnOff);
 	        control_task.vu_idle_state = 0;
 	    }
-
 
 //		switch (Battery_Task())
 //		{
@@ -325,21 +330,24 @@ int Battery_Task(const EpsAdcValue_t *eps_hk)
 void vContrlStopDownload(void)
 {
     up_hk_down_cmd = 0;
+
     vTaskDelay(100);
-    down_cmd_enable = 0;
+
     down_cnt = 0;
+    down_cmd_enable = 0;
+    IsRealTelemetry = 1;
 }
 
 void down_save_task(void * pvParameters __attribute__((unused)))
 {
-    TickType_t xLastWakeTime = xTaskGetTickCount ();
-
     /*初始化主帧FIFO和辅帧FIFO*/
 	HK_fifoInit(&hk_main_fifo);
 	HK_fifoInit(&hk_append_fifo);
 
+	uint16_t hk_down_counter = 0, hk_save_counter = 0, beacon_counter = 0;
+
 	/*等待系统稳定*/
-	vTaskDelay(5000);
+	vTaskDelay(2000);
 
 	hk_store_init();
 
@@ -349,8 +357,12 @@ void down_save_task(void * pvParameters __attribute__((unused)))
 	/*下行时间间隔downtimeset毫秒， 一共下行10分钟，也就是600000毫秒*/
 	Stop_Down_Time = (10 * 60 * 1000)/downtimeset;
 
+	TickType_t xLastWakeTime = xTaskGetTickCount ();
+
 	while (1)
 	{
+	    vTaskDelayUntil( &xLastWakeTime, downtimeset / portTICK_RATE_MS );
+
 	    task_report_alive(DownSave);
 
 		//if ((up_hk_down_cmd == 1 || PassFlag == 1) && down_cnt <= 60) {
@@ -375,7 +387,6 @@ void down_save_task(void * pvParameters __attribute__((unused)))
 		/* 否则保存遥测 */
 		else
 		{
-
 			if (++down_cnt >= StorageIntervalCount)  //存储间隔15秒
 			{
 				down_cnt = 0;
@@ -386,7 +397,7 @@ void down_save_task(void * pvParameters __attribute__((unused)))
 			}
 		}
 
-		vTaskDelay((downtimeset / portTICK_RATE_MS));
+//		vTaskDelay( downtimeset / portTICK_RATE_MS );
 	}
 }
 
@@ -500,6 +511,15 @@ void hk_down_store_task(void)
 void hk_data_save_task(void)
 {
 	hk_collect();
+
+    ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
+            &hk_frame.main_frame, sizeof(HK_Main_t) );
+
+    vTaskDelay(10 / portTICK_RATE_MS);
+
+    ProtocolSendDownCmd( GND_ROUTE_ADDR, ADCS_ROUTE_ADDR, ADCS_TELEMETRY,
+            &hk_frame.append_frame, sizeof(HK_Append_t) );
+
 	hk_store_add();
 }
 
@@ -523,5 +543,3 @@ void adcs_pwr_task(void *pvParameters __attribute__((unused)))
 	}
 
 }
-
-

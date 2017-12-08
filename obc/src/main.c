@@ -45,14 +45,15 @@ int main(void)
     //创建分系统遥测采集任务
     xTaskCreate( hk_collect_task, "COLLECT", 512, NULL, 1, NULL );
 
-#if USE_SERIAL_PORT_DOWNLINK_INTERFACE
-#else
+#if CONFIG_USE_ISIS_VU
     //创建上行ISIS通信板解包任务
     xTaskCreate( vu_isis_uplink_task, "UPLINK", 512, NULL, 3, NULL );
 #endif
 
-//    //创建上行解理工通信板解包任务
-//    xTaskCreate( vu_jlg_uplink_task, "JLG", 512, NULL, 3, NULL );
+#if CONFIG_USE_JLG_VU
+    //创建上行解理工通信板解包任务
+    xTaskCreate( vu_jlg_uplink_task, "JLG", 512, NULL, 3, NULL );
+#endif
 
     //遥测下行和保存任务
     xTaskCreate( down_save_task, "DOWN", 512, NULL, 2, NULL);

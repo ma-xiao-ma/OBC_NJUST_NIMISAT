@@ -42,7 +42,7 @@ int vu_send_handler(struct command_context * context)
     if (sscanf(args, "%u %u %u", &frame_len, &num_of_frame, &interval_ms) != 3)
         return CMD_ERROR_SYNTAX;
 
-    if (frame_len < 4 || frame_len > ISIS_MTU)
+    if (frame_len < 8 || frame_len > ISIS_MTU)
         return CMD_ERROR_SYNTAX;
 
     uint8_t *frame = ObcMemMalloc(frame_len/*ISIS_MTU*/);
@@ -55,11 +55,12 @@ int vu_send_handler(struct command_context * context)
     uint16_t rest_of_buffer_byte;
 
     printf("VU Framelen %u byte, Send %u frame, Interval %u ms.\r\n", frame_len, num_of_frame, interval_ms);
-
     printf("...\n");
+
+    *(uint32_t *)frame = csp_htobe32((uint32_t)0x12345678);
     do {
 
-//        *(uint32_t *)frame = csp_htobe32(j);
+        *(uint32_t *)(frame + 4)= csp_htobe32(j);
 
         ret = vu_send_frame(frame, frame_len/*ISIS_MTU*/, &rest_of_buffer_byte);
 
