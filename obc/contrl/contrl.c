@@ -190,7 +190,7 @@ void hk_collect_task(void *pvParameters __attribute__((unused)))
     eps_start();
     hk_collect_task_init();
     /* 等待个分系统启动 */
-    vTaskDelay(5000);
+    vTaskDelay(2000);
 
     while (1)
     {
@@ -200,8 +200,9 @@ void hk_collect_task(void *pvParameters __attribute__((unused)))
 
         eps_hk_task();
 
+#if CONFIG_USE_ISIS_VU
         ttc_hk_task();
-
+#endif
         /* 若数传上电，则获取遥测值 */
         if (OUT_SW_DTB_5V_PIN())
             dtb_hk_task();
