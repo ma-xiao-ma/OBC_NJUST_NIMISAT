@@ -13,11 +13,11 @@
 
 typedef enum
 {
-    Collect = 1,
-    DownSave = 2,
-    Router = 4,
-    Server = 8,
-    Send = 16
+    Collect = 1<<0,
+    DownSave = 1<<1,
+    Router = 1<<2,
+    Server = 1<<3,
+    Send = 1<<4
 } monitor_bit;
 
 /**

@@ -15,6 +15,8 @@
 #include "obc_mem.h"
 #include "if_jlgvu.h"
 #include "hexdump.h"
+#include "bsp_ds1302.h"
+#include "ff.h"
 
 #include "if_downlink_vu.h"
 
@@ -220,7 +222,7 @@ int vu_isis_file_download(FIL *file, char *file_name)
 
         f_lseek( file, packet->PacketID * file_info->packet_size);
 
-        f_read( file, packet->ImageData, packet->PacketSize,  &byte_read);
+        f_read( file, packet->ImageData, (UINT)packet->PacketSize,  (UINT *)&byte_read);
 
         if( byte_read != packet->PacketSize)
         {
@@ -348,6 +350,7 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
     while(1)
     {
         vTaskDelay(534);
+
         /**获取接收机缓冲区帧计数*/
         if (vu_receiver_get_frame_num(&frame_num) != E_NO_ERR ||
                 vu_receiver_get_frame_num(&frame_num) != E_NO_ERR)
@@ -395,6 +398,9 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
 
         /* 送入路由队列 */
         route_queue_wirte((route_packet_t *)recv_frame, NULL);
+
+        /*开启连续发射*/
+        vu_transmitter_set_idle_state(RemainOn);
 
         /**通信机接收上行消息计数加1*/
         vu_rx_count++;
@@ -556,7 +562,9 @@ int vu_isis_router_downlink(route_packet_t *packet)
 int vu_jlg_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
 {
     int ret;
-    uint8_t Error = 0, TxRemainBufByte = 0, FrameDataSize;
+    uint8_t Error = 0, FrameDataSize;
+    uint16_t TxRemainBufByte = 0;
+
     uint32_t RemainSize = len;
 
     pdata = (uint8_t *)pdata;
@@ -577,7 +585,7 @@ int vu_jlg_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t l
 //        *(uint32_t *)(&downlink->dat[FrameDataSize]) =
 //                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE+FrameDataSize);
 
-        ret = vu_send_frame(downlink, FrameDataSize + DOWNLINK_OVERHEAD, &TxRemainBufByte);
+        ret = vu_send_frame(downlink, (uint8_t)(FrameDataSize + DOWNLINK_OVERHEAD), &TxRemainBufByte);
 
 
         /**如果传输成功，且通信机成功将消息加入发送缓冲区，发送指针后移 */
@@ -623,7 +631,7 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
 
     while(1)
     {
-        vTaskDelay(500);
+        vTaskDelay(517);
 
         /**获取接收机缓冲区帧计数*/
         if (vu_get_frame_num(&frame_num) != E_NO_ERR)

@@ -52,12 +52,13 @@ int vu_send_handler(struct command_context * context)
     for(int i=0; i<frame_len/*ISIS_MTU*/; i++)
         frame[i] = 0x55;
 
-    uint16_t rest_of_buffer_byte;
+    uint16_t rest_of_buffer_byte = 0;
 
     printf("VU Framelen %u byte, Send %u frame, Interval %u ms.\r\n", frame_len, num_of_frame, interval_ms);
     printf("...\n");
 
     *(uint32_t *)frame = csp_htobe32((uint32_t)0x12345678);
+
     do {
 
         *(uint32_t *)(frame + 4)= csp_htobe32(j);

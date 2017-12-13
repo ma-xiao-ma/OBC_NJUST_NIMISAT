@@ -1,5 +1,5 @@
 /*
- * if_adcs.c
+ * if_adcs.c 姿控分系统接口函数源代码文件
  *
  *  Created on: 2017年9月29日
  *      Author: Ma Wenli
@@ -21,6 +21,11 @@
 
 static xQueueHandle adcs_queue;
 
+/**
+ * 创建姿控分系统消息接收队列
+ *
+ * @return 返回E_NO_ERR（-1）表示创建正确
+ */
 int adcs_queue_init(void)
 {
     if(adcs_queue == NULL)
@@ -38,7 +43,7 @@ int adcs_queue_init(void)
  * @param packet 读出的路由数据包
  * @return 返回E_NO_ERR（-1）表示执行正确
  */
-int adcs_queue_read(route_packet_t ** packet, TickType_t timeout)
+static int adcs_queue_read(route_packet_t ** packet, TickType_t timeout)
 {
     if (adcs_queue == NULL)
         adcs_queue_init();
@@ -83,55 +88,6 @@ void adcs_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken)
 }
 
 /**
- * 组路由包送到发送处理队列进行处理，响应收到ADCS队列进行处理
- * @param type 消息类型（以前的命令字）
- * @param txbuf 发送内容指针
- * @param txlen 发送内容长度（字节）
- * @param rxbuf 接收缓冲区指针
- * @param rxlen 接收长度
- * @param timeout 读接收队列超时时间
- * @return E_NO_ERR为正常
- */
-int adcs_transaction(uint8_t type, void * txbuf, size_t txlen, void * rxbuf, size_t rxlen, uint16_t timeout)
-{
-    route_packet_t * packet = (route_packet_t *)ObcMemMalloc(sizeof(route_packet_t) + txlen);
-
-    if (packet == NULL)
-        return E_NO_BUFFER;
-
-    if((txlen > I2C_MTU - ROUTE_HEAD_SIZE) || (rxlen > I2C_MTU - ROUTE_HEAD_SIZE))
-        return E_INVALID_BUF_SIZE;
-
-    if(txlen)
-        memcpy(&packet->dat[0], txbuf, txlen);
-
-    packet->len = txlen;
-    packet->dst = ADCS_ROUTE_ADDR;
-    packet->src = OBC_ROUTE_ADDR;
-    packet->typ = type;
-
-    send_processing_queue_wirte(packet, NULL);
-
-    packet = NULL;
-
-    if(rxlen == 0)
-        return E_NO_ERR;
-
-    if(xQueueReceive(adcs_queue, &packet, timeout) != pdTRUE)
-        return E_TIMEOUT;
-
-    if(packet == NULL)
-    {
-        printf("ERROR: ADCS queue Receive with NULL packet.\r\n");
-        return E_TIMEOUT;
-    }
-
-    memcpy(rxbuf, &packet->dat[0], rxlen);
-
-    ObcMemFree(packet);
-    return E_NO_ERR;
-}
-/**
  * 直接调用I2C接口函数进行发送，响应收到I2C RX queue
  *
  * @param type 消息类型（以前的命令字）
@@ -142,7 +98,7 @@ int adcs_transaction(uint8_t type, void * txbuf, size_t txlen, void * rxbuf, siz
  * @param timeout 读接收队列超时时间
  * @return E_NO_ERR为正常
  */
-int adcs_transaction_direct(uint8_t type, void * txbuf, size_t txlen, void * rxbuf, size_t rxlen, uint16_t timeout)
+int adcs_transaction(uint8_t type, void * txbuf, size_t txlen, void * rxbuf, size_t rxlen, uint16_t timeout)
 {
 
     i2c_frame_t * frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
@@ -181,6 +137,7 @@ int adcs_transaction_direct(uint8_t type, void * txbuf, size_t txlen, void * rxb
     if (packet->dst != OBC_ROUTE_ADDR || packet->src != ADCS_ROUTE_ADDR ||
             packet->typ != type || packet->len != rxlen)
     {
+        ObcMemFree(packet);
         return E_INVALID_PARAM;
     }
 
@@ -191,10 +148,17 @@ int adcs_transaction_direct(uint8_t type, void * txbuf, size_t txlen, void * rxb
     return E_NO_ERR;
 }
 
+/**
+ * 获取姿控分系统遥测值
+ *
+ * @param hk 接收指针
+ * @param timeout 超时值设置
+ * @return E_NO_ERR（-1）为正常
+ */
 int adcs_get_hk(void *hk, uint16_t timeout)
 {
 
-    return adcs_transaction_direct(INS_OBC_GET_ADCS_HK, NULL, 0, hk, sizeof(adcs805_hk_t), timeout);
+    return adcs_transaction(INS_OBC_GET_ADCS_HK, NULL, 0, hk, sizeof(adcs805_hk_t), timeout);
 }
 
 /**
@@ -208,7 +172,7 @@ int adcs_send_mode(uint8_t eps_mode)
 
     uint8_t type = (eps_mode == SLEEP_MODE)?INS_LowPower_Mode_ON:INS_LowPower_Mode_OFF;
 
-    return adcs_transaction_direct(type, NULL, 0, NULL, 0, 0);
+    return adcs_transaction(type, NULL, 0, NULL, 0, 0);
 }
 
 /**
@@ -219,5 +183,5 @@ int adcs_send_mode(uint8_t eps_mode)
  */
 int adcstimesync(uint32_t secs)
 {
-    return adcs_transaction_direct(INS_ADCS_TIME_IN, &secs, sizeof(uint32_t), NULL, 0, 0);
+    return adcs_transaction(INS_ADCS_TIME_IN, &secs, sizeof(uint32_t), NULL, 0, 0);
 }

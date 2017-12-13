@@ -35,7 +35,7 @@
 #define ROUTE_TASK_BIT      ( 1 << 2 )
 #define SERVER_TASK_BIT     ( 1 << 3 )
 #define SEND_TASK_BIT       ( 1 << 4 )
-#define MONITOR_ALL_BIT     ( COLLECT_TASK_BIT | DOWN_SAVE_TASK_BIT | ROUTE_TASK_BIT | SERVER_TASK_BIT | SEND_TASK_BIT )
+#define MONITOR_ALL_BIT     ( EventBits_t )( COLLECT_TASK_BIT | DOWN_SAVE_TASK_BIT | ROUTE_TASK_BIT | SERVER_TASK_BIT | SEND_TASK_BIT )
 
 
 EventGroupHandle_t task_status;
@@ -75,7 +75,7 @@ void supervisor_task(void *para)
 
     while(1)
     {
-        EventValue = xEventGroupWaitBits( task_status, (EventBits_t)MONITOR_ALL_BIT, pdTRUE, pdTRUE, monitor_window );
+        EventValue = xEventGroupWaitBits( task_status, MONITOR_ALL_BIT, pdTRUE, pdTRUE, monitor_window );
 
         IWDG_Feed();
 
@@ -120,6 +120,7 @@ void task_report_alive(monitor_bit monitor_task_bit)
     xEventGroupSetBits( task_status,  (EventBits_t)monitor_task_bit);
 }
 
+/*********************************方案二****************************************/
 
 typedef struct sv_element_s {
     char * name;                /**< Task name */
@@ -159,7 +160,7 @@ void sv_task(void * param) {
     while (1) {
 
         /* MCU硬件看门狗喂狗 */
-        IWDG_Feed();;
+        IWDG_Feed();
 
         /* Check timeouts */
         if (xSemaphoreTake(sv_sem, 1 * configTICK_RATE_HZ) == pdPASS) {

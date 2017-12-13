@@ -1003,23 +1003,18 @@ int i2c_master_transaction(int handle, uint8_t addr, void * txbuf, size_t txlen,
 /*中断回调函数，只能在中断中调用*/
 void i2c_rx_callback(i2c_frame_t * frame, void * pxTaskWoken)
 {
-
-    static route_packet_t *packet;
-
     /* Validate input */
     if (frame == NULL)
         return;
 
-    if ((frame->len < 3) || (frame->len > I2C_MTU)) {
+    if ((frame->len < ROUTE_HEAD_SIZE) || (frame->len > I2C_MTU)) {
         ObcMemFree(frame);
         return;
     }
 
-    frame->len -= 3;
+    frame->len -= ROUTE_HEAD_SIZE;
 
-    packet = (route_packet_t *) frame;
-
-    route_queue_wirte(packet, pxTaskWoken);
+    route_queue_wirte( (route_packet_t *)frame, pxTaskWoken );
 }
 
 

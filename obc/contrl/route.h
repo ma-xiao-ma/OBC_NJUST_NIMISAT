@@ -32,6 +32,7 @@ typedef struct __attribute__((packed))
     uint8_t    dat[0];      //数据
 }route_packet_t;
 
+
 typedef struct __attribute__((packed))
 {
     uint8_t    dst;         //目的地址
@@ -41,62 +42,68 @@ typedef struct __attribute__((packed))
 }route_frame_t;
 
 /**
+ * 路由器初始化函数，设置路由地址，创建相关队列
  *
- * @param queue_len_router
+ * @param address 路由地址设置值
+ * @param router_queue_len 路由队列胜读
  * @return
  */
-int route_queue_init(uint32_t queue_len_router);
-
-int server_queue_init(uint32_t queue_len_server);
-
-int send_processing_queue_init(uint32_t queue_len_server);
-
 int router_init(uint8_t address, uint32_t router_queue_len);
 
 /**
+ * 路由队列写入函数，接口链路层和网络层的媒介
  *
- * @param packet
- * @return
+ * @param packet 路由数据包指针
+ * @param pxTaskWoken 在任务中调用时次值应置为NULL空指针，在中断中应指向有效地址
  */
-int route_queue_read(route_packet_t ** packet);
-
 void route_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken);
 
-int server_queue_read(route_packet_t ** packet);
-
-void server_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken);
-
-int send_processing_queue_read(route_packet_t ** packet);
-
-void send_processing_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken);
-
-
 /**
+ * 获取路由地址设置值
  *
- * @return
+ * @return 路由地址
  */
 uint8_t router_get_my_address(void);
 
+/**
+ * 路由地址设置函数
+ *
+ * @param addr 路由地址设置值
+ */
 void router_set_address(uint8_t addr);
 
-
 /**
+ * 路由任务创建
  *
- * @param task_stack_size
- * @param priority
- * @return
+ * @param task_stack_size 任务堆栈大小
+ * @param priority 任务优先级
+ * @return 任务创建成功返回E_NO_ERR（-1）
  */
-int router_start_task(uint32_t task_stack_size, uint32_t priority);
-
-int server_start_task(uint32_t task_stack_size, uint32_t priority);
-
-int send_processing_start_task(uint32_t task_stack_size, uint32_t priority);
-
+int router_start_task(uint16_t task_stack_size, uint32_t priority);
 
 /**
+ * 接收处理任务创建
  *
- * @param queue
- * @param pxTaskWoken
+ * @param task_stack_size 任务堆栈大小
+ * @param priority 任务优先级
+ * @return 任务创建成功返回E_NO_ERR（-1）
+ */
+int server_start_task(uint16_t task_stack_size, uint32_t priority);
+
+/**
+ * 路由器发送处理任务创建
+ *
+ * @param task_stack_size 任务堆栈大小
+ * @param priority 任务优先级
+ * @return 返回E_NO_ERR（-1）表示创建成功
+ */
+int send_processing_start_task(uint16_t task_stack_size, uint32_t priority);
+
+/**
+ * 路由器队列清理函数，清除已满的路由器队列元素，释放内存
+ *
+ * @param queue 队列句柄
+ * @param pxTaskWoken 在任务中调用此项为0，在中断中调用时必须为一个有效指针
  */
 void route_queue_clean(QueueHandle_t queue, portBASE_TYPE *pxTaskWoken);
 

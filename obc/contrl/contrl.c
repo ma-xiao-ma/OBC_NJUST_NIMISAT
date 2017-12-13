@@ -148,6 +148,7 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 	vTaskDelayUntil(&xLastWakeTime, (10000 / portTICK_RATE_MS));
 
 	vu_isis_hk_t *vu_tm = (vu_isis_hk_t *)ObcMemMalloc(sizeof(vu_isis_hk_t));
+
 	if (vu_tm == NULL)
 	    while(1);
 
@@ -160,7 +161,7 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 	    else
 	        control_task.vu_idle_state = 0;
 
-	    if (control_task.vu_idle_state++ >= JUDGMENT(VU_IDLE_ON))
+	    if (control_task.vu_idle_state > JUDGMENT(VU_IDLE_ON))
 	    {
 	        vu_transmitter_set_idle_state(TurnOff);
 	        control_task.vu_idle_state = 0;
@@ -513,13 +514,16 @@ void hk_data_save_task(void)
 {
 	hk_collect();
 
-    ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
-            &hk_frame.main_frame, sizeof(HK_Main_t) );
-
-    vTaskDelay(10 / portTICK_RATE_MS);
-
-    ProtocolSendDownCmd( GND_ROUTE_ADDR, ADCS_ROUTE_ADDR, ADCS_TELEMETRY,
-            &hk_frame.append_frame, sizeof(HK_Append_t) );
+    /**
+     * 遥测值信标
+     */
+//    ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
+//            &hk_frame.main_frame, sizeof(HK_Main_t) );
+//
+//    vTaskDelay(10 / portTICK_RATE_MS);
+//
+//    ProtocolSendDownCmd( GND_ROUTE_ADDR, ADCS_ROUTE_ADDR, ADCS_TELEMETRY,
+//            &hk_frame.append_frame, sizeof(HK_Append_t) );
 
 	hk_store_add();
 }

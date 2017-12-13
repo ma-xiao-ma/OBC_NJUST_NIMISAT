@@ -5,20 +5,26 @@
  *      Author: Ma Wenli
  */
 
-#include <if_trxvu.h>
 #include "FreeRTOS.h"
 #include "route.h"
-#include "error.h"
-#include "bsp_pca9665.h"
-#include "if_adcs.h"
+
 #include "driver_debug.h"
+#include "bsp_pca9665.h"
 #include "cube_com.h"
 #include "obc_mem.h"
+
 #include "if_downlink_vu.h"
+#include "if_trxvu.h"
+#include "if_adcs.h"
+#include "error.h"
 
 #include "router_io.h"
 
-
+/**
+ * 在路由器初始化函数中调用，用于初始化用户相关定义
+ *
+ * @return 返回E_NO_ERR（-1）表示函数执行成功
+ */
 int route_user_init(void)
 {
     int ret;
@@ -26,8 +32,8 @@ int route_user_init(void)
     /**
      * 用户自定义的路由初始化函数
      */
-
     ret = adcs_queue_init();
+
     if(ret != E_NO_ERR)
         return ret;
 
@@ -61,7 +67,14 @@ uint8_t route_find_mac(uint8_t route_addr)
     }
 }
 
-int route_i2c0_tx(route_packet_t * packet, uint32_t timeout)
+/**
+ * 内部调用，将分组信息转换成I2C帧，从I2C0发出
+ *
+ * @param packet 待发送分组
+ * @param timeout 超时时间
+ * @return 返回E_NO_ERR（-1）表示函数执行成功
+ */
+static int route_i2c0_tx(route_packet_t * packet, uint32_t timeout)
 {
     /*把分组信息转换成I2C帧信息*/
     i2c_frame_t * frame = (i2c_frame_t *) packet;
@@ -90,7 +103,14 @@ int route_i2c0_tx(route_packet_t * packet, uint32_t timeout)
     return E_NO_ERR;
 }
 
-int route_i2c1_tx(route_packet_t * packet, uint32_t timeout)
+/**
+ * 内部调用，将分组信息转换成I2C帧，从I2C1发出
+ *
+ * @param packet 待发送分组
+ * @param timeout 超时时间
+ * @return 返回E_NO_ERR（-1）表示函数执行成功
+ */
+static int route_i2c1_tx(route_packet_t * packet, uint32_t timeout)
 {
     /*把分组信息转换成I2C帧信息*/
     i2c_frame_t * frame = (i2c_frame_t *) packet;
@@ -119,7 +139,12 @@ int route_i2c1_tx(route_packet_t * packet, uint32_t timeout)
     return E_NO_ERR;
 }
 
-
+/**
+ * 发送处理任务调用， 将待发送的分组信息通过相应接口发送出去
+ *
+ * @param packet 带发送分组
+ * @return 返回E_NO_ERR（-1）表示函数执行成功
+ */
 int router_send_to_other_node(route_packet_t *packet)
 {
 
@@ -146,7 +171,12 @@ int router_send_to_other_node(route_packet_t *packet)
     return E_NO_ERR;
 }
 
-
+/**
+ * 路由器接收处理任务中调用，用于处理收到的送给本节点的分组
+ *
+ * @param packet 待处理分组
+ * @return 返回E_NO_ERR（-1）表示函数执行成功
+ */
 int router_unpacket(route_packet_t *packet)
 {
 
@@ -156,6 +186,7 @@ int router_unpacket(route_packet_t *packet)
         CubeUnPacket(packet);
         ObcMemFree(packet);
     }
+
     /* 处理姿控给星务的信息 */
     else if (packet->src == ADCS_ROUTE_ADDR)
     {
