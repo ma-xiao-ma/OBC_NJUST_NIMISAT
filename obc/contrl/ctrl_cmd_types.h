@@ -12,9 +12,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "camera_805.h"
+#include "contrl.h"
 
 
 enum BOOL {INVALID=0,VALID=1};
+
+
 
 
 typedef struct __attribute__((packed)) {
@@ -167,5 +170,13 @@ typedef struct __attribute__((packed)) {
 	uint32_t	delay;
 }adcs_hkcmd_t;
 
+typedef union __attribute__((packed))
+{
+   uint32_t         time_sysn_para;
+   ctrl_delayhk_t   earlier_hk;
+   delay_task_t     delay_task;
+   char             command[0];
+
+} unpacket_t;
 
 #endif /* CONTRL_CTRL_TYPES_H_ */

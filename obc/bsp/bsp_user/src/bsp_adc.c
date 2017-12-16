@@ -802,7 +802,7 @@ int cmd_eps_read(struct command_context *ctx __attribute__((unused)))
 	else
 		temp = "off";
 	printf("*       %s         %s        %03d mA        *\r\n",
-	        "BLL4", temp, EpsHouseKeeping.Out_BranchC[7]);
+	        "VU_B"/*"BLL4"*/, temp, EpsHouseKeeping.Out_BranchC[7]);
 	if (SW_EPS_S0_PIN())
 		temp = "on ";
 	else
@@ -826,13 +826,13 @@ int cmd_eps_read(struct command_context *ctx __attribute__((unused)))
 	else
 		temp = "off";
 	printf("*       %s         %s        %03d mA        *\r\n",
-	        "BLS4", temp, EpsHouseKeeping.Out_BranchC[3]);
+	        "HEAT"/*"BLS4"*/, temp, EpsHouseKeeping.Out_BranchC[3]);
 	if (SW_EPS_S2_PIN())
 		temp = "on ";
 	else
 		temp = "off";
-	printf("*       %s         %s        %03d mA        *\r\n",
-	        "BLS5", temp, EpsHouseKeeping.Out_BranchC[4]);
+	printf("*       %s          %s        %03d mA        *\r\n",
+	        "CAM"/*"BLS5"*/, temp, EpsHouseKeeping.Out_BranchC[4]);
 	if (SW_EPS_S3_PIN())
 			temp = "on ";
 		else

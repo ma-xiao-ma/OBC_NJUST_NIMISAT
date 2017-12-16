@@ -13,7 +13,7 @@
 #define JLG_VU_I2C_ADDR             0x18
 
 /*超时时间*/
-#define JLG_VU_TIMEOUT              1000
+#define JLG_VU_TIMEOUT              400
 /*最大传输单元*/
 #define JLG_VU_TX_MTU               235
 #define JLG_VU_RX_MTU               200

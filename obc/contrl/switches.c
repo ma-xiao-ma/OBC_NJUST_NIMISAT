@@ -33,10 +33,13 @@
 
 
 
-int get_switch_status(uint8_t * pstatus) {
+int get_switch_status(uint8_t * pstatus)
+{
 	int result = 0;
 
-	*pstatus = 0;
+	memset(pstatus, 0, sizeof(obc_switch_t));
+
+	/*W0B0--W0B4*/
 	if(antenna_status == 2)
 	{
 		pstatus[0] |= ARM;
@@ -51,7 +54,7 @@ int get_switch_status(uint8_t * pstatus) {
 	    result = get_antenna_status(&pstatus[0]);   //ants[0-4] panel[5-6]
 	}
 
-	pstatus[0] = pstatus[0] & ANTSMSK;
+
 	if(IN_SW_PAL_STATUS_1_PIN())
 		pstatus[0] |= PANELA;
 	else
@@ -62,9 +65,15 @@ int get_switch_status(uint8_t * pstatus) {
 	else
 		pstatus[0] &= ~PANELB;
 
-	pstatus[1] = 0;
+	if (IN_SW_SAIL_STATUS_PIN())
+	    pstatus[0] |= EXPANDABLE_SAIL;
+	else
+	    pstatus[0] &= ~EXPANDABLE_SAIL;
 
-	/*姿控电源开关*/
+
+	/*W1*/
+
+	/*姿控供电开关*/
 	if(OUT_ADCS_7V_PIN())
 		pstatus[1] |= ADCS_EN;
 	else
@@ -112,6 +121,19 @@ int get_switch_status(uint8_t * pstatus) {
     else
         pstatus[1] &= ~CAMERA_HEAT2_EN;
 
+    /*W2*/
+
+    /*备份通信机供电开关*/
+    if(SW_USB_EN_PIN())
+        pstatus[2] |= JLG_VU_BUS_EN;
+    else
+        pstatus[2] &= ~JLG_VU_BUS_EN;
+
+    /*电池加热开关*/
+    if(SW_EPS_S1_PIN())
+        pstatus[2] |= BATTERY_HEAT_EN;
+    else
+        pstatus[2] &= ~BATTERY_HEAT_EN;
 
 	return result;
 }
@@ -272,6 +294,42 @@ int disable_panel(uint32_t delay, uint32_t data __attribute__((unused)))
 
 	return result;
 }
+
+int enable_unfold_panel(uint32_t delay,uint16_t time)
+{
+    int result = 0;
+
+    if(delay > 0) {
+        vTaskDelay(delay);
+    }
+
+    EpsOutSwitch(OUT_7_4V_2, ENABLE);
+    result = SW_7_4V_2_PIN();
+
+    vTaskDelay(time);
+
+    EpsOutSwitch(OUT_7_4V_2, DISABLE);
+    EpsOutSwitch(OUT_7_4V_2, DISABLE);
+
+    return result;
+}
+
+
+int disable_unfold_panel(uint32_t delay)
+{
+    int result = 0;
+
+    if(delay > 0) {
+        vTaskDelay(delay);
+    }
+
+    EpsOutSwitch(OUT_7_4V_2, DISABLE);
+    result = !SW_7_4V_2_PIN();
+
+    return result;
+}
+
+
 
 int obc_closeall(uint32_t delay, uint32_t data __attribute__((unused)))
 {

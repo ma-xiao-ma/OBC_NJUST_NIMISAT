@@ -216,7 +216,7 @@ uint8_t EpsOutSwitch(uint8_t ch, uint8_t status) {
 			else
 				res = EPS_ERROR;
 		} else {
-			res = EPS_UNDO;
+			res = EPS_OK;
 		}
 		break;
 

@@ -18,6 +18,12 @@
 extern uint8_t mode;
 extern uint8_t IsRealTelemetry;
 
+typedef struct __attribute__((packed))
+{
+    uint32_t execution_utc;
+    uint8_t typ;
+    uint8_t dat[0];
+} delay_task_t;
 
 void ControlTask(void * pvParameters);
 void SendDownCmd(void *pData, uint32_t Length);
@@ -40,6 +46,14 @@ void vContrlStopDownload(void);
 void hk_data_save_task(void);
 void hk_down_proc_task(void);
 void hk_down_store_task(void);
+
+/**
+ * 延时处理任务创建
+ *
+ * @param para 延时任务参数
+ * @return
+ */
+int Delay_Task_Mon_Start(void *para);
 
 
 void adcs_pwr_task(void *pvParameters __attribute__((unused)));

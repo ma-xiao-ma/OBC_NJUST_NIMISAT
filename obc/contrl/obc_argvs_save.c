@@ -24,7 +24,8 @@ extern uint32_t hk_store_cnt;
 
 obc_save_t obc_save = {0};
 
-uint8_t obc_argvs_store(void) {
+uint8_t obc_argvs_store(void)
+{
 	uint8_t res = 1;
 
 //	NOR_ReadBuffer(0, (uint8_t*)&obc_save, sizeof(obc_save));
@@ -32,16 +33,18 @@ uint8_t obc_argvs_store(void) {
 //	obc_save.antenna_status = antenna_status;
 //	res = flash_program(0, (uint8_t*)&obc_save, sizeof(obc_save), 1);
 
-	res = bsp_ReadCpuFlash(OBC_STORE_ADDR, (uint8_t*)&obc_save, sizeof(obc_save));
+//	res = bsp_ReadCpuFlash(OBC_STORE_ADDR, (uint8_t*)&obc_save, sizeof(obc_save));
+
 	obc_save.obc_reset_time = clock_get_time_nopara();
 	obc_save.antenna_status = antenna_status;
 	obc_save.hk_down_cnt = hk_down_cnt;
 	obc_save.hk_store_cnt = hk_store_cnt;
     for (int i = 0; i < 5; i++)
     {
-        if (obc_save.delay_task_recover[i].execution_time != 0xFFFFFFFF &&
-                obc_save.delay_task_recover[i].execution_time > clock_get_time_nopara())
-            obc_save.delay_task_recover[i].execution_time = 0xFFFFFFFF;
+        delay_task_t *task_para = (delay_task_t *)obc_save.delay_task_recover[i].task_para;
+
+        if (clock_get_time_nopara() > task_para->execution_utc && task_para->execution_utc != 0)
+            task_para->execution_utc = 0;
     }
 
 	res = bsp_WriteCpuFlash(OBC_STORE_ADDR, (uint8_t*)&obc_save, sizeof(obc_save));
@@ -102,12 +105,17 @@ uint8_t obc_argvs_recover(void) {
             obc_save.hk_store_cnt = 0;
         }
 	}
+	/* 延时任务恢复 */
 	for (int i = 0; i < 5; i++)
 	{
-	    if (obc_save.delay_task_recover[i].execution_time != 0xFFFFFFFF &&
-	            obc_save.delay_task_recover[i].execution_time < clock_get_time_nopara())
-	        xTaskCreate(obc_save.delay_task_recover[i].task_function, obc_save.delay_task_recover[i].task_name,
-	                256, &obc_save.delay_task_recover[i].execution_time, 4, &obc_save.delay_task_recover[i].task_handle);
+	    delay_task_t *task_para = (delay_task_t *)obc_save.delay_task_recover[i].task_para;
+
+	    if (clock_get_time_nopara() < task_para->execution_utc &&
+	            task_para->execution_utc != 0xFFFFFFFF && task_para->execution_utc != 0)
+	    {
+	        xTaskCreate(obc_save.delay_task_recover[i].task_function,
+	                obc_save.delay_task_recover[i].task_name, 256, task_para, 4, NULL);
+	    }
 	}
 
 	obc_boot_count = obc_save.obc_boot_count;

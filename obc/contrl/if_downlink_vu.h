@@ -19,7 +19,7 @@
 
 #define IMAGE_DOWNLINK_OVERHEAD (DOWNLINK_OVERHEAD + IMAGE_PACK_HEAD_SIZE)
 
-#define MAX_UPLINK_CONTENT_SIZE  64
+#define MAX_UPLINK_CONTENT_SIZE  104
 /*obc给trxvu数据包的时间间隔*/
 #define PACK_DOWN_INTERVAL (0 / portTICK_PERIOD_MS)
 
@@ -37,6 +37,25 @@ typedef struct
 } downlink_request;
 
 /**
+ * 通用路由协议下行数据接口
+ *
+ * @param dst 目的地址
+ * @param src 源地址
+ * @param type 消息类型
+ * @param pdata 待发送数据指针
+ * @param len 待发送数据长度
+ */
+int ProtocolSendDownCmd( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len );
+
+/**
+ * obc地面指令响应函数
+ *
+ * @param type 响应指令类型
+ * @param result 指令执行结果
+ */
+void obc_cmd_ack(uint8_t type, uint8_t result);
+
+/**
  * ISIS通信机下行接口函数，由OBC本地调用
  *
  * @param type 下行消息类型
@@ -44,7 +63,7 @@ typedef struct
  * @param len 下行数据字节数
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len);
+int vu_obc_downlink(uint8_t type, void *pdata, uint32_t len);
 
 /**
  * 通过vu无线接口发送数据
@@ -76,7 +95,7 @@ int vu_jlg_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t l
  * @param packet 送到路由器的待下行的数据包
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_isis_router_downlink(route_packet_t *packet);
+int vu_router_downlink(route_packet_t *packet);
 
 /**
  * 整个文件下行接口函数

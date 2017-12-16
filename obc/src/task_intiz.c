@@ -103,7 +103,6 @@ void task_initz(void)
 	/*house-keeping store to SD card*/
 	hk_list_init(&hk_list);
 	hk_list_recover();
-
 //	vTelemetryFileManage(&hk_list);  /* 此函数会导致文件系统崩溃， 需查原因 */
 
 #if USE_ROUTE_PROTOCOL
@@ -111,9 +110,9 @@ void task_initz(void)
     router_init(1, 5);
 
     /*创建服务器任务*/
-    server_start_task(128, 2);
+    server_start_task(512, 2);
     /*创建发送处理任务*/
-    send_processing_start_task(128, 2);
+    send_processing_start_task(256, 2);
     /*创建路由任务*/
     router_start_task(256, 1);
 

@@ -34,9 +34,12 @@ static int ImagStoreInFlash(void);
 static int ImagStoreInSD(void);
 
 /*相机数据传输信息*/
-static CamTrans_t Cam __attribute__((section(".bss.hk")));
+static CamTrans_t Cam __attribute__((section(".bss.hk"), aligned(4)));
+
 /*当前图像信息*/
-static ImageInfo_t CurrentImage __attribute__((section(".bss.hk")));
+static ImageInfo_t CurrentImage __attribute__((section(".bss.hk"), aligned(4)));
+
+
 /*图像和flash扇区对应表*/ /*每4个flash sector为一个图像的存储块 大小为 4*32768*2 byte(4*32768 halfword)*/
 static cam_flash image_store_falsh[FLASH_IMG_NUM] __attribute__((section(".data.hk")))=
         {
@@ -45,14 +48,14 @@ static cam_flash image_store_falsh[FLASH_IMG_NUM] __attribute__((section(".data.
             {48, 0}, {52, 0}, {56, 0}, {60, 0}, {64, 0}
         };
 
-//static FIL FileHandle;      //文件句柄
-//static UINT nByteWritten;   //f_write()函数写入检测值
-//static UINT nByteRead;      //f_read()函数读取检测值
-//static char Path[50] = {0}; //文件路径字符串数组
-
-/* 下行图片创建任务相关参数 */
-//static CamDownloadObj_t tPara;
-//static char pname[] = "cam0";
+/**
+ * 测试缓冲区4字节对齐
+ */
+void aligned_addr_test(void)
+{
+    printf("Picture data address: 0x%08x\r\n", &Cam.ReceiveBuffer[6]);
+    printf("Picture Info address: 0x%08x\r\n", &CurrentImage);
+}
 
 
 #define CamerarReceiveBufferSize  65535   //64 *1024 -1
@@ -996,7 +999,7 @@ static int ImagStoreInSD(void)
  */
 int cam_sram_img_info_down(void)
 {
-    return vu_isis_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, &CurrentImage, sizeof(ImageInfo_t));
+    return ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, &CurrentImage, sizeof(ImageInfo_t));
 }
 
 /**
@@ -1044,7 +1047,7 @@ int cam_sram_img_packet_down(uint16_t packet_id)
             CurrentImage.LastPacketSize : IMAGE_PACK_MAX_SIZE;
 
     memcpy(img_packet->ImageData, &Cam.ReceiveBuffer[6 + packet_id*IMAGE_PACK_MAX_SIZE], img_packet->PacketSize);
-    int ret = vu_isis_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, &img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+    int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, &img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
     ObcMemFree(img_packet);
     return ret;
@@ -1074,7 +1077,7 @@ int cam_sd_img_info_down(uint32_t id)
     }
 
     /* 调用传输层接口函数下行  */
-    int ret = vu_isis_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
+    int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
 
     ObcMemFree(img_info);
     return ret;
@@ -1162,7 +1165,7 @@ int cam_sd_img_packet_down(uint32_t id, uint16_t packet)
     }
 
     /* 调用传输层接口函数下行 */
-    int ret = vu_isis_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+    int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
     ObcMemFree(img_info);
     ObcMemFree(img_packet);
@@ -1192,7 +1195,7 @@ int cam_flash_img_info_down(uint32_t id)
             sizeof(ImageInfo_t));
 
     /* 调用传输层接口函数下行，创建下行图像任务  */
-    int ret = vu_isis_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
+    int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
 
     ObcMemFree(img_info);
     return ret;
@@ -1240,7 +1243,7 @@ int cam_flash_img_packet_down(uint32_t id, uint16_t packet)
             + packet * IMAGE_PACK_MAX_SIZE, img_packet->PacketSize);
 
     /* 调用传输层接口函数下行 */
-    int ret = vu_isis_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+    int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
     ObcMemFree(img_info);
     ObcMemFree(img_packet);
@@ -1299,7 +1302,7 @@ int cam_newest_img_info_down(void)
     }
     else
     {
-        ret = vu_isis_send(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, newest_img, sizeof(ImageInfo_t));
+        ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, newest_img, sizeof(ImageInfo_t));
 
         if (ret != E_NO_ERR)
         {

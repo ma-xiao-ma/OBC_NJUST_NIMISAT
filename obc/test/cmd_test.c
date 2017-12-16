@@ -145,33 +145,13 @@ int ts_cam(struct command_context * context __attribute__((unused))){
     return CMD_ERROR_NONE;
 }
 
-//int Camera_Test (struct command_context * context __attribute__((unused)))
-//{
-//    ImageQuality MyQuality = highQuality;
-//    ImageResolution MyResolution = highResolution;
-////    Camera_Synchronize();
-////    Camera_Set_Image_Quality(lowQuality);
-////    Camera_Set_Image_Resolution(highResolution);
-////    Camera_Imaging(0);
-////    Camera_Image_Info_Read(0);
-////    uint32_t DataRemaining = 0;
-////    DataRemaining = ImageSize;
-////    for (int i=0; i<HowManyPack; i++, DataRemaining-=506)
-////    {
-////        if(DataRemaining > 506)
-////        {
-////            Camera_Get_Image_Packet(i, 506);
-////            Camera_Image_Packet_Store(0, i, 506);
-////        }
-////        else
-////        {
-////            Camera_Get_Image_Packet(i, DataRemaining);
-////            Camera_Image_Packet_Store(0, i, DataRemaining);
-////        }
-////    }
-//    Camera_JPG_Store(0, MyQuality, MyResolution);
-//    return 0;
-//}
+int Camera_Aligned_Test (struct command_context * context __attribute__((unused)))
+{
+    extern void aligned_addr_test(void);
+
+    aligned_addr_test();
+    return 0;
+}
 
 int dtb_tc(struct command_context *ctx )
 {
@@ -298,15 +278,22 @@ int CubeUnPacket_test(struct command_context *ctx)
     if(sscanf(args, "%x", &cmd_type) != 1)
         return CMD_ERROR_SYNTAX;
 
-    route_packet_t *packet = (route_packet_t *)ObcMemMalloc(sizeof(route_packet_t)+10);
+    route_packet_t *packet = (route_packet_t *)ObcMemMalloc(sizeof(route_packet_t) + 50);
 
     packet->len = 10;
     packet->dst = router_get_my_address();
     packet->src = GND_ROUTE_ADDR;
     packet->typ = cmd_type;
 
-    for(int i=0; i<10; i++)
-        packet->dat[i] = 0;
+    if (cmd_type == 0x0D) /* RSH命令 */
+    {
+        strcpy(packet->dat, "help");
+    }
+    else
+    {
+        for(int i=0; i<10; i++)
+            packet->dat[i] = 0;
+    }
 
     route_queue_wirte(packet, NULL);
 
@@ -332,6 +319,32 @@ int cam_related_test(struct command_context *ctx __attribute__((unused)))
     ((cam_ctl_t *)test)->tran = TTL;
     ((cam_ctl_t *)test)->mode = Backup;
     ((cam_ctl_t *)test)->expo = AutoExpoOn;
+
+    return CMD_ERROR_NONE;
+}
+
+int cmd_delay_task_test(struct command_context *ctx)
+{
+    uint8_t cmd_type;
+
+    char * args = command_args(ctx);
+    if(sscanf(args, "%x", &cmd_type) != 1)
+        return CMD_ERROR_SYNTAX;
+
+    delay_task_t * task_para = (delay_task_t *)ObcMemMalloc(60);
+
+    memset(task_para, 0, 60);
+
+    task_para->execution_utc = clock_get_time_nopara() + 120;
+
+    task_para->typ = cmd_type;
+
+    if (Delay_Task_Mon_Start(task_para) != E_NO_ERR)
+        printf("ERROR: Fail to create task!!\r\n");
+    else
+        printf("Create task success!!\r\n");
+
+    ObcMemFree(task_para);
 
     return CMD_ERROR_NONE;
 }
@@ -415,6 +428,11 @@ struct command test_subcommands[] = {
         .handler = ts_cam,
     },
     {
+        .name = "align",
+        .help = "cam r_buffer align test",
+        .handler = Camera_Aligned_Test,
+    },
+    {
         .name = "tc_dtb",
         .help = "dtb tc cmd",
         .usage = "<cmd>",
@@ -452,6 +470,12 @@ struct command test_subcommands[] = {
         .name = "obc",
         .help = "obc hk print",
         .handler = cmd_obc_hk,
+    },
+    {
+        .name = "task",
+        .help = "Delay task test",
+        .usage = "<type>",
+        .handler = cmd_delay_task_test,
     },
     {
         .name = "down",

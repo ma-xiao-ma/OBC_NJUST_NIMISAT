@@ -55,6 +55,38 @@ int cmd_panel(struct command_context *ctx) {
 	return CMD_ERROR_NONE;
 }
 
+int cmd_unfold_panel(struct command_context *ctx) {
+
+    char * args = command_args(ctx);
+    uint32_t opt;
+    uint32_t delay;
+    uint16_t time;
+
+    if (sscanf(args," %u %u %u", &opt, &delay, &time) != 3)
+        return CMD_ERROR_SYNTAX;
+
+    if(opt == 0)    {
+        int res = disable_unfold_panel(delay);
+        if(res != -1)
+            printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+        else
+            printf("unfold panel close\r\n");
+    }
+
+    if(opt == 1)    {
+        int res = enable_unfold_panel(delay, time);
+        if(res != 1)
+            printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
+        else
+            printf("unfold panel open\r\n");
+    }
+
+    if(opt != 1 && opt != 0)
+        printf("No such option\r\n");
+
+    return CMD_ERROR_NONE;
+}
+
 
 
 int cmd_switch_status(struct command_context *ctx __attribute__((unused))) {
@@ -70,14 +102,7 @@ int cmd_switch_status(struct command_context *ctx __attribute__((unused))) {
     printf("**********************\r\n");
 
     /*第一个字节*/
-//  #define ANTS1
-//  #define ANTS2
-//  #define ANTS3
-//  #define ANTS4
-//  #define ARM
-//  #define ANTSMSK
-//  #define PANELA
-//  #define PANELB
+
 	if(result == 1)
 	{
 	    if(status[0] & ANTS1) {
@@ -111,12 +136,6 @@ int cmd_switch_status(struct command_context *ctx __attribute__((unused))) {
 	    }
 	}
 
-//	if(status[0] & ANTSMSK) {
-//		printf("antsmsk open\r\n");
-//	}else{
-//		printf("antsmsk close\r\n");
-//	}
-
 	if(status[0] & PANELA) {
 		printf("panela\t\topen\r\n");
 	}else{
@@ -129,14 +148,13 @@ int cmd_switch_status(struct command_context *ctx __attribute__((unused))) {
 		printf("panelb\t\tclose\r\n");
 	}
 
+	if(status[0] & EXPANDABLE_SAIL) {
+        printf("sail\t\topen\r\n");
+    }else{
+        printf("sail\t\tclose\r\n");
+    }
+
 	/*第二个字节*/
-//	#define GPS_EN
-//	#define ANTS_EN
-//	#define FI_5V_EN
-//	#define FI_3V_EN
-//	#define ADCS_EN
-//	#define PANEL_EN
-//	#define HEAT_EN
 
 	if(status[1] & ADCS_EN) {
 		printf("adcs\t\topen\r\n");
@@ -187,15 +205,18 @@ int cmd_switch_status(struct command_context *ctx __attribute__((unused))) {
     }
 
 	/*第三个字节*/
-//	#define M1_POWER_MASK
-//	#define M2_POWER_MASK
-//	#define M3_POWER_MASK
-//	#define M4_POWER_MASK
-//	#define OUT_EN_5V
-//	#define GR_POWER_MASK
-//	#define MAG_POWER_MASK
-//	#define GPS_POWER_MASK
 
+    if(status[2] & JLG_VU_BUS_EN) {
+        printf("vu_backup\topen\r\n");
+    }else{
+        printf("vu_backup\tclose\r\n");
+    }
+
+    if(status[2] & BATTERY_HEAT_EN) {
+        printf("bat_heat\topen\r\n");
+    }else{
+        printf("bat_heat\tclose\r\n");
+    }
 //	if(status[2] & M1_POWER_MASK) {
 //		printf("m1_power_mask open\r\n");
 //	}else{
@@ -296,7 +317,12 @@ struct command switches_subcommands[] = {
 		.help = "panel switches",
 		.handler = cmd_panel,
 		.usage = "<opts> 0:close 1:open <delay>",
-	}
+	},{
+        .name = "unfold_panel",
+        .help = "unfold panel switches",
+        .handler = cmd_unfold_panel,
+        .usage = "<opts> 0:close 1:open <delay>",
+    }
 };
 
 struct command __root_command switches_commands_master[] =

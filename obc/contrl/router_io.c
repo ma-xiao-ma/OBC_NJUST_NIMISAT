@@ -160,7 +160,7 @@ int router_send_to_other_node(route_packet_t *packet)
             SendDownCmd(&packet->dst, packet->len + 3);
             ObcMemFree(packet);
 #else
-            vu_isis_router_downlink(packet);
+            vu_router_downlink(packet);
 #endif
             break;
         default:

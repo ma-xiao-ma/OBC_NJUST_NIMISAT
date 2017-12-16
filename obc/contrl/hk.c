@@ -621,7 +621,7 @@ static void obc_get_hk(obc_hk_t * obc)
  */
 void obc_hk_task(void)
 {
-    obc_hk_t obc_hk = {0};
+    static obc_hk_t obc_hk = {0};
 
     if (obc_hk_queue == NULL)
         return;
@@ -653,31 +653,14 @@ int obc_hk_get_peek(obc_hk_t * obc)
 void eps_hk_task(void)
 {
     static EpsAdcValue_t eps_hk;
-    static uint32_t num_of_acquit;
 
     if (eps_hk_queue == NULL)
         return;
 
     eps_get_hk(&eps_hk);
 
-    if(++num_of_acquit > 5)
-    {
-        xQueueOverwrite(eps_hk_queue, &eps_hk);
+    xQueueOverwrite(eps_hk_queue, &eps_hk);
 
-//        switch (Battery_Task(&eps_hk))
-//        {
-//            case 0:
-//                SleepWorkMode();
-//                break;
-//            case 1:
-//                NormalWorkMode();
-//                break;
-//            case 2:
-//                break;
-//            default:
-//                break;
-//        }
-    }
 }
 
 /**

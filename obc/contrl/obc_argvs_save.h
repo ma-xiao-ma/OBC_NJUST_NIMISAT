@@ -18,10 +18,9 @@ typedef void (*delay_task) (void *para);
 
 typedef struct __attribute__((packed))
 {
-    uint32_t        execution_time;
     delay_task      task_function;
     uint8_t         task_name[4];
-    TaskHandle_t    task_handle;
+    uint8_t         task_para[60];
 } task_save;
 
 

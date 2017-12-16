@@ -22,7 +22,7 @@
 #define RECEIVER_I2C_ADDR           0x60
 #define TRANSMITTER_I2C_ADDR        0x61
 /*超时时间*/
-#define ISIS_TIMEOUT	            1000
+#define ISIS_TIMEOUT	            300
 /*最大传输单元*/
 #define ISIS_MTU                    235
 #define ISIS_RX_MTU                 200

@@ -16,13 +16,15 @@
 #include "if_jlgvu.h"
 #include "hexdump.h"
 #include "bsp_ds1302.h"
+#include "driver_debug.h"
 #include "ff.h"
+#include "bsp_switch.h"
 
 #include "if_downlink_vu.h"
 
 typedef struct __attribute__((__packed__))
 {
-	uint32_t file_size;		//文件总字节数
+	uint32_t file_size;		 //文件总字节数
     uint16_t total_packet;   //文件包总数
     uint8_t packet_size;     //数据包大小
     uint32_t time;
@@ -32,7 +34,53 @@ typedef struct __attribute__((__packed__))
 /*接收单元上次接收到上行数据时遥测存储队列*/
 QueueHandle_t rx_tm_queue;
 
-static uint32_t vu_rx_count; //ISISvu通信机接收上行消息计数
+static uint32_t vu_isis_rx_count; //ISISvu通信机接收上行消息计数
+static uint32_t vu_jlg_rx_count;
+
+extern uint8_t IsJLGvuWorking;
+
+/**
+ * 通用路由协议下行数据接口
+ *
+ * @param dst 目的地址
+ * @param src 源地址
+ * @param type 消息类型
+ * @param pdata 待发送数据指针
+ * @param len 待发送数据长度
+ */
+int ProtocolSendDownCmd( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
+{
+
+#if USE_SERIAL_PORT_DOWNLINK_INTERFACE
+    return ProtocolSerialSend( dst, src, type, pdata, len );
+#else
+    if (IsJLGvuWorking) /*主备通信机选择*/
+        return vu_jlg_send( dst, src, type, pdata, len );
+    else
+        return vu_isis_send( dst, src, type, pdata, len );
+#endif
+
+}
+
+/**
+ * obc地面指令响应函数
+ *
+ * @param type 响应指令类型
+ * @param result 指令执行结果
+ */
+void obc_cmd_ack(uint8_t type, uint8_t result)
+{
+
+#if USE_SERIAL_PORT_DOWNLINK_INTERFACE
+    ProtocolSerialSend( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
+#else
+    if(IsJLGvuWorking)
+        vu_jlg_send( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
+    else
+        vu_isis_send( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
+#endif
+
+}
 
 /**
  * ISIS通信机下行接口函数，由OBC本地调用
@@ -42,10 +90,10 @@ static uint32_t vu_rx_count; //ISISvu通信机接收上行消息计数
  * @param len 下行数据字节数
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len)
+int vu_obc_downlink(uint8_t type, void *pdata, uint32_t len)
 {
     int ret;
-    uint8_t Error = 0, TxRemainBufSize, FrameDataSize;
+    uint8_t ErrorCounter = 0, FrameDataSize;
     uint32_t RemainSize = len;
 
     pdata = (uint8_t *)pdata;
@@ -66,34 +114,43 @@ int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len)
 //        *(uint32_t *)(&downlink->dat[FrameDataSize]) =
 //                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE+FrameDataSize);
 
-        ret = vu_transmitter_send_frame(downlink, FrameDataSize + DOWNLINK_OVERHEAD, &TxRemainBufSize);
+        uint8_t TxBuf_Slot_Remain = 40; /* ISIS通信机发送缓冲区剩余空间  0--40 Slot */
+        uint16_t TxBuf_Byte_Remain = 32768; /* 解理工通信机发送缓冲区剩余空间  0--32768 Byte */
+
+        if (IsJLGvuWorking)
+            ret = vu_send_frame(downlink, FrameDataSize + DOWNLINK_OVERHEAD, &TxBuf_Byte_Remain);
+        else
+            ret = vu_transmitter_send_frame(downlink, FrameDataSize + DOWNLINK_OVERHEAD, &TxBuf_Slot_Remain);
 
         /**如果传输成功，且通信机成功将消息加入发送缓冲区，发送指针后移 */
-        if ((ret == E_NO_ERR) && (TxRemainBufSize != 0xFF))
+        if (ret == E_NO_ERR && TxBuf_Slot_Remain != 0xFF)
         {
             RemainSize -= FrameDataSize;
             pdata += FrameDataSize;
 
             /**若发射机缓冲区已满，则等待5秒钟*/
-            if(TxRemainBufSize == 1)
+            if(TxBuf_Byte_Remain < 512 || TxBuf_Slot_Remain < 2)
                 vTaskDelay(MS_WAIT_TRANS_FREE_BUFF);
         }
         else
-            Error++;
+            ErrorCounter++;
 
         if (RemainSize != 0)
             vTaskDelay(PACK_DOWN_INTERVAL);
 
-     /**若发送完成或者错误次数超过10次，则跳出循环 */
-    }while ((RemainSize > 0) && (Error < 10));
+     /**若发送完成或者错误次数超过5次，则跳出循环 */
+    }while ((RemainSize > 0) && (ErrorCounter < 5));
 
     ObcMemFree(downlink);
 
     if (RemainSize == 0)
         return E_NO_ERR;
     else
-    {   /**如果错误超过10次，则复位发射机*/
-        vu_transmitter_software_reset();
+    {   /**如果错误超过5次，则复位发射机*/
+        if (IsJLGvuWorking)
+            vu_software_reset();
+        else
+            vu_transmitter_software_reset();
         return E_TRANSMIT_ERROR;
     }
 }
@@ -111,7 +168,7 @@ int vu_isis_downlink(uint8_t type, void *pdata, uint32_t len)
 int vu_isis_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
 {
     int ret;
-    uint8_t Error = 0, TxRemainBufSlot = 0xFF, FrameDataSize;
+    uint8_t ErrorCounter = 0, FrameDataSize = 0;
     uint32_t RemainSize = len;
 
     pdata = (uint8_t *)pdata;
@@ -129,37 +186,39 @@ int vu_isis_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t 
         FrameDataSize = (RemainSize < DOWNLINK_MTU) ? RemainSize : DOWNLINK_MTU;
         memcpy(downlink->dat, pdata, FrameDataSize);
 
+        /** 添加CRC校验*/
 //        *(uint32_t *)(&downlink->dat[FrameDataSize]) =
 //                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE+FrameDataSize);
 
-        ret = vu_transmitter_send_frame(downlink, FrameDataSize + DOWNLINK_OVERHEAD, &TxRemainBufSlot);
+        uint8_t TxBuf_Slot_Remain = 40; /* ISIS通信机发送缓冲区剩余空间  0--40 Slot */
 
+        ret = vu_transmitter_send_frame(downlink, FrameDataSize + DOWNLINK_OVERHEAD, &TxBuf_Slot_Remain);
 
         /**如果传输成功，且通信机成功将消息加入发送缓冲区，发送指针后移 */
-        if ((ret == E_NO_ERR) && (TxRemainBufSlot != 0xFF))
+        if (ret == E_NO_ERR && TxBuf_Slot_Remain != 0xFF)
         {
             RemainSize -= FrameDataSize;
             pdata += FrameDataSize;
 
             /**若发射机缓冲区已满，则等待5秒钟*/
-            if(TxRemainBufSlot == 1)
+            if(TxBuf_Slot_Remain < 2)
                 vTaskDelay(MS_WAIT_TRANS_FREE_BUFF);
         }
         else
-            Error++;
+            ErrorCounter++;
 
         if (RemainSize != 0)
             vTaskDelay(PACK_DOWN_INTERVAL);
 
-     /**若发送完成或者错误次数超过10次，则跳出循环 */
-    }while ((RemainSize > 0) && (Error < 10));
+     /**若发送完成或者错误次数超过5次，则跳出循环 */
+    }while (RemainSize > 0 && ErrorCounter < 5);
 
     ObcMemFree(downlink);
 
     if (RemainSize == 0)
         return E_NO_ERR;
     else
-    {   /**如果错误超过10次，则复位发射机*/
+    {   /**如果错误超过5次，则复位发射机*/
         vu_transmitter_software_reset();
         return E_TRANSMIT_ERROR;
     }
@@ -194,15 +253,18 @@ int vu_isis_file_download(FIL *file, char *file_name)
 
 	memcpy( file_info->filename, file_name, strlen(file_name));
 
-	vu_isis_send(GND_ROUTE_ADDR, OBC_ROUTE_ADDR, FILE_INFO, file_info, sizeof(file_info_down_t));
+	ProtocolSendDownCmd(GND_ROUTE_ADDR, OBC_ROUTE_ADDR, FILE_INFO, file_info, sizeof(file_info_down_t));
 
     int ret;
-    uint8_t Error = 0, TxRemainBufSize;
-    uint32_t RemainSize = file_info->file_size, byte_read;
+    uint8_t ErrorCounter = 0;
+    uint32_t RemainSize = file_info->file_size;
+
+    UINT byte_read;
 
     route_frame_t *downlink = ObcMemMalloc(I2C_MTU);
     if(downlink == NULL)
     {
+        ObcMemFree(file_info);
 		printf("ERROR: Malloc fail!!\r\n");
 		return E_MALLOC_FAIL;
     }
@@ -222,7 +284,7 @@ int vu_isis_file_download(FIL *file, char *file_name)
 
         f_lseek( file, packet->PacketID * file_info->packet_size);
 
-        f_read( file, packet->ImageData, (UINT)packet->PacketSize,  (UINT *)&byte_read);
+        f_read( file, packet->ImageData, (UINT)packet->PacketSize, &byte_read);
 
         if( byte_read != packet->PacketSize)
         {
@@ -230,27 +292,33 @@ int vu_isis_file_download(FIL *file, char *file_name)
 			return E_INVALID_PARAM;
         }
 
-        ret = vu_transmitter_send_frame(downlink, packet->PacketSize + IMAGE_DOWNLINK_OVERHEAD, &TxRemainBufSize);
+        uint8_t TxBuf_Slot_Remain = 40; /* ISIS通信机发送缓冲区剩余空间  0--40 Slot */
+        uint16_t TxBuf_Byte_Remain = 32768; /* 解理工通信机发送缓冲区剩余空间  0--32768 Byte */
+
+        if (IsJLGvuWorking)
+            ret = vu_send_frame(downlink, packet->PacketSize + IMAGE_DOWNLINK_OVERHEAD, &TxBuf_Byte_Remain);
+        else
+            ret = vu_transmitter_send_frame(downlink, packet->PacketSize + IMAGE_DOWNLINK_OVERHEAD, &TxBuf_Slot_Remain);
 
         /**如果传输成功，且通信机成功将消息加入发送缓冲区，发送指针后移 */
-        if ((ret == E_NO_ERR) && (TxRemainBufSize != 0xFF))
+        if (ret == E_NO_ERR && TxBuf_Slot_Remain != 0xFF)
         {
             RemainSize -= packet->PacketSize;
 
             packet->PacketID += 1;
 
             /**若发射机缓冲区已满，则等待5秒钟*/
-            if(TxRemainBufSize == 1)
+            if(TxBuf_Byte_Remain < 512 || TxBuf_Slot_Remain < 2)
                 vTaskDelay(MS_WAIT_TRANS_FREE_BUFF);
         }
         else
-            Error++;
+            ErrorCounter++;
 
         if (RemainSize != 0)
             vTaskDelay(PACK_DOWN_INTERVAL);
 
      /**若发送完成或者错误次数超过五次，则跳出循环 */
-    }while ((RemainSize > 0) && (Error < 5));
+    }while (RemainSize > 0 && ErrorCounter < 5);
 
     ObcMemFree(file_info);
     ObcMemFree(downlink);
@@ -272,12 +340,13 @@ int vu_isis_file_download(FIL *file, char *file_name)
  * @param start_pack 图像起始包号
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_isis_image_downlink(const void * image_data, uint32_t image_len, uint16_t start_pack)
+static int vu_image_downlink(const void * image_data, uint32_t image_len, uint16_t start_pack)
 {
     int ret;
-    uint8_t Error = 0, TxRemainBufSize;
+
+    uint8_t ErrorCounter = 0; /*I2C传输错误计数 */
+    uint32_t RemainSize = image_len; /*还剩多少字节需要传输 */
     image_data = (uint8_t *)image_data;
-    uint32_t RemainSize = image_len;
 
     route_frame_t *downlink = ObcMemMalloc(I2C_MTU);
     if(downlink == NULL)
@@ -291,19 +360,27 @@ int vu_isis_image_downlink(const void * image_data, uint32_t image_len, uint16_t
     ImagePacket_t * packet = (ImagePacket_t *)downlink->dat;
 
     packet->PacketID = start_pack;
+
     do
     {
-        /**组图像数据包*/
+        /** 组图像数据包*/
         packet->PacketSize = (RemainSize < IMAGE_PACK_MAX_SIZE) ? RemainSize : IMAGE_PACK_MAX_SIZE;
         memcpy(packet->ImageData, image_data, IMAGE_PACK_MAX_SIZE);
 
+        /** 添加CRC校验*/
 //        *(uint32_t *)(&downlink->dat[IMAGE_PACK_HEAD_SIZE + packet->PacketSize]) =
 //                crc32_memory((uint8_t *)downlink, ROUTE_HEAD_SIZE + IMAGE_PACK_HEAD_SIZE + packet->PacketSize);
 
-        ret = vu_transmitter_send_frame(downlink, packet->PacketSize + IMAGE_DOWNLINK_OVERHEAD, &TxRemainBufSize);
+        uint8_t TxBuf_Slot_Remain = 40; /* ISIS通信机发送缓冲区剩余空间  0--40 Slot */
+        uint16_t TxBuf_Byte_Remain = 32768; /* 解理工通信机发送缓冲区剩余空间  0--32768 Byte */
+
+        if (IsJLGvuWorking)
+            ret = vu_send_frame(downlink, packet->PacketSize + IMAGE_DOWNLINK_OVERHEAD, &TxBuf_Byte_Remain);
+        else
+            ret = vu_transmitter_send_frame(downlink, packet->PacketSize + IMAGE_DOWNLINK_OVERHEAD, &TxBuf_Slot_Remain);
 
         /**如果传输成功，且通信机成功将消息加入发送缓冲区，发送指针后移 */
-        if ((ret == E_NO_ERR) && (TxRemainBufSize != 0xFF))
+        if (ret == E_NO_ERR && TxBuf_Slot_Remain != 0xFF)
         {
             RemainSize -= packet->PacketSize;
             image_data += packet->PacketSize;
@@ -311,17 +388,17 @@ int vu_isis_image_downlink(const void * image_data, uint32_t image_len, uint16_t
             packet->PacketID += 1;
 
             /**若发射机缓冲区已满，则等待5秒钟*/
-            if(TxRemainBufSize == 1)
+            if(TxBuf_Byte_Remain < 512 || TxBuf_Slot_Remain < 2)
                 vTaskDelay(MS_WAIT_TRANS_FREE_BUFF);
         }
         else
-            Error++;
+            ErrorCounter++;
 
         if (RemainSize != 0)
             vTaskDelay(PACK_DOWN_INTERVAL);
 
      /**若发送完成或者错误次数超过五次，则跳出循环 */
-    }while ((RemainSize > 0) && (Error < 5));
+    }while ((RemainSize > 0) && (ErrorCounter < 5));
 
     ObcMemFree(downlink);
 
@@ -350,6 +427,10 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
     while(1)
     {
         vTaskDelay(534);
+
+//        /* 如果开启了解理工备份通信机 */
+//        if (IsJLGvuWorking)
+//            continue;
 
         /**获取接收机缓冲区帧计数*/
         if (vu_receiver_get_frame_num(&frame_num) != E_NO_ERR ||
@@ -396,14 +477,29 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
         /* 去掉路由头长度 */
         ((route_packet_t *)recv_frame)->len = frame_num - ROUTE_HEAD_SIZE;
 
-        /* 送入路由队列 */
-        route_queue_wirte((route_packet_t *)recv_frame, NULL);
+        if (!IsJLGvuWorking)/* 若关闭备份通信机 */
+        {
+            /* 送入路由队列 */
+            route_queue_wirte((route_packet_t *)recv_frame, NULL);
 
-        /*开启连续发射*/
-        vu_transmitter_set_idle_state(RemainOn);
+            /*开启连续发射*/
+            vu_transmitter_set_idle_state(RemainOn);
+        }
+        else/* 若开启备份通信机 */
+        {
+            /*关闭ISIS连续发射*/
+            vu_transmitter_set_idle_state(TurnOff);
+        }
+
+        /*若指令为关闭备份通信机指令，为了防止备份通信机接收出问题，在ISIS上行处理任务中直接关闭*/
+        if ( ((route_packet_t *)recv_frame)->typ == VU_INS_BACKUP_OFF )
+        {
+            EpsOutSwitch(OUT_USB_EN, DISABLE);
+            IsJLGvuWorking = false;
+        }
 
         /**通信机接收上行消息计数加1*/
-        vu_rx_count++;
+        vu_isis_rx_count++;
 
         /**成功接收后移除此帧*/
         if (vu_receiver_remove_frame() != E_NO_ERR)
@@ -444,7 +540,7 @@ static void vu_isis_downlink_task(void *para)
      * 访问相机接收缓冲区，需要加锁
      */
     else if(request->tpye == CAM_IMAGE)
-        vu_isis_image_downlink(request->pdata, request->data_len, request->start_pack);
+        vu_image_downlink(request->pdata, request->data_len, request->start_pack);
     /**
      * 下行完毕，解锁
      */
@@ -520,8 +616,10 @@ int vu_isis_get_receiving_tm(receiving_tm *tm)
  * @param packet 送到路由器的待下行的数据包
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int vu_isis_router_downlink(route_packet_t *packet)
+int vu_router_downlink(route_packet_t *packet)
 {
+    int ret;
+
     if (packet == NULL)
         return E_NO_BUFFER;
 
@@ -537,16 +635,21 @@ int vu_isis_router_downlink(route_packet_t *packet)
         return E_INVALID_BUF_SIZE;
     }
 
-    uint8_t rsp;
+    uint8_t TxBuf_Slot_Remain = 40; /* ISIS通信机发送缓冲区剩余空间  0--40 Slot */
+    uint16_t TxBuf_Byte_Remain = 32768; /* 解理工通信机发送缓冲区剩余空间  0--32768 Byte */
 
-    int ret = vu_transmitter_send_frame(&packet->dst, packet->len + ROUTE_HEAD_SIZE, &rsp);
+    if (IsJLGvuWorking)
+        ret = vu_send_frame(&packet->dst, packet->len + ROUTE_HEAD_SIZE, &TxBuf_Byte_Remain);
+    else
+        ret = vu_transmitter_send_frame(&packet->dst, packet->len + ROUTE_HEAD_SIZE, &TxBuf_Slot_Remain);
 
     ObcMemFree(packet);
 
-    if (ret == E_NO_ERR && rsp != 0xFF)
-        return E_NO_ERR;
-    else
-        return E_TRANSMIT_ERROR;
+    /**若发射机缓冲区已满，则等待5秒钟*/
+    if(TxBuf_Byte_Remain < 512 || TxBuf_Slot_Remain < 2)
+        vTaskDelay(MS_WAIT_TRANS_FREE_BUFF);
+
+    return ret;
 }
 
 /**
@@ -621,7 +724,7 @@ int vu_jlg_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t l
 
 
 /**
- * 解理工通信机上行接收任务（测试）
+ * 解理工通信机上行接收任务
  *
  * @param para 没用
  */
@@ -631,7 +734,11 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
 
     while(1)
     {
-        vTaskDelay(517);
+        vTaskDelay(600);
+
+        /**如果解理工备份通信机没有开启*/
+        if (!IsJLGvuWorking)
+            continue;
 
         /**获取接收机缓冲区帧计数*/
         if (vu_get_frame_num(&frame_num) != E_NO_ERR)
@@ -640,42 +747,57 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
         if (frame_num == 0)
             continue;
 
-//        /**若缓冲区不为空，则接收帧到路由器*/
-//        if (vu_router_get_frame() != E_NO_ERR)
-//            continue;
-        rsp_frame *frame = ObcMemMalloc(sizeof(rsp_frame)+/*ISIS_RX_MTU*/249);
+        rsp_frame *recv_frame = (rsp_frame *)ObcMemMalloc(sizeof(route_packet_t) + MAX_UPLINK_CONTENT_SIZE);
+        if (recv_frame == NULL)
+            continue;
 
-        if( vu_get_frame(frame, /*ISIS_RX_MTU*/249) == E_NO_ERR)
+        if (vu_get_frame(recv_frame, MAX_UPLINK_CONTENT_SIZE) != E_NO_ERR)
         {
-//            printf("TM Item\t\t\tRaw Value\tActual value:\r\n");
-//            printf("********************************************************\r\n");
-//            printf("DopplerOffset:\t\t%u\t\t%.4f Hz\n"
-//                   "RSSI:\t\t\t%u\t\t%.4f dBm\n",
-//                    frame->DopplerOffset, VU_SDO_Hz(frame->DopplerOffset),
-//                    frame->RSSI, VU_RSS_dBm(frame->RSSI)
-//                  );
-//            printf("\n\n");
-//
-            printf("Len: %u bytes.\n", frame->DateSize);
-
-            if (frame->DateSize /*!= ISIS_RX_MTU*/ > 249 || frame->DateSize == 0 )
-            {
-                printf("ERROR: Rx length!!!");
-            }
-            else
-            {
-                hex_dump( frame->Data, frame->DateSize );
-//                for(uint32_t i=0; i<frame->DateSize; i++)
-//                    printf("0x%02x ", frame->Data[i]);
-//                printf("\r\n");
-            }
-            printf("\n\n");
+            ObcMemFree(recv_frame);
+            continue;
         }
 
-        ObcMemFree(frame);
+        /* 若收到的帧数据长度字段不匹配，则视为错帧 */
+        if (recv_frame->DateSize == 0 || recv_frame->DateSize > MAX_UPLINK_CONTENT_SIZE)
+        {
+            driver_debug(DEBUG_TTC, "WARNING: JLG vu has received a incorrect frame!!\r\n");
+            ObcMemFree(recv_frame);
+            continue;
+        }
+
+//        /* 给多普勒和信号强度遥测变量赋值 */
+//        if(rx_tm_queue != NULL)
+//        {
+//            receiving_tm rx_tm =
+//            {
+//                rx_tm.DopplerOffset = recv_frame->DopplerOffset,
+//                rx_tm.RSSI = recv_frame->RSSI
+//            };
+//
+//            xQueueOverwrite(rx_tm_queue, &rx_tm);
+//        }
+
+        driver_debug(DEBUG_TTC, "INFO: JLG rLen: %u bytes.\r\n", recv_frame->DateSize);
+
+        /*显示解理工通信板上行消息， 上天前需要屏蔽掉*/
+        hex_dump( recv_frame->Data, recv_frame->DateSize );
+        printf("\n\n");
+
+        frame_num = recv_frame->DateSize;
+
+        memmove(&((route_packet_t *)recv_frame)->dst, &recv_frame->Data, frame_num);
+
+        /* 去掉路由头长度 */
+        ((route_packet_t *)recv_frame)->len = frame_num - ROUTE_HEAD_SIZE;
+
+        /* 送入路由队列 */
+        route_queue_wirte((route_packet_t *)recv_frame, NULL);
+
+        /*开启连续发射*/
+        vu_set_idle_state(RemainOn);
 
         /**通信机接收上行消息计数加1*/
-        vu_rx_count++;
+        vu_jlg_rx_count++;
 
         /**成功接收后移除此帧*/
         if (vu_remove_frame() != E_NO_ERR)
@@ -685,7 +807,7 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
                 if (vu_remove_frame() == E_NO_ERR)
                     break;
 
-                if (repeat_time == 5)
+                if (repeat_time == 4)
                 {
                     vu_software_reset();
                     vTaskDelay(50 / portTICK_PERIOD_MS);

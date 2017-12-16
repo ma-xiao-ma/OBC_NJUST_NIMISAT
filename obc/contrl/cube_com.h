@@ -24,7 +24,8 @@
 #define INS_ANTS_PWR_ON			0x0B
 #define INS_ANTS_PWR_OFF		0x0C
 #define INS_RSH_CMD             0x0D
-#define INS_BATCH_CMD           0x0E
+#define INS_DELAY_CMD           0x0E
+#define INS_SD_MOUNT            0x0F
 /*GROUP1*/
 #define TR_BOOT			        0x10
 #define TR_SHUT_DOWN			0x11
@@ -58,6 +59,8 @@
 #define VU_INS_HARDWARE_RESET   0x2A/* 新增 */
 #define VU_INS_SOFEWARE_RESET   0x2B/* 新增 */
 #define VU_INS_IDLE_STATE_SET   0x2C/* 新增 */
+#define VU_INS_BACKUP_ON        0x2D/* 新增 */
+#define VU_INS_BACKUP_OFF       0x2E/* 新增 */
 
 /*GROUP3*/
 #define CAM_SOFTWARE_RESET      0x30
@@ -79,9 +82,12 @@
 
 /*GROUP4*/
 #define INS_DOWN_PERIOD			0x45
+
 /*GROUP5*/
 #define INS_TIME_SYN			0x5E
+
 /*GROUP6*/
+
 /*GROUP7*/
 #define JPG_DELAY_TASK			    0x70
 #define DOWNLOAD_SAVED_AUDIOFILES	0x71
@@ -167,13 +173,12 @@ extern uint32_t rec_cmd_cnt;
 void obc_cmd_ack(uint8_t type, uint8_t result);
 
 void CubeUnPacket(const void *str);
-void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
-void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
-void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
-void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
-void up_group_four_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
-void up_group_five_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
-void up_group_six_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
-void up_group_seven_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
+
+/**
+ * 延时任务解包函数
+ *
+ * @param str 接收指针
+ */
+void DelayTask_UnPacket(const void *str);
 
 #endif

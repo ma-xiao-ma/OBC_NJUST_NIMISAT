@@ -19,7 +19,8 @@
 
 #define ANTS_I2C_HANDLE			0
 
-static int isis_ants_delay_cmd(uint8_t addr, void * txbuf, size_t txlen, void * rxbuf, size_t rxlen, int delay) {
+static int isis_ants_delay_cmd(uint8_t addr, void * txbuf, size_t txlen, void * rxbuf, size_t rxlen, int delay)
+{
 	if (i2c_master_transaction(ANTS_I2C_HANDLE, addr, txbuf, txlen, NULL, 0, 400) != E_NO_ERR)
 		return 0;
 	vTaskDelay(delay/portTICK_RATE_MS);

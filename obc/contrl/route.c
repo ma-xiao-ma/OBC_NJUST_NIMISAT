@@ -167,7 +167,7 @@ static void server_task(void *param __attribute__((unused)))
 
         if (server_queue_read(&packet) != E_NO_ERR)
         {
-            driver_debug(DEBUG_ROUTER, "Server Task Running!\r\n");
+            driver_debug(DEBUG_ROUTER, "SERVER Task Running!\r\n");
             continue;
         }
 
@@ -273,7 +273,7 @@ static void send_processing_task(void *param __attribute__((unused)))
 
         if (send_processing_queue_read(&packet) != E_NO_ERR)
         {
-            driver_debug(DEBUG_ROUTER, "Send Processing Task Running!\r\n");
+            driver_debug(DEBUG_ROUTER, "SEND Task Running!\r\n");
             continue;
         }
 
@@ -388,7 +388,7 @@ static void router_task(void *param __attribute__((unused)))
 
         if (route_queue_read(&packet) != E_NO_ERR)
         {
-            driver_debug(DEBUG_ROUTER, "Router Task Running!\r\n");
+            driver_debug(DEBUG_ROUTER, "ROUTER Task Running!\r\n");
             continue;
         }
 

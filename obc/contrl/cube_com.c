@@ -1,4 +1,4 @@
-#include <if_downlink_serial.h>
+
 #include <stdio.h>
 
 #include "cube_com.h"
@@ -10,12 +10,12 @@
 #include "bsp_delay.h"
 #include "bsp_ds1302.h"
 #include "bsp_switch.h"
-#include "dtb_805.h"
-#include "obc_mem.h"
+
 
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "if_downlink_serial.h"
 #include "camera_805.h"
 #include "contrl.h"
 #include "ctrl_cmd_types.h"
@@ -24,6 +24,9 @@
 #include "command.h"
 #include "hk_arg.h"
 #include "hk.h"
+#include "dtb_805.h"
+#include "obc_mem.h"
+#include "ff.h"
 #include "if_trxvu.h"
 #include "driver_debug.h"
 #include "bsp_cis.h"
@@ -31,39 +34,16 @@
 #include "router_io.h"
 #include "if_downlink_vu.h"
 
-#define ORGCALL			"BI4ST0"
-#define DETCALL			"BI4ST1"
-
-extern uint8_t adcs_pwr_sta;
-extern uint8_t up_cmd_adcs_pwr;
-
-unsigned char cube_buf[80];
-
-unsigned char func =0;
 uint32_t rec_cmd_cnt = 0; //obc接收本地指令计数
 
-/**
- * obc地面指令响应函数
- *
- * @param type
- * @param result
- */
-void obc_cmd_ack(uint8_t type, uint8_t result)
-{
-
-#if USE_SERIAL_PORT_DOWNLINK_INTERFACE
-    ProtocolSerialSend( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
-#endif
-
-#if CONFIG_USE_ISIS_VU
-    vu_isis_send( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
-#endif
-
-#if CONFIG_USE_JLG_VU
-    vu_jlg_send( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
-#endif
-
-}
+static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
+static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
+static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
+static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
+static void up_group_four_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
+static void up_group_five_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
+static void up_group_six_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
+static void up_group_seven_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
 
 
 void CubeUnPacket(const void *str)
@@ -104,37 +84,69 @@ void CubeUnPacket(const void *str)
 	}
 }
 
-void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
+/**
+ * 延时任务解包函数
+ *
+ * @param str 接收指针
+ */
+void DelayTask_UnPacket(const void *str)
+{
+    delay_task_t * packet = (delay_task_t *)str;
+
+    switch ((packet->typ) & 0xF0)
+    {
+        case 0x00:
+            up_group_zero_Cmd_pro(packet->typ, packet->dat);
+            break;
+        case 0x10:
+            up_group_one_Cmd_pro(packet->typ, packet->dat);
+            break;
+        case 0x20:
+            up_group_two_Cmd_pro(packet->typ, packet->dat);
+            break;
+        case 0x30:
+            up_group_three_Cmd_pro(packet->typ, packet->dat);
+            break;
+        case 0x40:
+            up_group_four_Cmd_pro(packet->typ, packet->dat);
+            break;
+        case 0x50:
+            up_group_five_Cmd_pro(packet->typ, packet->dat);
+            break;
+        case 0x60:
+            up_group_six_Cmd_pro(packet->typ, packet->dat);
+            break;
+        case 0x70:
+            up_group_seven_Cmd_pro(packet->typ, packet->dat);
+            break;
+        default:
+            break;
+    }
+}
+
+static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
+{
+    extern FATFS fs;
+
 	int result = 0;
-	/* 上注时间结构体 */
-	ctrl_syntime_t * ptime 	= (ctrl_syntime_t *)cube_buf;
-	/* 延时遥测指令结构体 */
-	ctrl_delayhk_t * phk	= (ctrl_delayhk_t *)cube_buf;
-	/* 普通无参命令结构体 */
-	ctrl_nopara_t * pdata   = (ctrl_nopara_t *)cube_buf;
-	/* 远程遥控指令结构体 */
-    rsh_command_t * rsh_cmd = (rsh_command_t *)cube_buf;
-
-	uint8_t	* pcmds			= (uint8_t *)cube_buf;
-	uint8_t cmd_len			= *(pcmds - 1) - 10;
-
+	/* OBC解包结构体 */
+	unpacket_t *obc_unpacket = (unpacket_t *)cube_buf;
 
 	switch (cmd_id)
 	{
         case INS_HK_GET:
 
             IsRealTelemetry = 0;
-            hk_select 	= (uint8_t)phk->select;
+            hk_select = (uint8_t)obc_unpacket->earlier_hk.select;
 
-            if(phk->select == HK_SDCARD)
+            if(hk_select == HK_SDCARD)
             {
-
                 hkListNode_t * hk_node = NULL;
 
                 hkleek = 0;
 
                 /*如果成功找到对应的延时遥测*/
-                if((hk_node = hk_list_find(phk->secs)) != NULL)
+                if( (hk_node = hk_list_find(obc_unpacket->earlier_hk.secs)) != NULL )
                 {
                     sprintf(hk_sd_path, "hk/%u.txt", hk_node->TimeValue);
 
@@ -154,30 +166,35 @@ void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) 
                     IsRealTelemetry 	= 1;
                     result 	= 0;
                 }
-            }else if(phk->select == HK_SRAM)
+            }
+            else if(hk_select == HK_SRAM)
             {
 
                 f_close(&hkfile);
 
-                hk_sram_index = (hk_main_fifo.rear - phk->index)>0?
-                                (hk_main_fifo.rear - phk->index):
-                                (HK_FIFO_BUFFER_CNT - phk->index + hk_main_fifo.rear);
+                hk_sram_index = (hk_main_fifo.rear - obc_unpacket->earlier_hk.index)>0?
+                                (hk_main_fifo.rear - obc_unpacket->earlier_hk.index):
+                                (HK_FIFO_BUFFER_CNT - obc_unpacket->earlier_hk.index + hk_main_fifo.rear);
                 result = 1;
             }
+
             obc_cmd_ack(cmd_id, result);
             break;
+
         case INS_OBC_STR_DOWN:
 
             up_hk_down_cmd = 1;
             result = 1;
             obc_cmd_ack(cmd_id, result);
             break;
+
         case INS_OBC_STO_DOWN:
 
             vContrlStopDownload();
             result = 1;
             obc_cmd_ack(cmd_id, result);
             break;
+
         case INS_OBC_RST:
 
             result = 1;
@@ -185,54 +202,58 @@ void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) 
             delay_ms(10);
             cpu_reset();
             break;
+
         case INS_TIME_TO_OBC:
 
-            ptime->msecs += 2;
-            result = timesync(ptime->msecs);
+            obc_unpacket->time_sysn_para += 2;
+            result = timesync(obc_unpacket->time_sysn_para);
 
-            if(result == -1) {
+            if (result == -1) {
                 result = 1;
             }else {
                 result = 0;
             }
             obc_cmd_ack(cmd_id, result);
             break;
+
         case INS_ADCS_ON:
 
-            adcs_pwr_sta	= 1;
-            up_cmd_adcs_pwr	= 1;
-            result 	= 1;
             EpsOutSwitch(OUT_EPS_S0, ENABLE);
             EpsOutSwitch(OUT_EPS_S0, ENABLE);
+
+            result  = 1;
             obc_cmd_ack(cmd_id, result);
             break;
+
         case INS_ADCS_OFF:
 
             EpsOutSwitch(OUT_EPS_S0, DISABLE);
             EpsOutSwitch(OUT_EPS_S0, DISABLE);
-            up_cmd_adcs_pwr = 0;
-            adcs_pwr_sta	= 0;
+
             result 	= 1;
             obc_cmd_ack(cmd_id, result);
             break;
+
         case INS_PAL_ON:
 
-            if(enable_panel(pdata->delay,0) == 1)
+            if (enable_panel(0, 0) == 1)
                 result = 1;
             else
                 result = 0;
 
             obc_cmd_ack(cmd_id, result);
             break;
+
         case INS_PAL_OFF:
 
-            if(disable_panel(pdata->delay,0) == 1)
+            if (disable_panel(0, 0) == 1)
                 result = 1;
             else
                 result = 0;
 
             obc_cmd_ack(cmd_id, result);
             break;
+
         case INS_ANTS_ON:
 
             if (open_antenna() == -1)
@@ -245,48 +266,60 @@ void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) 
 
         case INS_ANTS_PWR_ON:
 
-            if(enable_antspwr(pdata->delay,0) == 1)
+            if (enable_antspwr(0, 0) == 1)
                 result = 1;
             else
                 result = 0;
 
             obc_cmd_ack(cmd_id, result);
             break;
+
         case INS_ANTS_PWR_OFF:
 
-            if(disable_antspwr(pdata->delay,0) == 1)
+            if (disable_antspwr(0, 0) == 1)
                 result = 1;
             else
                 result = 0;
 
             obc_cmd_ack(cmd_id, result);
             break;
+
         case INS_RSH_CMD:
 
-            if (command_run(rsh_cmd->command) == CMD_ERROR_NONE)
+            if (command_run(obc_unpacket->command) == CMD_ERROR_NONE)
                 result = 1;
             else
                 result = 0;
 
             obc_cmd_ack(cmd_id, result);
             break;
-        case INS_BATCH_CMD:
 
-//            result = 1;
-//            obc_cmd_ack(cmd_id, result);
-//            pcmds += 7;
-//            while(cmd_len > 0)
-//            {
-//                CubeUnPacket(pcmds);
-//                while(*pcmds++ != '\0' && --cmd_len);
-//            }
+        case INS_DELAY_CMD:
+
+            if (Delay_Task_Mon_Start(&obc_unpacket->delay_task) != E_NO_ERR)
+                result = 0;
+            else
+                result = 1;
+
+            obc_cmd_ack(cmd_id, result);
             break;
+
+        case INS_SD_MOUNT:
+
+            if (f_mount(0,&fs) != FR_OK)
+                result = 0;
+            else
+                result = 1;
+
+            obc_cmd_ack(cmd_id, result);
+            break;
+
         default:
             break;
 	}
 }
 
-void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
+static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
 	int result = 0;
 
 	switch (cmd_id)
@@ -441,9 +474,11 @@ void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
 	}
 }
 
-void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
+static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 {
 	int result = 0;
+
+	extern uint8_t IsJLGvuWorking;
 
 	switch (cmd_id) {
 
@@ -564,12 +599,43 @@ void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
             obc_cmd_ack(cmd_id, result);
             break;
 
+        case VU_INS_BACKUP_ON:
+
+            /* PC104_100 母线输出 */
+            if (EpsOutSwitch(OUT_USB_EN, ENABLE) == EPS_OK)
+            {
+                vTaskDelay(3000); /* 延时等待备份板启动 */
+
+                IsJLGvuWorking = true;
+                result = 1;
+            }
+            else
+                result = 0;
+
+            obc_cmd_ack(cmd_id, result);
+
+            break;
+
+        case VU_INS_BACKUP_OFF:
+
+            /* PC104_100 母线输出 */
+            if (EpsOutSwitch(OUT_USB_EN, DISABLE) == EPS_OK)
+            {
+                IsJLGvuWorking = false;
+                result = 1;
+            }
+            else
+                result = 0;
+
+            obc_cmd_ack(cmd_id, result);
+            break;
+
         default:
             break;
 	}
 }
 
-void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
+static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 {
 	int result = 0;
 
@@ -724,7 +790,8 @@ void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 	}
 }
 
-void up_group_four_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
+static void up_group_four_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
+{
 	ctrl_nopara_t 	* pdata 	= (ctrl_nopara_t *)cube_buf;
 	ctrl_downtime_t * pperiod	= (ctrl_downtime_t *)cube_buf;
 	int result = -1;
@@ -742,7 +809,8 @@ void up_group_four_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) 
 	}
 }
 
-void up_group_five_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
+static void up_group_five_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
+{
 	int result = -1;
 	ctrl_syntime_t * ptime 		= (ctrl_syntime_t *)cube_buf;
 	cmd_ack_t obc_ack 			= { .head[0] = 0x1A, .head[1] = 0x53, .id = 1, .cmd = cmd_id };
@@ -762,7 +830,8 @@ void up_group_five_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) 
 	}
 }
 
-void up_group_six_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
+static void up_group_six_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
+{
 	ctrl_nopara_t * pdata = (ctrl_nopara_t *)cube_buf;
 	int result = -1;
 	cmd_ack_t obc_ack 			= { .head[0] = 0x1A, .head[1] = 0x53, .id = 1, .cmd = cmd_id };
@@ -774,7 +843,8 @@ void up_group_six_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
 	}
 }
 
-void up_group_seven_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf){
+static void up_group_seven_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
+{
 
 	uint32_t camera_delay= 0;
 	ctrl_downtime_t * pperiod	= (ctrl_downtime_t *)cube_buf;

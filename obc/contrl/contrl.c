@@ -1,10 +1,10 @@
-#include <if_downlink_serial.h>
+#include <stdint.h>
+#include <time.h>
+#include <string.h>
+
 #include "contrl.h"
-
 #include "hk_arg.h"
-
 #include "cube_com.h"
-
 #include "sensor/flash_sd.h"
 
 #include "FreeRTOS.h"
@@ -13,6 +13,7 @@
 #include "timers.h"
 #include "portmacro.h"
 
+#include "if_downlink_serial.h"
 #include "ctrl_cmd_types.h"
 #include "error.h"
 #include "driver_debug.h"
@@ -23,6 +24,7 @@
 #include "crc.h"
 #include "command.h"
 #include "if_downlink_vu.h"
+#include "obc_argvs_save.h"
 
 #include "bsp_ds1302.h"
 #include "bsp_switch.h"
@@ -34,9 +36,7 @@
 
 #include "csp.h"
 
-#include <stdint.h>
-#include <time.h>
-#include <string.h>
+
 
 
 #define OpenAntenna_Time 		(10*60)   //
@@ -52,8 +52,7 @@ uint8_t up_cmd_adcs_pwr	= 1;
 
 ///////////////////////////////////////local function////////////////////////////
 
-//static uint8_t downloadopt = 0;
-//static uint8_t cnt_to_save = 0;
+uint8_t IsJLGvuWorking = 0;     /*JLG通信机开启标志，开启为1， 关闭为0*/
 uint8_t IsRealTelemetry = 1;	//1为实时遥测   0为延时遥测
 ///work mode variable
 uint8_t mode = SLEEP_MODE;
@@ -73,33 +72,6 @@ void downdelaytimes(uint32_t *times) {
 void chcontinuetimes(uint32_t *times) {
 	Stop_Down_Time = *times;
 }
-
-/**
- * 下行普通数据接口
- *
- * @param dst 目的地址
- * @param src 源地址
- * @param type 消息类型
- * @param pdata 待发送数据指针
- * @param len 待发送数据长度
- */
-void ProtocolSendDownCmd( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t len )
-{
-
-#if USE_SERIAL_PORT_DOWNLINK_INTERFACE
-    ProtocolSerialSend( dst, src, type, pdata, len );
-#endif
-
-#if CONFIG_USE_ISIS_VU
-    vu_isis_send( dst, src, type, pdata, len );
-#endif
-
-#if CONFIG_USE_JLG_VU
-    vu_jlg_send( dst, src, type, pdata, len );
-#endif
-
-}
-
 
 void NormalWorkMode(void)
 {
@@ -126,13 +98,15 @@ void SleepWorkMode(void)
 typedef struct
 {
     uint32_t vu_idle_state;
+    uint32_t vu_jlg_switch_on;
 } control_para;
 
 static control_para control_task;
 
-#define VU_IDLE_ON      (15 * 60) /*通信机空闲状态连续发射开 持续时间    单位：秒*/
+#define VU_IDLE_ON       (15 * 60) /*通信机空闲状态连续发射开 持续时间    单位：秒*/
+#define JLG_VU_SWITCH_ON (15 * 60) /*解理工通信机备份机切换     持续时间    单位：秒*/
 
-#define CONTROL_CYCLE   5000      /*控制周期  单位：毫秒*/
+#define CONTROL_CYCLE    5000      /*控制周期  单位：毫秒*/
 
 /**
  * 将秒数转换成在控制任务中的控制次数
@@ -148,12 +122,13 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 	vTaskDelayUntil(&xLastWakeTime, (10000 / portTICK_RATE_MS));
 
 	vu_isis_hk_t *vu_tm = (vu_isis_hk_t *)ObcMemMalloc(sizeof(vu_isis_hk_t));
-
+	obc_hk_t *obc_tm = (obc_hk_t *)ObcMemMalloc(sizeof(obc_hk_t));
 	if (vu_tm == NULL)
 	    while(1);
 
 	while (1)
 	{
+	    obc_hk_get_peek(obc_tm);
 	    ttc_hk_get_peek(vu_tm);
 
 	    if (vu_tm->tx_state.IdleState == RemainOn)
@@ -161,12 +136,33 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 	    else
 	        control_task.vu_idle_state = 0;
 
-	    if (control_task.vu_idle_state > JUDGMENT(VU_IDLE_ON))
+	    /**如果备份通信机是开机状态，则计数器累加*/
+	    if ( ((obc_switch_t *)&obc_tm->on_off_status)->jlg_vu_on == true)
+	        control_task.vu_jlg_switch_on++;
+	    else
+	        control_task.vu_jlg_switch_on = 0;
+
+	    /* 如果通信机空闲状态连续发射连续开启超过15分钟，或者备份通信机启动时，则自动关闭连续发射 */
+	    if (control_task.vu_idle_state > JUDGMENT(VU_IDLE_ON) || IsJLGvuWorking)
 	    {
+	        /**
+	         * 出境时需要做哪些事情？  是否需要通信机复位
+	         */
 	        vu_transmitter_set_idle_state(TurnOff);
-	        control_task.vu_idle_state = 0;
 	    }
 
+
+        /* 如果备份通信机开启超过15分钟，则自动切换为主份 */
+        if (control_task.vu_jlg_switch_on > JUDGMENT(JLG_VU_SWITCH_ON))
+        {
+            /***此处应将通信机切换回ISIS通信机, 除能备份通信机加电*/
+
+            EpsOutSwitch(OUT_USB_EN, DISABLE); /*备份通信机断电*/
+
+            IsJLGvuWorking = false;
+        }
+
+        /**功耗控制函数*/
 //		switch (Battery_Task())
 //		{
 //            case 0:
@@ -201,9 +197,7 @@ void hk_collect_task(void *pvParameters __attribute__((unused)))
 
         eps_hk_task();
 
-#if CONFIG_USE_ISIS_VU
         ttc_hk_task();
-#endif
         /* 若数传上电，则获取遥测值 */
         if (OUT_SW_DTB_5V_PIN())
             dtb_hk_task();
@@ -280,7 +274,8 @@ void OpenAntenna_Task(void* param __attribute__((unused))) {
 }
 
 /////////////////////////////////////////////
-void OpenPanel_Task(void* param __attribute__((unused))) {
+void OpenPanel_Task(void* param __attribute__((unused)))
+{
 
 	if (obc_boot_count > 5)
 	{
@@ -529,7 +524,7 @@ void hk_data_save_task(void)
 }
 
 
-void adcs_pwr_task(void *pvParameters __attribute__((unused)))
+void adcs_pwr_task( void *pvParameters __attribute__((unused)) )
 {
 	EpsOutSwitch(OUT_EPS_S0, ENABLE);  //enable ADCS power
 
@@ -548,3 +543,53 @@ void adcs_pwr_task(void *pvParameters __attribute__((unused)))
 	}
 
 }
+
+/**
+ * 延时处理函数
+ *
+ * @param para
+ */
+void __attribute__((weak))Delay_Task_Mon(void *para)
+{
+    delay_task_t *task_para = (delay_task_t *)para;
+
+    while(1)
+    {
+        vTaskDelay(282);
+
+        /* 若当前时间还没有到指令执行时间 */
+        if (clock_get_time_nopara() < task_para->execution_utc)
+            continue;
+
+        DelayTask_UnPacket(task_para);
+
+        break;
+    }
+
+    vTaskDelete(NULL);
+}
+
+/**
+ * 延时处理任务创建
+ *
+ * @param para 延时任务参数
+ * @return
+ */
+int Delay_Task_Mon_Start(void *para)
+{
+    extern obc_save_t obc_save;
+
+    /* 给任务恢复结构体赋值 */
+    obc_save.delay_task_recover[0].task_function = Delay_Task_Mon;
+    strcpy(obc_save.delay_task_recover[0].task_name, "MON");
+    memcpy( obc_save.delay_task_recover[0].task_para, para, 60);
+
+    int ret = xTaskCreate( Delay_Task_Mon, "MON", 256,
+            obc_save.delay_task_recover[0].task_para, 4, NULL );
+
+    if (ret != pdTRUE)
+        return E_NO_BUFFER;
+
+    return E_NO_ERR;
+}
+

@@ -30,8 +30,11 @@
 #define ANTS4                   (0x01<<3)
 #define ARM                     (0x01<<4)
 #define ANTSMSK                 (0x1F)
+/*帆板展开分离开关*/
 #define PANELA                  (0x01<<5)
 #define PANELB                  (0x01<<6)
+/*可展开帆展开检测*/
+#define EXPANDABLE_SAIL         (0x01<<7) /*新增*/
 
 /*第二个字节*/
 #define ADCS_EN                 (0x01<<0)
@@ -43,51 +46,58 @@
 #define CAMERA_HEAT1_EN         (0x01<<6)
 #define CAMERA_HEAT2_EN         (0x01<<7)
 
+/*第三个字节*/
+#define JLG_VU_BUS_EN           (0x01<<0) /*新增*/
+#define BATTERY_HEAT_EN         (0x01<<1) /*新增*/
+
+
 
 
 /*OBC IO引脚状态，4 Byte*/
 typedef struct __attribute__((packed))
 {
     /**ISIS天线1状态*/
-    uint8_t     ants_1: 1;              //W0B0 字节0
+    uint32_t     ants_1: 1;              //W0B0 字节0
     /**ISIS天线2状态*/
-    uint8_t     ants_2: 1;              //W0B1
+    uint32_t     ants_2: 1;              //W0B1
     /**ISIS天线3状态*/
-    uint8_t     ants_3: 1;              //W0B2
+    uint32_t     ants_3: 1;              //W0B2
     /**ISIS天线4状态*/
-    uint8_t     ants_4: 1;              //W0B3
+    uint32_t     ants_4: 1;              //W0B3
     /**ISIS天线板ARM状态*/
-    uint8_t     arm: 1;                 //W0B4
+    uint32_t     arm: 1;                 //W0B4
     /**电池镇A展开状态*/
-    uint8_t     panel_a: 1;             //W0B4
+    uint32_t     panel_a: 1;             //W0B5
     /**电池镇B展开状态*/
-    uint8_t     panel_b: 1;             //W0B4
+    uint32_t     panel_b: 1;             //W0B6
     /**保留位*/
-    uint8_t     reserved: 1;            //W0B4
+    uint32_t     sail: 1;                //W0B7
 
 
     /**接收单元当前所有遥测*/
-    uint8_t     adcs_pwr: 1;            //W1B0
+    uint32_t     adcs_pwr: 1;            //W1B0
     /**接收单元收到上行数据时遥测*/
-    uint8_t     ants_pwr: 1;            //W1B1
+    uint32_t     ants_pwr: 1;            //W1B1
     /**发射单元自上次复位以来的运行时间*/
-    uint8_t     dtb_5v_pwr: 1;          //W1B2
+    uint32_t     dtb_5v_pwr: 1;          //W1B2
     /**发射单元当前所有遥测*/
-    uint8_t     dtb_12v_pwr: 1;         //W1B3
+    uint32_t     dtb_12v_pwr: 1;         //W1B3
     /**发射单元上次下行数据时所有遥测*/
-    uint8_t     cam_5w_5v_pwr: 1;       //W1B4
+    uint32_t     cam_5w_5v_pwr: 1;       //W1B4
     /**发射单元上次下行数据时所有遥测*/
-    uint8_t     cam_10w_5v_pwr: 1;      //W1B5
+    uint32_t     cam_10w_5v_pwr: 1;      //W1B5
     /**发射单元上次下行数据时所有遥测*/
-    uint8_t     cam_heat_1_pwr: 1;      //W1B6
+    uint32_t     cam_heat_1_pwr: 1;      //W1B6
     /**发射单元上次下行数据时所有遥测*/
-    uint8_t     cam_heat_2_pwr: 1;      //W1B7
+    uint32_t     cam_heat_2_pwr: 1;      //W1B7
 
 
     /**保留位域1*/
-    uint8_t     reserved1;              //W3
+    uint32_t     jlg_vu_on: 1;              //W3B0
+    uint32_t     battery_heat_on: 1;        //W3B1
+    uint32_t     reserved1: 6;              //W3
     /**保留位域2*/
-    uint8_t     reserved2;              //W4
+    uint32_t     reserved2: 8;              //W4
 } obc_switch_t;
 
 /**工作模式*/
