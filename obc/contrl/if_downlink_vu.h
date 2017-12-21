@@ -26,6 +26,9 @@
 /*当发射机缓冲区满时等待的时间*/
 #define MS_WAIT_TRANS_FREE_BUFF (5000 / portTICK_PERIOD_MS)
 
+extern uint16_t vu_isis_rx_count; //ISISvu 通信机接收上行遥控帧计数
+extern uint16_t vu_jlg_rx_count;  //JLGvu 通信机接收上行遥控帧计数
+
 typedef struct
 {
     uint8_t tpye;

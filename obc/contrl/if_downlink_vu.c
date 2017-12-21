@@ -19,6 +19,7 @@
 #include "driver_debug.h"
 #include "ff.h"
 #include "bsp_switch.h"
+#include "task_monitor.h"
 
 #include "if_downlink_vu.h"
 
@@ -34,10 +35,11 @@ typedef struct __attribute__((__packed__))
 /*接收单元上次接收到上行数据时遥测存储队列*/
 QueueHandle_t rx_tm_queue;
 
-static uint32_t vu_isis_rx_count; //ISISvu通信机接收上行消息计数
-static uint32_t vu_jlg_rx_count;
+uint16_t vu_isis_rx_count; //ISISvu 通信机接收上行遥控帧计数
+uint16_t vu_jlg_rx_count;  //JLGvu 通信机接收上行遥控帧计数
 
 extern uint8_t IsJLGvuWorking;
+extern bool PassFlag;
 
 /**
  * 通用路由协议下行数据接口
@@ -426,15 +428,12 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
 
     while(1)
     {
-        vTaskDelay(534);
-
-//        /* 如果开启了解理工备份通信机 */
-//        if (IsJLGvuWorking)
-//            continue;
+        task_report_alive(Isis);
+//        vTaskDelay(534);
+        vTaskDelay(1937);
 
         /**获取接收机缓冲区帧计数*/
-        if (vu_receiver_get_frame_num(&frame_num) != E_NO_ERR ||
-                vu_receiver_get_frame_num(&frame_num) != E_NO_ERR)
+        if (vu_receiver_get_frame_num(&frame_num) != E_NO_ERR)
             continue;
 
         if (frame_num == 0)
@@ -444,12 +443,15 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
         if (recv_frame == NULL)
             continue;
 
-        if (vu_receiver_get_frame(recv_frame, MAX_UPLINK_CONTENT_SIZE) != E_NO_ERR ||
-                vu_receiver_get_frame(recv_frame, MAX_UPLINK_CONTENT_SIZE) != E_NO_ERR)
+        if (vu_receiver_get_frame(recv_frame, MAX_UPLINK_CONTENT_SIZE) != E_NO_ERR /*||
+                vu_receiver_get_frame(recv_frame, MAX_UPLINK_CONTENT_SIZE) != E_NO_ERR*/)
         {
             ObcMemFree(recv_frame);
             continue;
         }
+
+        /**通信机接收上行消息计数加1*/
+        vu_isis_rx_count++;
 
         /* 若收到的帧数据长度字段不匹配，则视为错帧 */
         if (recv_frame->DateSize == 0 || recv_frame->DateSize > MAX_UPLINK_CONTENT_SIZE)
@@ -457,6 +459,8 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
             ObcMemFree(recv_frame);
             continue;
         }
+
+        PassFlag = true; /*置过境标志 */
 
         /* 给多普勒和信号强度遥测变量赋值 */
         if(rx_tm_queue != NULL)
@@ -494,12 +498,12 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
         /*若指令为关闭备份通信机指令，为了防止备份通信机接收出问题，在ISIS上行处理任务中直接关闭*/
         if ( ((route_packet_t *)recv_frame)->typ == VU_INS_BACKUP_OFF )
         {
+            /**
+             * 需要添加切换控制板上电指令
+             */
             EpsOutSwitch(OUT_USB_EN, DISABLE);
             IsJLGvuWorking = false;
         }
-
-        /**通信机接收上行消息计数加1*/
-        vu_isis_rx_count++;
 
         /**成功接收后移除此帧*/
         if (vu_receiver_remove_frame() != E_NO_ERR)
@@ -734,7 +738,9 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
 
     while(1)
     {
-        vTaskDelay(600);
+        task_report_alive(Jlg);
+
+        vTaskDelay(1568);
 
         /**如果解理工备份通信机没有开启*/
         if (!IsJLGvuWorking)
@@ -757,6 +763,9 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
             continue;
         }
 
+        /**通信机接收上行消息计数加1*/
+        vu_jlg_rx_count++;
+
         /* 若收到的帧数据长度字段不匹配，则视为错帧 */
         if (recv_frame->DateSize == 0 || recv_frame->DateSize > MAX_UPLINK_CONTENT_SIZE)
         {
@@ -764,6 +773,8 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
             ObcMemFree(recv_frame);
             continue;
         }
+
+        PassFlag = true; /*置过境标志 */
 
 //        /* 给多普勒和信号强度遥测变量赋值 */
 //        if(rx_tm_queue != NULL)
@@ -795,9 +806,6 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
 
         /*开启连续发射*/
         vu_set_idle_state(RemainOn);
-
-        /**通信机接收上行消息计数加1*/
-        vu_jlg_rx_count++;
 
         /**成功接收后移除此帧*/
         if (vu_remove_frame() != E_NO_ERR)

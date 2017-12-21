@@ -23,8 +23,10 @@
 #include "error.h"
 #include "hexdump.h"
 #include "csp_endian.h"
+#include "bsp_switch.h"
 
 #include "if_jlgvu.h"
+#include "hk.h"
 
 
 /*测试发射速率*/
@@ -184,25 +186,25 @@ int vu_measure_all_status_handler(struct command_context * context __attribute__
 
     if(vu_measure_all_tm(&status) == E_NO_ERR)
     {
-        printf("TM Item\t\t\tRaw Value\tActual value:\r\n");
-        printf("*******************************************************\r\n");
-        printf("ReflectedPower:\t\t%u\t\t%.4f dBm(%.4f mW)\n"
-                "ForwardPower:\t\t%u\t\t%.4f dBm(%.4f mW)\n"
-                "DopplerOffset:\t\t%u\t\t%.4f Hz\n"
-                "RSSI:\t\t\t%u\t\t%.4f dBm\n"
-                "BusVoltage:\t\t%u\t\t%.4f V\n"
-                "TotalCurrent:\t\t%u\t\t%.4f mA\n"
-                "AmplifierTemp:\t\t%u\t\t%.4f C\n"
-                "OscillatorTemp:\t\t%u\t\t%.4f C\n",
-                status.ReflectedPower, VU_RRP_dBm(status.ReflectedPower), VU_RRP_mW(status.ReflectedPower),
-                status.ForwardPower, VU_RFP_dBm(status.ForwardPower), VU_RFP_mW(status.ForwardPower),
-                status.DopplerOffset, VU_SDO_Hz(status.DopplerOffset),
-                status.RSSI, VU_RSS_dBm(status.RSSI),
-                status.BusVoltage, VU_PBV_V(status.BusVoltage),
-                status.TotalCurrent, VU_TCC_mA(status.TotalCurrent),
-                status.AmplifierTemp, VU_PAT_C(status.AmplifierTemp),
-                status.OscillatorTemp, VU_LOT_C(status.OscillatorTemp)
-               );
+//        printf("TM Item\t\t\tRaw Value\tActual value:\r\n");
+//        printf("*******************************************************\r\n");
+//        printf("ReflectedPower:\t\t%u\t\t%.4f dBm(%.4f mW)\n"
+//                "ForwardPower:\t\t%u\t\t%.4f dBm(%.4f mW)\n"
+//                "DopplerOffset:\t\t%u\t\t%.4f Hz\n"
+//                "RSSI:\t\t\t%u\t\t%.4f dBm\n"
+//                "BusVoltage:\t\t%u\t\t%.4f V\n"
+//                "TotalCurrent:\t\t%u\t\t%.4f mA\n"
+//                "AmplifierTemp:\t\t%u\t\t%.4f C\n"
+//                "OscillatorTemp:\t\t%u\t\t%.4f C\n",
+//                status.ReflectedPower, VU_RRP_dBm(status.ReflectedPower), VU_RRP_mW(status.ReflectedPower),
+//                status.ForwardPower, VU_RFP_dBm(status.ForwardPower), VU_RFP_mW(status.ForwardPower),
+//                status.DopplerOffset, VU_SDO_Hz(status.DopplerOffset),
+//                status.RSSI, VU_RSS_dBm(status.RSSI),
+//                status.BusVoltage, VU_PBV_V(status.BusVoltage),
+//                status.TotalCurrent, VU_TCC_mA(status.TotalCurrent),
+//                status.AmplifierTemp, VU_PAT_C(status.AmplifierTemp),
+//                status.OscillatorTemp, VU_LOT_C(status.OscillatorTemp)
+//               );
     }
 
     return CMD_ERROR_NONE;
@@ -392,18 +394,70 @@ int vu_fm_off_handler(struct command_context * context __attribute__((unused))) 
     return CMD_ERROR_NONE;
 }
 
+extern uint8_t IsJLGvuWorking;
+
 int vu_power_on_handler(struct command_context * context __attribute__((unused))) {
 
-    if(vu_power_on() == E_NO_ERR)
-        printf("power on!!!\r\n");
+    /* PC104_100 母线输出 */
+    if ( EpsOutSwitch(OUT_USB_EN, ENABLE) == EPS_OK )
+    {
+        vTaskDelay(3000); /* 延时等待备份板启动 */
+        IsJLGvuWorking = true;
+        printf("JLG vu switch on!!\r\n");
+    }
+    else
+        printf("ERROR: JLG vu switch error!!\r\n");
 
     return CMD_ERROR_NONE;
 }
 
 int vu_power_off_handler(struct command_context * context __attribute__((unused))) {
 
-    if(vu_power_off() == E_NO_ERR)
-        printf("power off!!!\r\n");
+    /* PC104_100 母线输出 */
+    if ( EpsOutSwitch(OUT_USB_EN, DISABLE) == EPS_OK )
+    {
+        IsJLGvuWorking = false;
+        printf("JLG vu switch off!!\r\n");
+    }
+    else
+        printf("ERROR: JLG vu switch error!!\r\n");
+
+    return CMD_ERROR_NONE;
+}
+
+int vu_hk_handler(struct command_context * context __attribute__((unused))) {
+
+    vu_jlg_hk_t *jlg = (vu_jlg_hk_t *)ObcMemMalloc(sizeof(vu_jlg_hk_t));
+    if (jlg == NULL)
+        return CMD_ERROR_SYNTAX;
+
+    if(jlg_hk_get_peek(jlg) != pdTRUE)
+        return CMD_ERROR_SYNTAX;
+
+    printf("MCU has been active: %u s\n\n", jlg->vu_tm.Uptime);
+    printf("Measured all TM:\r\n\r\n");
+
+    printf("TM Item\t\t\tRaw Value\tActual value:\r\n");
+    printf("*********************************************************\r\n");
+    printf("SNR:\t\t\t%u\t\t%.4f S/N\n"
+           "DopplerOffset:\t\t%u\t\t%.4f Hz\n"
+           "BusVoltage:\t\t%u\t\t%.4f V\n"
+           "BoardVoltage:\t\t%u\t\t%.4f V\n"
+           "AmplifierTemp:\t\t%u\t\t%.4f C\n",
+
+           jlg->vu_tm.SNR, JLG_SNR(jlg->vu_tm.SNR),
+           jlg->vu_tm.DopplerOffset, JLG_SDO_Hz(jlg->vu_tm.DopplerOffset) ,
+           jlg->vu_tm.BusVoltage, JLG_PBV_V(jlg->vu_tm.BusVoltage),
+           jlg->vu_tm.BoardVoltage, JLG_BV_V(jlg->vu_tm.BoardVoltage),
+           jlg->vu_tm.AmplifierTemp, JLG_PAT_C(jlg->vu_tm.AmplifierTemp)
+           );
+
+    printf("\n\n");
+    printf("FM forwarding on:       %u\r\n", jlg->tx_state.FM_On);
+    printf("Transmitter bit rate:   %u\r\n", jlg->tx_state.BitRate);
+    printf("Beacon active:          %u\r\n", jlg->tx_state.BeaconAct);
+    printf("Transmitter idle state: %u\r\n", jlg->tx_state.IdleState);
+    printf("\n\n");
 
     return CMD_ERROR_NONE;
 }
@@ -494,6 +548,10 @@ struct command cmd_vu_sub[] = {
         .name = "power_off",
         .help = "receiver transmitter off",
         .handler = vu_power_off_handler,
+    },{
+        .name = "hk",
+        .help = "JLG backup vu",
+        .handler = vu_hk_handler,
     }
 };
 

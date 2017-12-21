@@ -42,16 +42,27 @@
 #define VU_POWER_ON                 0x53
 #define VU_POWER_OFF                0x54
 
+/*解理工通信板信噪比转换公式*/
+#define JLG_SNR(x) (float)( x / 10.0 )
+/*Received signal Doppler offset*/
+#define JLG_SDO_Hz(x) (float)( x * 0.29296875 )
+/*Power amplifier temperature*/
+#define JLG_PAT_C(x) (float)( x * 0.00390625 )
+/*Power bus voltage*/
+#define JLG_PBV_V(x) (float)( x * 0.07734 )
+/*Board voltage*/
+#define JLG_BV_V(x) (float)( x * 0.03867 )
+
 /*获取vu遥测响应结构体*/
-typedef  struct __attribute__((packed)) {
-    uint16_t ReflectedPower;
-    uint16_t ForwardPower;
-    uint16_t DopplerOffset;
-    uint16_t RSSI;
-    uint16_t BusVoltage;
-    uint16_t TotalCurrent;
-    uint16_t AmplifierTemp;
-    uint16_t OscillatorTemp;
+typedef struct __attribute__((packed))
+{
+    uint32_t Uptime; /*获取遥测回复中无此字段 */
+    uint16_t SNR;    /*信噪比 */
+    uint16_t DopplerOffset; /*多普勒频偏 */
+    uint16_t BusVoltage;  /*母线电压*/
+    uint16_t BoardVoltage; /*板上电压*/
+    uint16_t AmplifierTemp; /*功放温度*/
+    uint16_t RecCount; /* 获取遥测回复中无此字段 */
 } rsp_vu_tm;
 
 /**
@@ -205,20 +216,6 @@ int vu_fm_on(void);
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
 int vu_fm_off(void);
-
-/**
- * 收发机上电
- *
- * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
- */
-int vu_power_on(void);
-
-/**
- * 收发机断电
- *
- * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
- */
-int vu_power_off(void);
 
 
 #endif /* CONTRL_IF_JLGVU_H_ */

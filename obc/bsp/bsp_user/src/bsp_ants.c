@@ -13,22 +13,90 @@
 
 #include "bsp_ants.h"
 #include "bsp_pca9665.h"
+#include "obc_mem.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 
 #define ANTS_I2C_HANDLE			0
+#define ISIS_I2C_TIME_OUT       200
+
+extern xSemaphoreHandle i2c_lock;
+extern pca9665_device_object_t device[2];
+
 
 static int isis_ants_delay_cmd(uint8_t addr, void * txbuf, size_t txlen, void * rxbuf, size_t rxlen, int delay)
 {
-	if (i2c_master_transaction(ANTS_I2C_HANDLE, addr, txbuf, txlen, NULL, 0, 400) != E_NO_ERR)
-		return 0;
-	vTaskDelay(delay/portTICK_RATE_MS);
-	if (i2c_master_transaction(ANTS_I2C_HANDLE, addr, NULL, 0, rxbuf, rxlen, 400) != E_NO_ERR)
-		return 0;
+    if (ANTS_I2C_HANDLE >= pca9665_device_count)
+        return E_NO_DEVICE;
 
-	return E_NO_ERR;
+    if (!device[ANTS_I2C_HANDLE].is_initialised)
+        return E_NO_DEVICE;
+
+    if ((txlen > I2C_MTU) || (rxlen > I2C_MTU))
+        return E_INVALID_BUF_SIZE;
+
+    i2c_frame_t * t_frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
+    i2c_frame_t * r_frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
+
+    if (t_frame == NULL || r_frame == NULL)
+        return E_NO_BUFFER;
+
+    /* Take the I2C lock */
+    xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
+
+    /* Temporarily disable the RX callback, because we wish the received message to go into the I2C queue instead */
+    void * tmp_callback = device[ANTS_I2C_HANDLE].callback;
+    device[ANTS_I2C_HANDLE].callback = NULL;
+
+    t_frame->dest = addr;
+    memcpy(&t_frame->data[ANTS_I2C_HANDLE], txbuf, txlen);
+    t_frame->len = txlen;
+    t_frame->len_rx = 0;
+
+    r_frame->dest = addr;
+    r_frame->len = 0;
+    r_frame->len_rx = rxlen;
+
+    if (i2c_send(ANTS_I2C_HANDLE, t_frame, 0) != E_NO_ERR) {
+        ObcMemFree(t_frame);
+        ObcMemFree(r_frame);
+        device[ANTS_I2C_HANDLE].callback = tmp_callback;
+        xSemaphoreGive(i2c_lock);
+        return E_TIMEOUT;
+    }
+
+    vTaskDelay(delay); /** 主发主收之间需要一个短暂延时给通信机准备数据的时间 */
+
+    if (rxlen == 0) {
+        ObcMemFree(r_frame);
+        device[ANTS_I2C_HANDLE].callback = tmp_callback;
+        xSemaphoreGive(i2c_lock);
+        return E_NO_ERR;
+    }
+
+    if (i2c_send(ANTS_I2C_HANDLE, r_frame, 0) != E_NO_ERR) {
+        ObcMemFree(r_frame);
+        device[ANTS_I2C_HANDLE].callback = tmp_callback;
+        xSemaphoreGive(i2c_lock);
+        return E_TIMEOUT;
+    }
+
+    if (i2c_receive(ANTS_I2C_HANDLE, &r_frame, ISIS_I2C_TIME_OUT) != E_NO_ERR) {
+        device[ANTS_I2C_HANDLE].callback = tmp_callback;
+        xSemaphoreGive(i2c_lock);
+        return E_TIMEOUT;
+    }
+
+    memcpy(rxbuf, &r_frame->data[0], rxlen);
+
+    ObcMemFree(r_frame);
+    device[ANTS_I2C_HANDLE].callback = tmp_callback;
+    xSemaphoreGive(i2c_lock);
+    return E_NO_ERR;
 }
+
 
 int ants_status(isis_ants_status_t * status) {
 
@@ -247,7 +315,7 @@ int isis_ants_deploy_single(uint8_t i2c_addr, int isis_ant_nr, uint8_t time_sec,
 	
 	//i2c_init(ANTS_I2C_HANDLE, I2C_MASTER, 0x08, 100, 5, 5, NULL);
 
-	if (i2c_master_transaction(ANTS_I2C_HANDLE, i2c_addr, &tx, tx_len, NULL, 0, 1000) != E_NO_ERR) {
+	if (isis_ants_delay_cmd(i2c_addr, &tx, tx_len, NULL, 0, 10) != E_NO_ERR) {
 		printf("I2C transaction error\r\n");
 		return 0;
 	}
@@ -266,7 +334,7 @@ int isis_ants_deploy_auto(uint8_t i2c_addr, uint8_t time_sec) {
 
 	//i2c_init(ANTS_I2C_HANDLE, I2C_MASTER, 0x08, 100, 5, 5, NULL);
 
-	if (i2c_master_transaction(ANTS_I2C_HANDLE, i2c_addr, &tx, tx_len, NULL, 0, 1000) != E_NO_ERR) {
+	if (isis_ants_delay_cmd(i2c_addr, &tx, tx_len, NULL, 0, 10) != E_NO_ERR) {
 		printf("I2C transaction error\r\n");
 		return 0;
 	}
@@ -285,7 +353,7 @@ int ants_deploy_auto(uint8_t time_sec) {
 
 	//i2c_init(ANTS_I2C_HANDLE, I2C_MASTER, 0x08, 100, 5, 5, NULL);
 
-	if (i2c_master_transaction(ANTS_I2C_HANDLE, ISIS_ANTS_DFL_ADDR_A, &tx, tx_len, NULL, 0, 1000) != E_NO_ERR) {
+	if (isis_ants_delay_cmd(ISIS_ANTS_DFL_ADDR_A, &tx, tx_len, NULL, 0, 10) != E_NO_ERR) {
 		return 0;
 	}
 
@@ -302,7 +370,7 @@ int isis_ants_deploy_cancel(uint8_t i2c_addr) {
 
 	//i2c_init(ANTS_I2C_HANDLE, I2C_MASTER, 0x08, 100, 5, 5, NULL);
 
-	if (i2c_master_transaction(ANTS_I2C_HANDLE, i2c_addr, &tx, tx_len, NULL, 0, 1000) != E_NO_ERR) {
+	if (isis_ants_delay_cmd(i2c_addr, &tx, tx_len, NULL, 0, 10) != E_NO_ERR) {
 		printf("I2C transaction error\r\n");
 		return 0;
 	}
@@ -320,7 +388,7 @@ int isis_ants_disarm(uint8_t i2c_addr) {
 
 	//i2c_init(ANTS_I2C_HANDLE, I2C_MASTER, 0x08, 100, 5, 5, NULL);
 
-	if (i2c_master_transaction(ANTS_I2C_HANDLE, i2c_addr, &tx, tx_len, NULL, 0, 1000) != E_NO_ERR) {
+	if (isis_ants_delay_cmd(i2c_addr, &tx, tx_len, NULL, 0, 10) != E_NO_ERR) {
 		printf("I2C transaction error\r\n");
 		return 0;
 	}
@@ -338,7 +406,7 @@ int isis_ants_arm(uint8_t i2c_addr) {
 
 	//i2c_init(ANTS_I2C_HANDLE, I2C_MASTER, 0x08, 100, 5, 5, NULL);
 
-	if (i2c_master_transaction(ANTS_I2C_HANDLE, i2c_addr, &tx, tx_len, NULL, 0, 1000) != E_NO_ERR) {
+	if (isis_ants_delay_cmd(i2c_addr, &tx, tx_len, NULL, 0, 10) != E_NO_ERR) {
 		printf("I2C transaction error\r\n");
 		return 0;
 	}
@@ -356,7 +424,7 @@ int ants_arm(void) {
 
 	//i2c_init(ANTS_I2C_HANDLE, I2C_MASTER, 0x08, 100, 5, 5, NULL);
 
-	if (i2c_master_transaction(ANTS_I2C_HANDLE, ISIS_ANTS_DFL_ADDR_A, &tx, tx_len, NULL, 0, 1000) != E_NO_ERR) {
+	if (isis_ants_delay_cmd(ISIS_ANTS_DFL_ADDR_A, &tx, tx_len, NULL, 0, 10) != E_NO_ERR) {
 		return 0;
 	}
 
@@ -373,7 +441,7 @@ int isis_ants_reset(uint8_t i2c_addr) {
 
 	//i2c_init(ANTS_I2C_HANDLE, I2C_MASTER, 0x08, 100, 5, 5, NULL);
 
-	if (i2c_master_transaction(ANTS_I2C_HANDLE, i2c_addr, &tx, tx_len, NULL, 0, 1000) != E_NO_ERR) {
+	if (isis_ants_delay_cmd(i2c_addr, &tx, tx_len, NULL, 0, 10) != E_NO_ERR) {
 		printf("I2C transaction error\r\n");
 		return 0;
 	}

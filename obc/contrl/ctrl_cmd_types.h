@@ -60,8 +60,8 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
 
-	uint16_t	select;		//0:SDCARD 1:RAM
-	uint16_t	index;		//used for RAM
+	uint8_t	select;		//0:SDCARD 1:RAM
+	uint8_t	index;		//used for RAM
 	uint32_t	secs;		//used for SDCARD
 }ctrl_delayhk_t;
 

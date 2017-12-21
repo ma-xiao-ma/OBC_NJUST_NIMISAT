@@ -1955,7 +1955,7 @@ BaseType_t xSwitchRequired = pdFALSE;
 		++xTickCount;
 
 		if(xTickCount % 3600000 == 0){
-			timesync_nopara();
+		    obc_timesync();
 		}
 
 		{

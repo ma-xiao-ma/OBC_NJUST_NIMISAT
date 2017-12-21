@@ -33,8 +33,8 @@
 /*帆板展开分离开关*/
 #define PANELA                  (0x01<<5)
 #define PANELB                  (0x01<<6)
-/*可展开帆展开检测*/
-#define EXPANDABLE_SAIL         (0x01<<7) /*新增*/
+/*电池加热*/
+#define BATTERY_HEAT_EN         (0x01<<7) /*新增*/
 
 /*第二个字节*/
 #define ADCS_EN                 (0x01<<0)
@@ -48,7 +48,9 @@
 
 /*第三个字节*/
 #define JLG_VU_BUS_EN           (0x01<<0) /*新增*/
-#define BATTERY_HEAT_EN         (0x01<<1) /*新增*/
+#define SW_VU_5V_EN             (0x01<<1) /*新增*/
+/*可展开帆展开检测*/
+#define EXPANDABLE_SAIL         (0x01<<2) /*新增*/
 
 
 
@@ -70,8 +72,8 @@ typedef struct __attribute__((packed))
     uint32_t     panel_a: 1;             //W0B5
     /**电池镇B展开状态*/
     uint32_t     panel_b: 1;             //W0B6
-    /**保留位*/
-    uint32_t     sail: 1;                //W0B7
+    /**电池加热开关*/
+    uint32_t     battery_heat_on: 1;     //W0B7
 
 
     /**接收单元当前所有遥测*/
@@ -91,11 +93,13 @@ typedef struct __attribute__((packed))
     /**发射单元上次下行数据时所有遥测*/
     uint32_t     cam_heat_2_pwr: 1;      //W1B7
 
-
     /**保留位域1*/
     uint32_t     jlg_vu_on: 1;              //W3B0
-    uint32_t     battery_heat_on: 1;        //W3B1
-    uint32_t     reserved1: 6;              //W3
+    uint32_t     switch_vu_on: 1;           //W3B1
+    /**展开帆 展开状态*/
+    uint32_t     sail: 1;                   //W3B2
+    uint32_t     reserved1: 5;              //W3
+
     /**保留位域2*/
     uint32_t     reserved2: 8;              //W4
 } obc_switch_t;
@@ -126,29 +130,33 @@ typedef enum {
 //0x21
 #define MAGBAR_EN_MASK			0x10
 
+/*使能编号重定义*/
+#define OUT_ADCS_7V             OUT_EPS_S0
+#define OUT_HEAT_5V				OUT_EPS_S1
+#define OUT_CAM_5V              OUT_EPS_S2
+#define OUT_ANTS_3V				OUT_EPS_S3
+#define OUT_SAIL_7V             OUT_7_4V_2
+#define OUT_PANEL_7V			OUT_SOLAR_EN
+#define OUT_BACKUP_VU           OUT_USB_EN
+#define OUT_SWITCH_5V           OUT_5_3_3V_3
 
-//#define OUT_GPS_5V				OUT_5_3_3V_1
-//#define OUT_HEAT_7V				OUT_7_4V_1
-#define OUT_ADCS_7V				OUT_EPS_S0
-#define OUT_ANTS_3V				OUT_EPS_S1
-//#define OUT_FIPEX_5V			OUT_EPS_S2
-//#define OUT_FIPEX_3V			OUT_EPS_S3
-//#define OUT_PANEL_7V			OUT_SOLAR_EN
+
 //读取引脚高低电平状态
-//#define OUT_GPS_5V_PIN()		SW_5_3_3V_1_PIN()
-//#define OUT_HEAT_7V_PIN()		SW_7_4V_1_PIN()
 #define OUT_ADCS_7V_PIN()		SW_EPS_S0_PIN()
+#define OUT_HEAT_5V_PIN()       SW_EPS_S1_PIN()
+#define OUT_CAM_5V_PIN()        SW_EPS_S2_PIN()
 #define OUT_ANTS_3V_PIN()	    SW_EPS_S3_PIN()
-//#define OUT_FIPEX_5V_PIN()		SW_EPS_S1_PIN()
-//#define OUT_FIPEX_3V_PIN()		SW_EPS_S3_PIN()
+
 #define OUT_PANEL_7V_PIN()		SW_SOLAR_EN_PIN()
+#define OUT_BACKUP_VU_PIN()     SW_USB_EN_PIN()
+#define OUT_SW_VU_5V_PIN()      SW_5_3_3V_3_PIN()
 
 //#define DISABLE_GPS_5V			SW_5_3_3V_1_DISABLE
 //#define DISABLE_HEAT_7V			SW_7_4V_1_DISABLE
 #define DISABLE_ADCS_7V			SW_EPS_S0_DISABLE
-#define DISABLE_ANTS_3V			SW_EPS_S1_DISABLE
-//#define DISABLE_FIPEX_5V		SW_EPS_S2_DISABLE
-//#define DISABLE_FIPEX_3V		SW_EPS_S3_DISABLE
+#define DISABLE_HEAT_5V		    SW_EPS_S1_DISABLE
+#define DISABLE_CAM_5V		    SW_EPS_S2_DISABLE
+#define DISABLE_ANTS_3V		    SW_EPS_S3_DISABLE
 #define DISABLE_PANEL_7V		SW_SOLAR_EN_DISABLE
 
 //#define ENABLE_GPS_5V			SW_5_3_3V_1_ENABLE

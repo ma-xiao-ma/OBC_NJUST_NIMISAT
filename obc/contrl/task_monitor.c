@@ -35,7 +35,13 @@
 #define ROUTE_TASK_BIT      ( 1 << 2 )
 #define SERVER_TASK_BIT     ( 1 << 3 )
 #define SEND_TASK_BIT       ( 1 << 4 )
-#define MONITOR_ALL_BIT     ( EventBits_t )( COLLECT_TASK_BIT | DOWN_SAVE_TASK_BIT | ROUTE_TASK_BIT | SERVER_TASK_BIT | SEND_TASK_BIT )
+#define CONTROL_TASK_BIT    ( 1 << 5 )
+#define VU_UPLINK_TASK_BIT  ( 1 << 6 )
+#define VU_JLG_TASK_BIT     ( 1 << 7 )
+
+
+#define MONITOR_ALL_BIT     ( EventBits_t )( COLLECT_TASK_BIT | DOWN_SAVE_TASK_BIT | ROUTE_TASK_BIT | SERVER_TASK_BIT | \
+                                    SEND_TASK_BIT | CONTROL_TASK_BIT | VU_UPLINK_TASK_BIT | VU_JLG_TASK_BIT )
 
 
 EventGroupHandle_t task_status;
@@ -86,6 +92,15 @@ void supervisor_task(void *para)
             /**
              * 随后可以添加线程爆炸处理，暂时用计算机复位代替
              */
+            if ( (EventValue & (EventBits_t)CONTROL_TASK_BIT) == 0)
+                printf("Control Task Already Exploded!!!\n");
+
+            if ( (EventValue & (EventBits_t)VU_UPLINK_TASK_BIT) == 0)
+                printf("ISIS VU Task Already Exploded!!!\n");
+
+            if ( (EventValue & (EventBits_t)VU_JLG_TASK_BIT) == 0)
+                printf("JLG VU Task Already Exploded!!!\n");
+
             if ( (EventValue & (EventBits_t)COLLECT_TASK_BIT) == 0)
                 printf("Collect Task Already Exploded!!!\n");
 

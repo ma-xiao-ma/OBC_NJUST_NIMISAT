@@ -22,6 +22,7 @@
 #include "dtb_805.h"
 #include "camera_805.h"
 #include "if_trxvu.h"
+#include "if_jlgvu.h"
 
 #define HK_SDCARD					0x00
 #define HK_SRAM						0x01
@@ -86,8 +87,10 @@ typedef struct __attribute__((packed))
     uint16_t        reboot_count;           //2
     /**上行本地指令计数*/
     uint16_t        rec_cmd_count;          //2
+    /**通信机接收指令计数*/
+    uint16_t        vu_rec_count;           //2  /*新增*/
     /**下行遥测帧总计数*/
-    uint32_t        hk_down_count;          //4
+    uint16_t        hk_down_count;          //2
     /**存储遥测帧总计数*/
     uint32_t        hk_store_count;         //4
     /**i2c驱动错误计数*/
@@ -154,6 +157,15 @@ typedef struct __attribute__((packed))
 
 } vu_isis_hk_t;
 
+/*备份通信机遥测，17 Byte*/
+typedef struct __attribute__((packed))
+{
+    /**备份通信机所有遥测*/
+    rsp_vu_tm vu_tm;                        //16
+    /**发射机工作状态*/
+    rsp_transmitter_state tx_state;         //1
+} vu_jlg_hk_t;
+
 /*数传机遥测，17 Byte*/
 typedef struct __attribute__((packed))
 {
@@ -185,8 +197,10 @@ typedef struct __attribute__((packed))
     obc_hk_t        obc;
     eps_hk_t        eps;
     vu_isis_hk_t    ttc;
-    dtb_805_hk_t    dtb;
+    /*dtb_805_hk_t    dtb;*/
+    vu_jlg_hk_t     jlg;
     cam_805_hk_t    cam;
+
 } HK_Main_t;
 
 typedef struct __attribute__((packed))
@@ -346,6 +360,20 @@ void ttc_hk_task(void);
  * @return pdTRUE为正常，pdFALSE不正常
  */
 int ttc_hk_get_peek(vu_isis_hk_t *ttc);
+
+/**
+ * JLG通信机遥测采集任务，采集到的数据送入jlg_hk_queue队列
+ *
+ */
+void jlg_hk_task(void);
+
+/**
+ * 通过队列获取JLG通信机遥测值
+ *
+ * @param tm 接收缓冲区指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int jlg_hk_get_peek(vu_jlg_hk_t *jlg);
 
 /**
  * 数传机数据采集任务，采集数值放入eps_hk_queue中

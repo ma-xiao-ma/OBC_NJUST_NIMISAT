@@ -53,6 +53,8 @@ uint8_t up_cmd_adcs_pwr	= 1;
 ///////////////////////////////////////local function////////////////////////////
 
 uint8_t IsJLGvuWorking = 0;     /*JLG通信机开启标志，开启为1， 关闭为0*/
+bool PassFlag = false;          /*过境标志*/
+
 uint8_t IsRealTelemetry = 1;	//1为实时遥测   0为延时遥测
 ///work mode variable
 uint8_t mode = SLEEP_MODE;
@@ -99,12 +101,16 @@ typedef struct
 {
     uint32_t vu_idle_state;
     uint32_t vu_jlg_switch_on;
+    uint32_t passing;
+    uint32_t time_valid;
 } control_para;
 
 static control_para control_task;
 
 #define VU_IDLE_ON       (15 * 60) /*通信机空闲状态连续发射开 持续时间    单位：秒*/
 #define JLG_VU_SWITCH_ON (15 * 60) /*解理工通信机备份机切换     持续时间    单位：秒*/
+#define PASSIN_LAST      (15 * 60) /*过境时间*/
+#define TIME_SYSN        ( 5 * 60) /*时间同步间隔*/
 
 #define CONTROL_CYCLE    5000      /*控制周期  单位：毫秒*/
 
@@ -116,21 +122,24 @@ static control_para control_task;
 
 void ControlTask(void * pvParameters __attribute__((unused)))
 {
-
-	portTickType xLastWakeTime = xTaskGetTickCount(); //for the 10s timer task
-
-	vTaskDelayUntil(&xLastWakeTime, (10000 / portTICK_RATE_MS));
-
 	vu_isis_hk_t *vu_tm = (vu_isis_hk_t *)ObcMemMalloc(sizeof(vu_isis_hk_t));
 	obc_hk_t *obc_tm = (obc_hk_t *)ObcMemMalloc(sizeof(obc_hk_t));
-	if (vu_tm == NULL)
+
+	if (vu_tm == NULL || obc_tm == NULL)
 	    while(1);
+
+	portTickType xLastWakeTime = xTaskGetTickCount();
 
 	while (1)
 	{
+	    task_report_alive(Control);
+
+        vTaskDelayUntil(&xLastWakeTime, (CONTROL_CYCLE / portTICK_RATE_MS));
+
 	    obc_hk_get_peek(obc_tm);
 	    ttc_hk_get_peek(vu_tm);
 
+	    /**如果通信机空闲状态连续发射已经开启*/
 	    if (vu_tm->tx_state.IdleState == RemainOn)
 	        control_task.vu_idle_state++;
 	    else
@@ -142,24 +151,46 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 	    else
 	        control_task.vu_jlg_switch_on = 0;
 
+        /**如果过境标志已经置位*/
+        if (PassFlag == true)
+            control_task.passing++;
+        else
+            control_task.passing = 0;
+
+        /**若星上时间有效则每5分钟向姿控系统同步时间信息*/
+        if (obc_tm->utc_time > 1514764800 && obc_tm->utc_time < 1577836800)
+            control_task.time_valid ++;
+        else
+            control_task.time_valid = 0;
+
 	    /* 如果通信机空闲状态连续发射连续开启超过15分钟，或者备份通信机启动时，则自动关闭连续发射 */
-	    if (control_task.vu_idle_state > JUDGMENT(VU_IDLE_ON) || IsJLGvuWorking)
+	    if ( control_task.vu_idle_state > JUDGMENT(VU_IDLE_ON) || IsJLGvuWorking )
 	    {
-	        /**
-	         * 出境时需要做哪些事情？  是否需要通信机复位
-	         */
-	        vu_transmitter_set_idle_state(TurnOff);
+	        /* 若连续发射已经关闭，则不再执行 */
+	        if (control_task.vu_idle_state != TurnOff)
+	            vu_transmitter_set_idle_state(TurnOff);
 	    }
 
-
         /* 如果备份通信机开启超过15分钟，则自动切换为主份 */
-        if (control_task.vu_jlg_switch_on > JUDGMENT(JLG_VU_SWITCH_ON))
+        if ( control_task.vu_jlg_switch_on > JUDGMENT(JLG_VU_SWITCH_ON) )
         {
             /***此处应将通信机切换回ISIS通信机, 除能备份通信机加电*/
 
             EpsOutSwitch(OUT_USB_EN, DISABLE); /*备份通信机断电*/
 
             IsJLGvuWorking = false;
+        }
+
+        /* 每次过境不会超过15分钟，因此超过15分钟清除过境标志*/
+        if ( control_task.passing > JUDGMENT(PASSIN_LAST) )
+        {
+            PassFlag = false;
+        }
+
+        /* 星上时间每5min跟姿控同步一次 */
+        if ( control_task.time_valid > JUDGMENT(TIME_SYSN) )
+        {
+            adcstimesync( clock_get_time_nopara() );
         }
 
         /**功耗控制函数*/
@@ -177,7 +208,6 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 //                break;
 //		}
 
-		vTaskDelayUntil(&xLastWakeTime, (CONTROL_CYCLE / portTICK_RATE_MS));
 	}
 }
 
@@ -198,9 +228,13 @@ void hk_collect_task(void *pvParameters __attribute__((unused)))
         eps_hk_task();
 
         ttc_hk_task();
-        /* 若数传上电，则获取遥测值 */
-        if (OUT_SW_DTB_5V_PIN())
-            dtb_hk_task();
+
+//        /* 若数传上电，则获取遥测值 */
+//        if (OUT_SW_DTB_5V_PIN())
+//            dtb_hk_task();
+
+        if (IsJLGvuWorking)
+            jlg_hk_task();
 
         /* 若相机上电，则获取遥测值 */
         if (OUT_SW_CAMERA_10W_PIN() && OUT_SW_CAMERA_5W_PIN())
@@ -232,7 +266,7 @@ void OpenAntenna_Task(void* param __attribute__((unused))) {
 //		vTaskDelete(NULL);
 //	}
 
-	enable_antspwr(0,0);
+	enable_antspwr(1000,0);
 
 	vTaskDelay(1000 / portTICK_RATE_MS);
 
@@ -390,7 +424,7 @@ void down_save_task(void * pvParameters __attribute__((unused)))
 				up_hk_down_cmd = 0;
 //				PassFlag = 0;
 
-				hk_data_save_task();
+				hk_data_save_task(); /*250分钟存满一个文件，一个文件1000调遥测*/
 			}
 		}
 
@@ -509,16 +543,19 @@ void hk_data_save_task(void)
 {
 	hk_collect();
 
-    /**
-     * 遥测值信标
-     */
-//    ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
-//            &hk_frame.main_frame, sizeof(HK_Main_t) );
-//
-//    vTaskDelay(10 / portTICK_RATE_MS);
-//
-//    ProtocolSendDownCmd( GND_ROUTE_ADDR, ADCS_ROUTE_ADDR, ADCS_TELEMETRY,
-//            &hk_frame.append_frame, sizeof(HK_Append_t) );
+	if ( !PassFlag ) /* 非过境时每个存储周期下行遥测 */
+	{
+        /**
+         * 遥测值信标
+         */
+        ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
+                &hk_frame.main_frame, sizeof(HK_Main_t) );
+
+        vTaskDelay(10 / portTICK_RATE_MS);
+
+        ProtocolSendDownCmd( GND_ROUTE_ADDR, ADCS_ROUTE_ADDR, ADCS_TELEMETRY,
+                &hk_frame.append_frame, sizeof(HK_Append_t) );
+	}
 
 	hk_store_add();
 }

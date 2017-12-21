@@ -61,7 +61,7 @@ int board_temp_get_cmd(struct command_context *ctx __attribute__((unused)))
     if(get_obc_temp((uint16_t *)&obc_temp) == E_NO_ERR)
     {
         if(obc_temp.is_negative)
-            printf( "TEMP:-%.4f C\n", ~(obc_temp.temp+1) * 0.0625 );
+            printf( "TEMP:-%.4f C\n", ~(obc_temp.temp + 1) * 0.0625 );
         else
             printf( "TEMP: %.4f C\n", obc_temp.temp * 0.0625 );
     }

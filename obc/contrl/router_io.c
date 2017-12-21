@@ -6,6 +6,7 @@
  */
 
 #include "FreeRTOS.h"
+#include "semphr.h"
 #include "route.h"
 
 #include "driver_debug.h"
@@ -19,6 +20,8 @@
 #include "error.h"
 
 #include "router_io.h"
+
+extern xSemaphoreHandle i2c_lock;
 
 /**
  * 在路由器初始化函数中调用，用于初始化用户相关定义
@@ -89,6 +92,9 @@ static int route_i2c0_tx(route_packet_t * packet, uint32_t timeout)
         frame->dest = route_find_mac(packet->dst);
     }
 
+    /* Take the I2C lock */
+    xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
+
     /*添加路由头到I2C帧的长度字段 */
     frame->len += 3;
     frame->len_rx = 0;
@@ -97,9 +103,11 @@ static int route_i2c0_tx(route_packet_t * packet, uint32_t timeout)
     if (i2c_send(0, frame, timeout) != E_NO_ERR)
     {
         ObcMemFree(frame);
+        xSemaphoreGive(i2c_lock);
         return E_NO_DEVICE;
     }
 
+    xSemaphoreGive(i2c_lock);
     return E_NO_ERR;
 }
 
@@ -129,13 +137,18 @@ static int route_i2c1_tx(route_packet_t * packet, uint32_t timeout)
     frame->len += 3;
     frame->len_rx = 0;
 
+    /* Take the I2C lock */
+    xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
+
     /*添加I2C帧到发送队列*/
     if (i2c_send(1, frame, timeout) != E_NO_ERR)
     {
         ObcMemFree(frame);
+        xSemaphoreGive(i2c_lock);
         return E_NO_DEVICE;
     }
 
+    xSemaphoreGive(i2c_lock);
     return E_NO_ERR;
 }
 
@@ -180,6 +193,8 @@ int router_send_to_other_node(route_packet_t *packet)
 int router_unpacket(route_packet_t *packet)
 {
 
+    extern QueueHandle_t adcs_hk_queue;
+
     /* 处理地面给星务的信息 */
     if (packet->src == GND_ROUTE_ADDR)
     {
@@ -193,7 +208,9 @@ int router_unpacket(route_packet_t *packet)
         switch (packet->typ)
         {
             case INS_OBC_GET_ADCS_HK:
-                adcs_queue_wirte(packet, NULL);
+//                adcs_queue_wirte(packet, NULL);
+                xQueueOverwrite(adcs_hk_queue, packet->dat);
+                ObcMemFree(packet);
                 break;
 
             default:

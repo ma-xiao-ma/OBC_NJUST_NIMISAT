@@ -552,7 +552,8 @@ void rtc_time_get(timestamp_t * timestamp){
 	timestamp->tv_nsec = 0;
 }
 
-int timesync_nopara(void){
+int timesync_nopara(void)
+{
 	int result = 0;
 
 	struct ds1302_clock clock;
@@ -592,8 +593,8 @@ int timesync(time_t sec){
 	return result;
 }
 
-int obc_timesync(void){
-
+int obc_timesync(void)
+{
 	struct ds1302_clock clock;
 	timestamp_t timestamp;
 	TickType_t tick_count = xTaskGetTickCount();

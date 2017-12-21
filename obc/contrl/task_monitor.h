@@ -17,7 +17,10 @@ typedef enum
     DownSave = 1<<1,
     Router = 1<<2,
     Server = 1<<3,
-    Send = 1<<4
+    Send = 1<<4,
+    Control = 1<<5,
+    Isis = 1<<6,
+    Jlg = 1<<7
 } monitor_bit;
 
 /**

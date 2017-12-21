@@ -23,6 +23,7 @@
 #include "hk.h"
 #include "bsp_pca9665.h"
 #include "error.h"
+#include "task_monitor.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -98,6 +99,8 @@ int crc16_generate(struct command_context * context __attribute__((unused))){
 static uint8_t test[4];
 
 int ts_cam(struct command_context * context __attribute__((unused))){
+
+    printf("sizeof(trans_mode):%u. sizeof(trans_mode):%u.\r\n", sizeof(trans_mode), sizeof(monitor_bit));
     uint32_t test1 = 0x12345678;
     *(uint32_t *)test = test1;
 

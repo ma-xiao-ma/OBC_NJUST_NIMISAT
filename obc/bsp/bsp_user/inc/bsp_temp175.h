@@ -12,7 +12,7 @@
 typedef struct __attribute__((packed))
 {
     uint16_t padding:4;
-    uint16_t temp:12;
+    uint16_t temp:11;
     uint16_t is_negative:1;
 } temp_reg_t;
 

@@ -101,9 +101,14 @@ void adcs_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken)
 int adcs_transaction(uint8_t type, void * txbuf, size_t txlen, void * rxbuf, size_t rxlen, uint16_t timeout)
 {
 
+    extern xSemaphoreHandle i2c_lock;
+
     i2c_frame_t * frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
     if (frame == NULL)
         return E_NO_BUFFER;
+
+    /* Take the I2C lock */
+    xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
 
     frame->dest = ADCS_I2C_ADDR;
     frame->len = txlen + ROUTE_HEAD_SIZE;
@@ -121,29 +126,37 @@ int adcs_transaction(uint8_t type, void * txbuf, size_t txlen, void * rxbuf, siz
     if (i2c_send(OBC_TO_ADCS_HANDLE, frame, 0) != E_NO_ERR)
     {
         ObcMemFree(frame);
+        xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;
     }
 
-    if (rxlen == 0) {
+    if (rxlen == 0)
+    {
+        xSemaphoreGive(i2c_lock);
         return E_NO_ERR;
     }
 
     route_packet_t *packet;
 
     if (adcs_queue_read(&packet, timeout) != E_NO_ERR)
+    {
+        xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;
+    }
 
     /* 接收内容正确性检查 */
     if (packet->dst != OBC_ROUTE_ADDR || packet->src != ADCS_ROUTE_ADDR ||
             packet->typ != type || packet->len != rxlen)
     {
         ObcMemFree(packet);
+        xSemaphoreGive(i2c_lock);
         return E_INVALID_PARAM;
     }
 
     memcpy(rxbuf, &packet->dat[0], rxlen);
 
     ObcMemFree(packet);
+    xSemaphoreGive(i2c_lock);
 
     return E_NO_ERR;
 }
@@ -158,7 +171,7 @@ int adcs_transaction(uint8_t type, void * txbuf, size_t txlen, void * rxbuf, siz
 int adcs_get_hk(void *hk, uint16_t timeout)
 {
 
-    return adcs_transaction(INS_OBC_GET_ADCS_HK, NULL, 0, hk, sizeof(adcs805_hk_t), timeout);
+    return adcs_transaction(INS_OBC_GET_ADCS_HK, NULL, 0, NULL/*hk*/, /*sizeof(adcs805_hk_t)*/0, 0/*timeout*/);
 }
 
 /**

@@ -148,11 +148,12 @@ int cmd_switch_status(struct command_context *ctx __attribute__((unused))) {
 		printf("panelb\t\tclose\r\n");
 	}
 
-	if(status[0] & EXPANDABLE_SAIL) {
-        printf("sail\t\topen\r\n");
+    if(status[0] & BATTERY_HEAT_EN) {
+        printf("bat_heat\topen\r\n");
     }else{
-        printf("sail\t\tclose\r\n");
+        printf("bat_heat\tclose\r\n");
     }
+
 
 	/*第二个字节*/
 
@@ -212,11 +213,19 @@ int cmd_switch_status(struct command_context *ctx __attribute__((unused))) {
         printf("vu_backup\tclose\r\n");
     }
 
-    if(status[2] & BATTERY_HEAT_EN) {
-        printf("bat_heat\topen\r\n");
+    if(status[2] & SW_VU_5V_EN) {
+        printf("vu_switch\topen\r\n");
     }else{
-        printf("bat_heat\tclose\r\n");
+        printf("vu_switch\tclose\r\n");
     }
+
+    if(status[2] & EXPANDABLE_SAIL) {
+        printf("sail\t\topen\r\n");
+    }else{
+        printf("sail\t\tclose\r\n");
+    }
+
+
 //	if(status[2] & M1_POWER_MASK) {
 //		printf("m1_power_mask open\r\n");
 //	}else{

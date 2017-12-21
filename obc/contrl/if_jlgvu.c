@@ -391,22 +391,3 @@ int vu_fm_off(void)
     return vu_cmd( FM_FORWARDING_OFF );
 }
 
-/**
- * 收发机上电
- *
- * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
- */
-int vu_power_on(void)
-{
-    return vu_cmd( VU_POWER_ON );
-}
-
-/**
- * 收发机断电
- *
- * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
- */
-int vu_power_off(void)
-{
-    return vu_cmd( VU_POWER_OFF );
-}

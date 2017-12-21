@@ -25,39 +25,44 @@
 #include "if_trxvu.h"
 
 /*测试发射速率*/
-int isis_send_handler(struct command_context * context)
+void isis_send_task(void *para)
 {
+    uint8_t frame_len = ((uint32_t *)para)[0];
+    uint32_t num_of_frame = ((uint32_t *)para)[1];
+    uint32_t interval_ms = ((uint32_t *)para)[2];
 
-    static uint32_t num_of_frame = 0;
-    static uint32_t interval_ms = 0;
-    static uint8_t frame_len;
+
     int ret, errors = 0, times = 0;
     uint32_t j = 1;
-
-    char * args = command_args(context);
-
-    if (sscanf(args, "%u %u %u", &frame_len, &num_of_frame, &interval_ms) != 3)
-        return CMD_ERROR_SYNTAX;
+    uint8_t rest_of_frame;
 
     if (frame_len < 8 || frame_len > ISIS_MTU)
-        return CMD_ERROR_SYNTAX;
+    {
+        printf("ERROR: Frame length error!\r\n");
+        vTaskDelete(NULL);
+    }
 
 	uint8_t *frame = ObcMemMalloc(frame_len/*ISIS_MTU*/);
 	if(frame == NULL)
-	    return CMD_ERROR_SYNTAX;
+	{
+        printf("ERROR: Malloc fail!\r\n");
+        vTaskDelete(NULL);
+	}
 
 	for (int i=0; i<frame_len/*ISIS_MTU*/; i++)
 	    frame[i] = 0x55;
 
-	uint8_t rest_of_frame = 0;
 
 	printf("Framelen %u byte, Send %u frame, Interval %u ms.\r\n", frame_len, num_of_frame, interval_ms);
 	printf("...\n");
 
 	*(uint32_t *)frame = csp_htobe32((uint32_t)0x12345678);
+
 	do {
 
 	    *(uint32_t *)(frame + 4)= csp_htobe32(j);
+
+	    rest_of_frame = 40;
 
 	    ret = vu_transmitter_send_frame(frame, frame_len/*ISIS_MTU*/, &rest_of_frame);
 
@@ -71,7 +76,7 @@ int isis_send_handler(struct command_context * context)
             j++;
             num_of_frame--;
             /**若发射机缓冲区已满，则等待5000毫秒*/
-            if(rest_of_frame == 1)
+            if(rest_of_frame < 2)
             {
                 times++;
                 vTaskDelay(5000 / portTICK_PERIOD_MS);
@@ -86,8 +91,25 @@ int isis_send_handler(struct command_context * context)
 	printf("Slots %u frame, Remain %u frame, Error %u, Delay %u\r\n", rest_of_frame, num_of_frame, errors, times);
 
 	ObcMemFree(frame);
-	return CMD_ERROR_NONE;
+
+	vTaskDelete(NULL);
 }
+
+/*测试发射速率*/
+int isis_send_handler(struct command_context * context)
+{
+    static uint32_t tset_para[3];
+
+    char * args = command_args(context);
+
+    if (sscanf(args, "%u %u %u", &tset_para[0], &tset_para[1], &tset_para[2]) != 3)
+        return CMD_ERROR_SYNTAX;
+
+    xTaskCreate(isis_send_task, "TEST", 256, tset_para, 3, NULL);
+
+    return CMD_ERROR_NONE;
+}
+
 
 int isis_transmitter_status_handler(struct command_context * context __attribute__((unused))) {
 
@@ -314,10 +336,12 @@ int isis_set_beacon_handler(struct command_context * context __attribute__((unus
 
     beacon->RepeatInterval = Interval;
 
-    for(int i=0; i<ISIS_MTU; i++)
-        beacon->BeaconContent[i] = i+1;
+    strcpy(beacon->BeaconContent, "Ma Wenli!!!");
 
-	if (vu_transmitter_beacon_set(beacon, ISIS_MTU) == E_NO_ERR)
+//    for(int i=0; i<ISIS_MTU; i++)
+//        beacon->BeaconContent[i] = i+1;
+
+	if (vu_transmitter_beacon_set( beacon, /*ISIS_MTU*/strlen("Ma Wenli!!!") ) == E_NO_ERR)
 	    printf("Set beacon with default callsigns OK\r\n");
 
 	ObcMemFree(beacon);

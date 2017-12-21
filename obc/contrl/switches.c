@@ -37,7 +37,7 @@ int get_switch_status(uint8_t * pstatus)
 {
 	int result = 0;
 
-	memset(pstatus, 0, sizeof(obc_switch_t));
+//	memset(pstatus, 0, sizeof(obc_switch_t));
 
 	/*W0B0--W0B4*/
 	if(antenna_status == 2)
@@ -50,8 +50,9 @@ int get_switch_status(uint8_t * pstatus)
 		result = 1;
 	}
 	else
-	{
-	    result = get_antenna_status(&pstatus[0]);   //ants[0-4] panel[5-6]
+	{   /*若天线加电，则获取遥测*/
+	    if (OUT_ANTS_3V_PIN())
+	        result = get_antenna_status(&pstatus[0]);   //ants[0-4] panel[5-6]
 	}
 
 
@@ -65,10 +66,12 @@ int get_switch_status(uint8_t * pstatus)
 	else
 		pstatus[0] &= ~PANELB;
 
-	if (IN_SW_SAIL_STATUS_PIN())
-	    pstatus[0] |= EXPANDABLE_SAIL;
-	else
-	    pstatus[0] &= ~EXPANDABLE_SAIL;
+    /*电池加热开关*/
+    if(OUT_HEAT_5V_PIN())
+        pstatus[0] |= BATTERY_HEAT_EN;
+    else
+        pstatus[0] &= ~BATTERY_HEAT_EN;
+
 
 
 	/*W1*/
@@ -124,16 +127,24 @@ int get_switch_status(uint8_t * pstatus)
     /*W2*/
 
     /*备份通信机供电开关*/
-    if(SW_USB_EN_PIN())
+    if(OUT_BACKUP_VU_PIN())
         pstatus[2] |= JLG_VU_BUS_EN;
     else
         pstatus[2] &= ~JLG_VU_BUS_EN;
 
-    /*电池加热开关*/
-    if(SW_EPS_S1_PIN())
-        pstatus[2] |= BATTERY_HEAT_EN;
+    /*通信机信道切换板*/
+    if(OUT_SW_VU_5V_PIN())
+        pstatus[2] |= SW_VU_5V_EN;
     else
-        pstatus[2] &= ~BATTERY_HEAT_EN;
+        pstatus[2] |= SW_VU_5V_EN;
+
+    /*可展开帆展开状态*/
+    if (IN_SW_SAIL_STATUS_PIN())
+        pstatus[2] |= EXPANDABLE_SAIL;
+    else
+        pstatus[2] &= ~EXPANDABLE_SAIL;
+
+
 
 	return result;
 }
@@ -165,7 +176,8 @@ int open_antenna(void){
 int enable_antspwr(uint32_t delay, uint32_t data __attribute__((unused))){
 	int result = -1;
 
-	if(delay > 0) {
+	if(delay > 0)
+	{
 		vTaskDelay(delay);
 	}
 
@@ -218,7 +230,8 @@ uint8_t get_antenna_status(uint8_t * sta){
 
 	int result = ants_status(&status);
 
-	if(result == 0){
+	if(result == 0)
+	{
 		return 0;
 	}
 

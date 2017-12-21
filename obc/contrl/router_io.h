@@ -16,7 +16,7 @@
 #define EPS_ROUTE_ADDR  3
 #define CAM_ROUTE_ADDR  5
 /***********************************************/
-#define GND_ROUTE_ADDR  64      /*地面节点*/
+#define GND_ROUTE_ADDR  66      /*地面节点*/
 /***********************************************/
 
 #define ROUTE_NODE_MAC 0xFF

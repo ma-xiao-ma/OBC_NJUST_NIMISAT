@@ -57,42 +57,38 @@ void task_initz(void)
 
     /*控制开关IO口初始化*/
     bsp_InitSwitch();
+
     /*姿控上电*/
     EpsOutSwitch(OUT_EPS_S0, ENABLE);
 
 	Console_Usart_init(115200);
 
+	/*协议串口输出输入*/
 #if USE_SERIAL_PORT_DOWNLINK_INTERFACE
-
 	vSerialInterfaceInit();
-
 #endif
 
 //	Camera_805_Init();
 
+	/*恩来相机串口初始化*/
 	extern void Camera_Enlai_Usart_Init(uint32_t baudrate);
 	Camera_Enlai_Usart_Init(115200);
 
+	/*片内ADC初始化， 用于温度采集*/
 	int_adc_init();
 
-	spi_init_dev();
-	AD7490_Init();
+	/*OBC AD7490相关初始化*/
+//	spi_init_dev();
+//	AD7490_Init();
+
 	/*power related and switches*/
 	bsp_InitSPI1();
 
-	/*on-chip clock RTC*/
+	/*片外 RTC初始化*/
 	bsp_InitDS1302();
-	/* Initialise RTC */
-	struct ds1302_clock clock;
-	timestamp_t timestamp;
 
-	/* Get time from RTC */
-	ds1302_clock_read_burst(&clock);
-	ds1302_clock_to_time((time_t *) &timestamp.tv_sec, &clock);
-	timestamp.tv_nsec = 0;
-
-	/* Set time in lib-c system time*/
-	clock_set_time(&timestamp);
+	/*OBC系统时间与RTC时间同步*/
+	obc_timesync();
 
 	/*command initialize*/
 	command_init();
@@ -106,28 +102,25 @@ void task_initz(void)
 //	vTelemetryFileManage(&hk_list);  /* 此函数会导致文件系统崩溃， 需查原因 */
 
 #if USE_ROUTE_PROTOCOL
-
-    router_init(1, 5);
-
-    /*创建服务器任务*/
+	/*设置路由地址为0x01, 路由队列深度为10*/
+    router_init(1, 10);
+    /* 创建服务器任务, 任务堆栈大小512*4字节, 优先级为2 */
     server_start_task(512, 2);
-    /*创建发送处理任务*/
+    /*创建发送处理任务, 任务堆栈大小256*4字节, 优先级为2 */
     send_processing_start_task(256, 2);
-    /*创建路由任务*/
+    /*创建路由任务, 任务堆栈大小256*4字节, 优先级为1 */
     router_start_task(256, 1);
-
 #endif
 
     /*I2C(PCA9665) initialize*/
     PCA9665_IO_Init();
     //driver_debug_switch[DEBUG_I2C] = 1;
-    i2c_init(0, I2C_MASTER, 0x1A, 40, 5, 5, NULL); //frequency = 40Kbit/s
-    i2c_init(1, I2C_MASTER, 0x08, 60, 5, 5, i2c_rx_callback);
+    i2c_init(0, I2C_MASTER, 0x1A, 40, 10, 10, NULL); //frequency = 40Kbit/s
+    i2c_init(1, I2C_MASTER, 0x08, 60, 10, 10, i2c_rx_callback);
     pca9665_isr_init();
 
 	/*采温芯片初始化*/
 	temp175_init();
-
 	cmd_eps_setup();
 	cmd_dfl_setup();
 	extern void cmd_fs_setup(void);

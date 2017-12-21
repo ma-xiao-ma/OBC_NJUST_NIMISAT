@@ -10,6 +10,9 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 #include "bsp_pca9665.h"
 #include "if_downlink_vu.h"
 #include "semphr.h"
@@ -21,7 +24,83 @@
 #include "if_trxvu.h"
 
 extern xSemaphoreHandle i2c_lock;
+extern pca9665_device_object_t device[2];
+
 extern QueueHandle_t rx_tm_queue;
+
+/**
+ * Context: Task only
+ */
+static int i2c_isis_transaction(uint8_t addr, void * txbuf, size_t txlen, void * rxbuf, size_t rxlen, uint16_t timeout)
+{
+    if (ISIS_I2C_HANDLE >= pca9665_device_count)
+        return E_NO_DEVICE;
+
+    if (!device[ISIS_I2C_HANDLE].is_initialised)
+        return E_NO_DEVICE;
+
+    if ((txlen > I2C_MTU) || (rxlen > I2C_MTU))
+        return E_INVALID_BUF_SIZE;
+
+    i2c_frame_t * t_frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
+    i2c_frame_t * r_frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
+
+    if (t_frame == NULL || r_frame == NULL)
+        return E_NO_BUFFER;
+
+    /* Take the I2C lock */
+    xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
+
+    /* Temporarily disable the RX callback, because we wish the received message to go into the I2C queue instead */
+    void * tmp_callback = device[ISIS_I2C_HANDLE].callback;
+    device[ISIS_I2C_HANDLE].callback = NULL;
+
+    t_frame->dest = addr;
+    memcpy(&t_frame->data[ISIS_I2C_HANDLE], txbuf, txlen);
+    t_frame->len = txlen;
+    t_frame->len_rx = 0;
+
+    r_frame->dest = addr;
+    r_frame->len = 0;
+    r_frame->len_rx = rxlen;
+
+    if (i2c_send(ISIS_I2C_HANDLE, t_frame, 0) != E_NO_ERR) {
+        ObcMemFree(t_frame);
+        ObcMemFree(r_frame);
+        device[ISIS_I2C_HANDLE].callback = tmp_callback;
+        xSemaphoreGive(i2c_lock);
+        return E_TIMEOUT;
+    }
+
+    vTaskDelay(10); /** 主发主收之间需要一个短暂延时给通信机准备数据的时间 */
+
+    if (rxlen == 0) {
+        ObcMemFree(r_frame);
+        device[ISIS_I2C_HANDLE].callback = tmp_callback;
+        xSemaphoreGive(i2c_lock);
+        return E_NO_ERR;
+    }
+
+    if (i2c_send(ISIS_I2C_HANDLE, r_frame, 0) != E_NO_ERR) {
+        ObcMemFree(r_frame);
+        device[ISIS_I2C_HANDLE].callback = tmp_callback;
+        xSemaphoreGive(i2c_lock);
+        return E_TIMEOUT;
+    }
+
+    if (i2c_receive(ISIS_I2C_HANDLE, &r_frame, timeout) != E_NO_ERR) {
+        device[ISIS_I2C_HANDLE].callback = tmp_callback;
+        xSemaphoreGive(i2c_lock);
+        return E_TIMEOUT;
+    }
+
+    memcpy(rxbuf, &r_frame->data[0], rxlen);
+
+    ObcMemFree(r_frame);
+    device[ISIS_I2C_HANDLE].callback = tmp_callback;
+    xSemaphoreGive(i2c_lock);
+    return E_NO_ERR;
+}
 
 /**
  *  ISIS vu收发机 无参数 无响应 指令
@@ -32,7 +111,7 @@ extern QueueHandle_t rx_tm_queue;
  */
 static int vu_cmd( vu_i2c_addr addr, uint8_t cmd )
 {
-	return i2c_master_transaction(ISIS_I2C_HANDLE, addr, &cmd,  1, NULL, 0, 0);
+	return i2c_isis_transaction( addr, &cmd,  1, NULL, 0, 0 );
 }
 
 
@@ -47,7 +126,7 @@ static int vu_cmd( vu_i2c_addr addr, uint8_t cmd )
  */
 static int vu_cmd_rsp( vu_i2c_addr addr, uint8_t cmd, void * rsp, size_t rsplen )
 {
-    return i2c_master_transaction(ISIS_I2C_HANDLE, addr, &cmd,  1, rsp, rsplen, ISIS_TIMEOUT);
+    return i2c_isis_transaction( addr, &cmd,  1, rsp, rsplen, ISIS_TIMEOUT );
 }
 
 /**
@@ -70,7 +149,7 @@ static int vu_cmd_par(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen
     if (paralen > 0)
         memcpy(dat->parameter, para, paralen);
 
-    int ret = i2c_master_transaction(ISIS_I2C_HANDLE, addr, dat, sizeof(cmd_with_para)+paralen, NULL, 0, 0);
+    int ret = i2c_isis_transaction( addr, dat, sizeof(cmd_with_para)+paralen, NULL, 0, 0 );
 
     ObcMemFree(dat);
 	return ret;
@@ -98,7 +177,7 @@ static int vu_cmd_par_rsp(vu_i2c_addr addr, uint8_t cmd, void * para, size_t par
     if (paralen > 0)
         memcpy(dat->parameter, para, paralen);
 
-    int ret = i2c_master_transaction(ISIS_I2C_HANDLE, addr, dat, sizeof(cmd_with_para)+paralen, rsp, rsplen, ISIS_TIMEOUT);
+    int ret = i2c_isis_transaction( addr, dat, sizeof(cmd_with_para)+paralen, rsp, rsplen, ISIS_TIMEOUT );
 
     ObcMemFree(dat);
     return ret;

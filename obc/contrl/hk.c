@@ -21,6 +21,7 @@
 #include "obc_mem.h"
 #include "driver_debug.h"
 
+#include "bsp_temp175.h"
 #include "bsp_intadc.h"
 #include "bsp_ds1302.h"
 #include "error.h"
@@ -31,6 +32,7 @@
 #include "camera_805.h"
 #include "dtb_805.h"
 #include "if_adcs.h"
+#include "if_downlink_vu.h"
 
 #include "hk.h"
 
@@ -43,6 +45,7 @@ static int fd_count = 0;
 QueueHandle_t obc_hk_queue;
 QueueHandle_t eps_hk_queue;
 QueueHandle_t ttc_hk_queue;
+QueueHandle_t jlg_hk_queue;
 QueueHandle_t dtb_hk_queue;
 QueueHandle_t cam_hk_queue;
 QueueHandle_t adcs_hk_queue;
@@ -350,7 +353,8 @@ void hk_collect_no_store(void)
 	ttc_hk_get_peek(&hk_frame.main_frame.ttc);
 
         /*数传机遥测获取*/
-	dtb_hk_get_peek(&hk_frame.main_frame.dtb);
+//	dtb_hk_get_peek(&hk_frame.main_frame.dtb);
+	jlg_hk_get_peek(&hk_frame.main_frame.jlg);
 
         /*相机遥测获取*/
     cam_hk_get_peek(&hk_frame.main_frame.cam);
@@ -374,7 +378,8 @@ void hk_collect(void)
     ttc_hk_get_peek(&hk_frame.main_frame.ttc);
 
         /*数传机遥测获取*/
-    dtb_hk_get_peek(&hk_frame.main_frame.dtb);
+//    dtb_hk_get_peek(&hk_frame.main_frame.dtb);
+    jlg_hk_get_peek(&hk_frame.main_frame.jlg);
 
         /*相机遥测获取*/
     cam_hk_get_peek(&hk_frame.main_frame.cam);
@@ -473,7 +478,7 @@ int hk_store_add(void)
 	}
 
 	/* 一个文件中最多存储HK_FILE_MAX_COUNT条遥测信息 */
-	if (++fd_count > HK_FILE_MAX_COUNT) {
+	if (fd_count++ > HK_FILE_MAX_COUNT) {
 		f_close(&fd);
 		fd_count = 0;
 		hk_store_init();
@@ -593,6 +598,8 @@ static void obc_get_hk(obc_hk_t * obc)
 
     obc->rec_cmd_count = rec_cmd_cnt;
 
+    obc->vu_rec_count = vu_isis_rx_count;
+
     obc->hk_down_count = hk_down_cnt;
 
     obc->hk_store_count = hk_store_cnt;
@@ -621,7 +628,7 @@ static void obc_get_hk(obc_hk_t * obc)
  */
 void obc_hk_task(void)
 {
-    static obc_hk_t obc_hk = {0};
+    static obc_hk_t obc_hk;
 
     if (obc_hk_queue == NULL)
         return;
@@ -710,34 +717,28 @@ static int ttc_get_hk(vu_isis_hk_t *ttc)
 {
     int ret;
 
-    vu_isis_get_receiving_tm(&ttc->ru_last);
-
-    ret = vu_receiver_get_uptime(&ttc->ru_uptime);
     ret = vu_receiver_get_uptime(&ttc->ru_uptime);
     if (ret != E_NO_ERR)
         return ret;
 
-    ret = vu_transmitter_get_uptime(&ttc->tu_uptime);
-    ret = vu_transmitter_get_uptime(&ttc->tu_uptime);
-    if (ret != E_NO_ERR)
-        return ret;
-
-    ret = vu_receiver_measure_tm(&ttc->ru_curt);
     ret = vu_receiver_measure_tm(&ttc->ru_curt);
     if (ret != E_NO_ERR)
          return ret;
 
-    ret = vu_transmitter_measure_tm(&ttc->tu_curt);
+    vu_isis_get_receiving_tm(&ttc->ru_last);
+
+    ret = vu_transmitter_get_uptime(&ttc->tu_uptime);
+    if (ret != E_NO_ERR)
+        return ret;
+
     ret = vu_transmitter_measure_tm(&ttc->tu_curt);
     if (ret != E_NO_ERR)
         return ret;
 
     ret = vu_transmitter_get_last_tm(&ttc->tu_last);
-    ret = vu_transmitter_get_last_tm(&ttc->tu_last);
     if (ret != E_NO_ERR)
         return ret;
 
-    ret = vu_transmitter_get_state(&ttc->tx_state);
     ret = vu_transmitter_get_state(&ttc->tx_state);
     if (ret != E_NO_ERR)
         return ret;
@@ -772,6 +773,62 @@ int ttc_hk_get_peek(vu_isis_hk_t *ttc)
     if (ttc_hk_queue == NULL)
         return pdFALSE;
     return xQueuePeek(ttc_hk_queue, ttc, 0);
+}
+
+/**
+ * JLG通信机遥测采集函数，直接采集数据到接收缓冲区指针
+ *
+ * @param ttc 接收缓冲区指针
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+static int jlg_get_hk(vu_jlg_hk_t *jlg)
+{
+    int ret;
+
+    ret = vu_measure_all_tm(&jlg->vu_tm);
+    if (ret != E_NO_ERR)
+         return ret;
+
+    jlg->vu_tm.RecCount = vu_jlg_rx_count;
+
+    ret = vu_get_uptime(&jlg->vu_tm.Uptime);
+    if (ret != E_NO_ERR)
+        return ret;
+
+    ret = vu_get_state(&jlg->tx_state);
+    if (ret != E_NO_ERR)
+        return ret;
+
+    return E_NO_ERR;
+}
+
+/**
+ * JLG通信机遥测采集任务，采集到的数据送入jlg_hk_queue队列
+ *
+ */
+void jlg_hk_task(void)
+{
+    static vu_jlg_hk_t jlg_hk;
+
+    if (jlg_hk_queue == NULL)
+        return;
+
+    jlg_get_hk(&jlg_hk);
+
+    xQueueOverwrite(jlg_hk_queue, &jlg_hk);
+}
+
+/**
+ * 通过队列获取JLG通信机遥测值
+ *
+ * @param tm 接收缓冲区指针
+ * @return pdTRUE为正常，pdFALSE不正常
+ */
+int jlg_hk_get_peek(vu_jlg_hk_t *jlg)
+{
+    if (jlg_hk_queue == NULL)
+        return pdFALSE;
+    return xQueuePeek(jlg_hk_queue, jlg, 0);
 }
 
 /**
@@ -871,9 +928,12 @@ void adcs_hk_task(void)
     if (adcs_hk_queue == NULL)
         return;
 
-    adcs_get_hk(&adcs_hk, 1000);
+    int ret;
 
-    xQueueOverwrite(adcs_hk_queue, &adcs_hk);
+    if ( (ret = adcs_get_hk(&adcs_hk, 1000)) != E_NO_ERR )
+        printf("WARN: Get ADCS hk fail! Result: %d\r\n", ret);
+
+//    xQueueOverwrite(adcs_hk_queue, &adcs_hk);
 }
 
 /**
@@ -894,55 +954,26 @@ int adcs_hk_get_peek(adcs805_hk_t *adcs)
  */
 void hk_collect_task_init(void)
 {
-
     if (obc_hk_queue == NULL)
-    {
         obc_hk_queue = xQueueCreate(1, sizeof( obc_hk_t ));
 
-        if(obc_hk_queue == NULL)
-            return;
-    }
-
     if (eps_hk_queue == NULL)
-    {
         eps_hk_queue = xQueueCreate(1, sizeof( EpsAdcValue_t ));
 
-        if(eps_hk_queue == NULL)
-            return;
-    }
-
     if (ttc_hk_queue == NULL)
-    {
         ttc_hk_queue = xQueueCreate(1, sizeof( vu_isis_hk_t ));
 
-        if(ttc_hk_queue == NULL)
-            return;
-    }
-
     if (dtb_hk_queue == NULL)
-    {
         dtb_hk_queue = xQueueCreate(1, sizeof( dtb_805_hk_t ));
 
-        if(dtb_hk_queue == NULL)
-            return;
-    }
+    if (jlg_hk_queue == NULL)
+        jlg_hk_queue = xQueueCreate(1, sizeof( vu_jlg_hk_t ));
 
     if (cam_hk_queue == NULL)
-    {
         cam_hk_queue = xQueueCreate(1, sizeof( cam_805_hk_t ));
 
-        if(cam_hk_queue == NULL)
-            return;
-    }
-
     if (adcs_hk_queue == NULL)
-    {
         adcs_hk_queue = xQueueCreate(1, sizeof( adcs805_hk_t ));
-
-        if(adcs_hk_queue == NULL)
-            return;
-    }
-
 }
 
 

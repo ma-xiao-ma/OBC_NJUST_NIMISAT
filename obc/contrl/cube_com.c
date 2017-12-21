@@ -36,6 +36,12 @@
 
 uint32_t rec_cmd_cnt = 0; //obc接收本地指令计数
 
+typedef enum
+{
+    Success = 0xA6,
+    Fail = 0xAF
+}obc_ack;
+
 static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
 static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
 static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf);
@@ -128,7 +134,7 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
 {
     extern FATFS fs;
 
-	int result = 0;
+    obc_ack result = Fail;
 	/* OBC解包结构体 */
 	unpacket_t *obc_unpacket = (unpacket_t *)cube_buf;
 
@@ -155,16 +161,16 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
                     if(f_result != FR_OK)
                     {
                         IsRealTelemetry 	= 1;
-                        result 	= 0;
+                        result 	= Fail;
                         driver_debug(DEBUG_HK,"the filename is not existing\r\n");
                         driver_debug(DEBUG_HK,"open file error ,result is :%u\r\n",f_result);
                     }
-                    result = 1;
+                    result = Success;
                 }
                 else
                 {
                     IsRealTelemetry 	= 1;
-                    result 	= 0;
+                    result 	= Fail;
                 }
             }
             else if(hk_select == HK_SRAM)
@@ -175,7 +181,7 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
                 hk_sram_index = (hk_main_fifo.rear - obc_unpacket->earlier_hk.index)>0?
                                 (hk_main_fifo.rear - obc_unpacket->earlier_hk.index):
                                 (HK_FIFO_BUFFER_CNT - obc_unpacket->earlier_hk.index + hk_main_fifo.rear);
-                result = 1;
+                result = Success;
             }
 
             obc_cmd_ack(cmd_id, result);
@@ -184,20 +190,20 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
         case INS_OBC_STR_DOWN:
 
             up_hk_down_cmd = 1;
-            result = 1;
+            result = Success;
             obc_cmd_ack(cmd_id, result);
             break;
 
         case INS_OBC_STO_DOWN:
 
             vContrlStopDownload();
-            result = 1;
+            result = Success;
             obc_cmd_ack(cmd_id, result);
             break;
 
         case INS_OBC_RST:
 
-            result = 1;
+            result = Success;
             obc_cmd_ack(cmd_id, result);
             delay_ms(10);
             cpu_reset();
@@ -209,37 +215,39 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
             result = timesync(obc_unpacket->time_sysn_para);
 
             if (result == -1) {
-                result = 1;
+                result = Success;
             }else {
-                result = 0;
+                result = Fail;
             }
             obc_cmd_ack(cmd_id, result);
             break;
 
         case INS_ADCS_ON:
 
-            EpsOutSwitch(OUT_EPS_S0, ENABLE);
-            EpsOutSwitch(OUT_EPS_S0, ENABLE);
+            if (EpsOutSwitch(OUT_ADCS_7V, ENABLE) != EPS_ERROR)
+                result  = Success;
+            else
+                result  = Fail;
 
-            result  = 1;
             obc_cmd_ack(cmd_id, result);
             break;
 
         case INS_ADCS_OFF:
 
-            EpsOutSwitch(OUT_EPS_S0, DISABLE);
-            EpsOutSwitch(OUT_EPS_S0, DISABLE);
+            if (EpsOutSwitch(OUT_ADCS_7V, DISABLE) != EPS_ERROR)
+                result  = Success;
+            else
+                result  = Fail;
 
-            result 	= 1;
             obc_cmd_ack(cmd_id, result);
             break;
 
         case INS_PAL_ON:
 
             if (enable_panel(0, 0) == 1)
-                result = 1;
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -247,9 +255,9 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
         case INS_PAL_OFF:
 
             if (disable_panel(0, 0) == 1)
-                result = 1;
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -257,9 +265,9 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
         case INS_ANTS_ON:
 
             if (open_antenna() == -1)
-                result = 1;
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -267,9 +275,9 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
         case INS_ANTS_PWR_ON:
 
             if (enable_antspwr(0, 0) == 1)
-                result = 1;
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -277,9 +285,9 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
         case INS_ANTS_PWR_OFF:
 
             if (disable_antspwr(0, 0) == 1)
-                result = 1;
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -287,9 +295,9 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
         case INS_RSH_CMD:
 
             if (command_run(obc_unpacket->command) == CMD_ERROR_NONE)
-                result = 1;
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -297,9 +305,9 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
         case INS_DELAY_CMD:
 
             if (Delay_Task_Mon_Start(&obc_unpacket->delay_task) != E_NO_ERR)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -307,9 +315,9 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
         case INS_SD_MOUNT:
 
             if (f_mount(0,&fs) != FR_OK)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -320,7 +328,7 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
 }
 
 static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
-	int result = 0;
+	int result = Fail;
 
 	switch (cmd_id)
 	{
@@ -328,144 +336,144 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
         case TR_BOOT:
 
             if(xDTBTeleControlSend(Boot, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_SHUT_DOWN:
 
             if(xDTBTeleControlSend(ShutDown, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_MEM_RESET:
 
             if(xDTBTeleControlSend(MemReset, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_MEM1_RECORD:
 
             if(xDTBTeleControlSend(Mem1Record, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
                 break;
         case TR_MEM2_RECORD:
 
             if(xDTBTeleControlSend(Mem2Record, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_MEM3_RECORD:
 
             if(xDTBTeleControlSend(Mem3Record, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_MEM4_RECORD:
 
             if(xDTBTeleControlSend(Mem4Record, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_MEM_STOP:
 
             if(xDTBTeleControlSend(MemStop, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_MEM1_BACK:
 
             if(xDTBTeleControlSend(Mem1Back, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_MEM2_BACK:
 
             if(xDTBTeleControlSend(Mem2Back, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_MEM3_BACK:
 
             if(xDTBTeleControlSend(Mem3Back, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_MEM4_BACK:
 
             if(xDTBTeleControlSend(Mem4Back, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_MEM1_ERA:
 
             if(xDTBTeleControlSend(Mem1Erase, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_MEM2_ERA:
 
             if(xDTBTeleControlSend(Mem2Erase, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_MEM3_ERA:
 
             if(xDTBTeleControlSend(Mem3Erase, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_MEM4_ERA:
 
             if(xDTBTeleControlSend(Mem4Erase, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
@@ -476,7 +484,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
 
 static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 {
-	int result = 0;
+	int result = Fail;
 
 	extern uint8_t IsJLGvuWorking;
 
@@ -485,84 +493,84 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
         case TR_PC_ON:
 
             if(xDTBTeleControlSend(PseudoOn, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_PC_OFF:
 
             if(xDTBTeleControlSend(PseudoOff, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_1M_RATE:
 
             if(xDTBTeleControlSend(Rate1Mbps, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_2M_RATE:
 
             if(xDTBTeleControlSend(Rate2Mbps, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_4M_RATE:
 
             if(xDTBTeleControlSend(Rate4Mbps, 1000) != 0)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
         case TR_5V_ON:
 
-            if(EpsOutSwitch(OUT_DTB_5V, ENABLE) == EPS_OK)
-                result = 1;
+            if(EpsOutSwitch(OUT_DTB_5V, ENABLE) != EPS_ERROR)
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
 
         case TR_5V_OFF:
 
-            if(EpsOutSwitch(OUT_DTB_5V, DISABLE) == EPS_OK)
-                result = 1;
+            if(EpsOutSwitch(OUT_DTB_5V, DISABLE) != EPS_ERROR)
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
 
         case TR_12V_ON:
 
-            if(EpsOutSwitch(OUT_DTB_12V, ENABLE) == EPS_OK)
-                result = 1;
+            if(EpsOutSwitch(OUT_DTB_12V, ENABLE) != EPS_ERROR)
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
 
         case TR_12V_OFF:
 
-            if(EpsOutSwitch(OUT_DTB_12V, DISABLE) == EPS_OK)
-                result = 1;
+            if(EpsOutSwitch(OUT_DTB_12V, DISABLE) != EPS_ERROR)
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -571,9 +579,9 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
 
             if (vu_receiver_hardware_reset() != E_NO_ERR ||
                     vu_transmitter_hardware_reset() != E_NO_ERR)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -582,19 +590,19 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
 
             if (vu_receiver_software_reset() != E_NO_ERR ||
                     vu_transmitter_software_reset() != E_NO_ERR)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
             obc_cmd_ack(cmd_id, result);
             break;
 
         case VU_INS_IDLE_STATE_SET:
 
-            if (vu_transmitter_set_idle_state(*(par_idle_state *)cube_buf) != E_NO_ERR)
-                result = 0;
+            if ( vu_transmitter_set_idle_state(*(par_idle_state *)cube_buf) != E_NO_ERR )
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -602,15 +610,16 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
         case VU_INS_BACKUP_ON:
 
             /* PC104_100 母线输出 */
-            if (EpsOutSwitch(OUT_USB_EN, ENABLE) == EPS_OK)
+            if (EpsOutSwitch(OUT_BACKUP_VU, ENABLE) != EPS_ERROR &&
+                    EpsOutSwitch(OUT_SWITCH_5V, ENABLE) != EPS_ERROR)
             {
                 vTaskDelay(3000); /* 延时等待备份板启动 */
 
                 IsJLGvuWorking = true;
-                result = 1;
+                result = Success;
             }
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
 
@@ -619,13 +628,14 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
         case VU_INS_BACKUP_OFF:
 
             /* PC104_100 母线输出 */
-            if (EpsOutSwitch(OUT_USB_EN, DISABLE) == EPS_OK)
+            if (EpsOutSwitch(OUT_BACKUP_VU, DISABLE) != EPS_ERROR &&
+                    EpsOutSwitch(OUT_SWITCH_5V, DISABLE) != EPS_ERROR)
             {
                 IsJLGvuWorking = false;
-                result = 1;
+                result = Success;
             }
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -637,7 +647,7 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
 
 static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 {
-	int result = 0;
+	int result = Fail;
 
 	cam_cmd_t * cam_cmd    = (cam_cmd_t *)cube_buf;
 
@@ -647,9 +657,9 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
         case CAM_SOFTWARE_RESET:
 
             if(Camera_805_reset() == E_NO_ERR)
-                result = 1;
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -657,9 +667,9 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
         case CAM_EXPOSURE_TIME_SET:
 
             if(Camera_Exposure_Time_Set( cam_cmd->exp_time ) == E_NO_ERR)
-                result = 1;
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -667,9 +677,9 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
         case CAM_GAIN_SET:
 
             if(Camera_Gain_Set( cam_cmd->gain ) == E_NO_ERR)
-                result = 1;
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -677,67 +687,67 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
         case CAM_WORK_MODE_SET:
 
             if(Camera_Work_Mode_Set( cam_cmd->cam_ctl_mode ) == E_NO_ERR)
-                result = 1;
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
         case DOWN_NEWEST_IMAGE_INFO:
 
             if(cam_newest_img_info_down() == E_NO_ERR)
-                result = 1;
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
         case DOWN_IMAGE_INFO:
 
             if(cam_img_info_down( cam_cmd->img_down.img_id ) == E_NO_ERR)
-                result = 1;
+                result = Success;
             else
-                result = 0;
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
         case DOWN_IMAGE_DATA_WHOLE:
 
             if(cam_img_data_down( cam_cmd->img_down.img_id ) != E_NO_ERR)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
             obc_cmd_ack(cmd_id, result);
             break;
         case DOWN_IMAGE_DATA_SINGLE:
 
             if(cam_img_packet_down( cam_cmd->img_down.img_id, cam_cmd->img_down.packet_id ) != E_NO_ERR)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
             obc_cmd_ack(cmd_id, result);
             break;
         case DOWN_IMAGE_DATA_PART:
 
             if(cam_img_data_packet_down( cam_cmd->img_down.img_id, cam_cmd->img_down.packet_id ) != E_NO_ERR)
-                result = 0;
+                result = Fail;
             else
-                result = 1;
+                result = Success;
 
             obc_cmd_ack(cmd_id, result);
             break;
         case CAM_POWER_ON:
 
-            if(EpsOutSwitch(OUT_CAMERA_10W, ENABLE) == EPS_OK
-                    && EpsOutSwitch(OUT_CAMERA_5W, ENABLE) == EPS_OK)
+            if(EpsOutSwitch(OUT_CAMERA_10W, ENABLE) != EPS_ERROR
+                    && EpsOutSwitch(OUT_CAMERA_5W, ENABLE) != EPS_ERROR)
             {
-                result = 1;
+                result = Success;
             }
             else
             {
-                result = 0;
+                result = Fail;
             }
 
             obc_cmd_ack(cmd_id, result);
@@ -745,14 +755,14 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
 
         case CAM_POWER_OFF:
 
-            if(EpsOutSwitch(OUT_CAMERA_10W, DISABLE) == EPS_OK
-                    && EpsOutSwitch(OUT_CAMERA_5W, DISABLE) == EPS_OK)
+            if(EpsOutSwitch(OUT_CAMERA_10W, DISABLE) != EPS_ERROR
+                    && EpsOutSwitch(OUT_CAMERA_5W, DISABLE) != EPS_ERROR)
             {
-                result = 1;
+                result = Success;
             }
             else
             {
-                result = 0;
+                result = Fail;
             }
 
             obc_cmd_ack(cmd_id, result);
@@ -760,13 +770,13 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
 
         case CAM_HEAT2_ON:
 
-            if(EpsOutSwitch(OUT_CAMERA_HEAT_2, ENABLE) == EPS_OK)
+            if(EpsOutSwitch(OUT_CAMERA_HEAT_2, ENABLE) != EPS_ERROR)
             {
-                result = 1;
+                result = Success;
             }
             else
             {
-                result = 0;
+                result = Fail;
             }
 
             obc_cmd_ack(cmd_id, result);
@@ -774,13 +784,13 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
 
         case CAM_HEAT2_OFF:
 
-            if(EpsOutSwitch(OUT_CAMERA_HEAT_2, DISABLE) == EPS_OK)
+            if(EpsOutSwitch(OUT_CAMERA_HEAT_2, DISABLE) != EPS_ERROR)
             {
-                result = 1;
+                result = Success;
             }
             else
             {
-                result = 0;
+                result = Fail;
             }
 
             obc_cmd_ack(cmd_id, result);
