@@ -59,7 +59,7 @@
 typedef struct __attribute__((packed))
 {
     /**ISIS天线1状态*/
-    uint32_t     ants_1: 1;              //W0B0 字节0
+    uint32_t     ants_1: 1;              //W0B0 最低字节的最低位
     /**ISIS天线2状态*/
     uint32_t     ants_2: 1;              //W0B1
     /**ISIS天线3状态*/
@@ -68,37 +68,40 @@ typedef struct __attribute__((packed))
     uint32_t     ants_4: 1;              //W0B3
     /**ISIS天线板ARM状态*/
     uint32_t     arm: 1;                 //W0B4
-    /**电池镇A展开状态*/
+    /**电池阵A展开状态*/
     uint32_t     panel_a: 1;             //W0B5
-    /**电池镇B展开状态*/
+    /**电池阵B展开状态*/
     uint32_t     panel_b: 1;             //W0B6
     /**电池加热开关*/
     uint32_t     battery_heat_on: 1;     //W0B7
 
 
-    /**接收单元当前所有遥测*/
+    /**姿控系统电源开关*/
     uint32_t     adcs_pwr: 1;            //W1B0
-    /**接收单元收到上行数据时遥测*/
+    /**天线系统电源开关*/
     uint32_t     ants_pwr: 1;            //W1B1
-    /**发射单元自上次复位以来的运行时间*/
+    /**数传机5V电开关*/
     uint32_t     dtb_5v_pwr: 1;          //W1B2
-    /**发射单元当前所有遥测*/
+    /**数传机12V电源开关*/
     uint32_t     dtb_12v_pwr: 1;         //W1B3
-    /**发射单元上次下行数据时所有遥测*/
+    /**805相机5V_5W电开关*/
     uint32_t     cam_5w_5v_pwr: 1;       //W1B4
-    /**发射单元上次下行数据时所有遥测*/
+    /**805相机5V_10W电开关*/
     uint32_t     cam_10w_5v_pwr: 1;      //W1B5
-    /**发射单元上次下行数据时所有遥测*/
+    /**805相机加热1开关*/
     uint32_t     cam_heat_1_pwr: 1;      //W1B6
-    /**发射单元上次下行数据时所有遥测*/
+    /**805相机加热2开关*/
     uint32_t     cam_heat_2_pwr: 1;      //W1B7
 
-    /**保留位域1*/
+    /**备份通信机电源开关*/
     uint32_t     jlg_vu_on: 1;              //W3B0
+    /**通信机信道切换板电源开关*/
     uint32_t     switch_vu_on: 1;           //W3B1
     /**展开帆 展开状态*/
     uint32_t     sail: 1;                   //W3B2
-    uint32_t     reserved1: 5;              //W3
+    /**保留位域1*/
+    uint32_t     reserved1: 5;              //W3B3~W3B7
+
 
     /**保留位域2*/
     uint32_t     reserved2: 8;              //W4

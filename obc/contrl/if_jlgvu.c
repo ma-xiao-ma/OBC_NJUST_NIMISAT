@@ -15,6 +15,8 @@
 #include "error.h"
 #include "obc_mem.h"
 #include "crc.h"
+#include "bsp_switch.h"
+#include "switches.h"
 #include "if_trxvu.h"
 
 #include "if_jlgvu.h"
@@ -61,6 +63,8 @@ static int vu_cmd_rsp( uint8_t cmd, void * rsp, size_t rsplen )
 static int vu_cmd_par( uint8_t cmd, void * para, size_t paralen )
 {
     cmd_with_para *dat = ObcMemMalloc(sizeof(cmd_with_para) + paralen);
+    if (dat == NULL)
+        return E_NO_BUFFER;
 
     dat->command = cmd;
     if (paralen > 0)
@@ -86,6 +90,8 @@ static int vu_cmd_par( uint8_t cmd, void * para, size_t paralen )
 static int vu_cmd_par_rsp( uint8_t cmd, void * para, size_t paralen, void * rsp, size_t rsplen )
 {
     cmd_with_para *dat = ObcMemMalloc(sizeof(cmd_with_para) + paralen);
+    if (dat == NULL)
+        return E_NO_BUFFER;
 
     dat->command = cmd;
     if (paralen > 0)
@@ -389,5 +395,53 @@ int vu_fm_on(void)
 int vu_fm_off(void)
 {
     return vu_cmd( FM_FORWARDING_OFF );
+}
+
+/**
+ * 备份通信机切换开
+ *
+ * @return E_NO_ERR执行成功，否则执行错误，参见error.h
+ */
+int vu_backup_switch_on(void)
+{
+    int result;
+    extern uint8_t IsJLGvuWorking;
+
+    /* PC104_100母线输出, PC104_50 5V输出*/
+    if (EpsOutSwitch(OUT_BACKUP_VU, ENABLE) != EPS_ERROR &&
+            EpsOutSwitch(OUT_SWITCH_5V, ENABLE) != EPS_ERROR)
+    {
+        vTaskDelay(3000); /* 延时等待备份板启动 */
+
+        IsJLGvuWorking = pdTRUE;
+        result = E_NO_ERR;
+    }
+    else
+        result = E_NO_SS;
+
+    return result;
+}
+
+/**
+ * 备份通信机切换关
+ *
+ * @return E_NO_ERR执行成功，否则执行错误，参见error.h
+ */
+int vu_backup_switch_off(void)
+{
+    int result;
+    extern uint8_t IsJLGvuWorking;
+
+    /* PC104_100母线输出, PC104_50 5V输出*/
+    if (EpsOutSwitch(OUT_BACKUP_VU, DISABLE) != EPS_ERROR &&
+            EpsOutSwitch(OUT_SWITCH_5V, DISABLE) != EPS_ERROR)
+    {
+        IsJLGvuWorking = pdFALSE;
+        result = E_NO_ERR;
+    }
+    else
+        result = E_NO_SS;
+
+    return result;
 }
 

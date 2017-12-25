@@ -497,8 +497,6 @@ FLASH_Status FLASH_EraseSector(uint32_t FLASH_Sector, uint8_t VoltageRange)
   if(status == FLASH_COMPLETE)
   { 
     /* if the previous operation is completed, proceed to erase the sector */
-	FLASH->ACR &= ~((uint32_t)3<<9);    //disable data cache and instruction cache
-
     FLASH->CR &= CR_PSIZE_MASK;
     FLASH->CR |= tmp_psize;
     FLASH->CR &= SECTOR_MASK;
@@ -511,8 +509,6 @@ FLASH_Status FLASH_EraseSector(uint32_t FLASH_Sector, uint8_t VoltageRange)
     /* if the erase operation is completed, disable the SER Bit */
     FLASH->CR &= (~FLASH_CR_SER);
     FLASH->CR &= SECTOR_MASK;
-
-    FLASH->ACR |= (uint32_t)3<<9;  //enable data cache and instruction cache
   }
   /* Return the Erase Status */
   return status;
@@ -882,9 +878,6 @@ FLASH_Status FLASH_ProgramByte(uint32_t Address, uint8_t Data)
   
   if(status == FLASH_COMPLETE)
   {
-
-	FLASH->ACR &= ~((uint32_t)3<<9);    //disable data cache and instruction cache
-
     /* if the previous operation is completed, proceed to program the new data */
     FLASH->CR &= CR_PSIZE_MASK;
     FLASH->CR |= FLASH_PSIZE_BYTE;
@@ -897,8 +890,6 @@ FLASH_Status FLASH_ProgramByte(uint32_t Address, uint8_t Data)
 
     /* if the program operation is completed, disable the PG Bit */
     FLASH->CR &= (~FLASH_CR_PG);
-
-    FLASH->ACR |= (uint32_t)3<<9;    //enable data cache and instruction cache
   } 
 
   /* Return the Program Status */

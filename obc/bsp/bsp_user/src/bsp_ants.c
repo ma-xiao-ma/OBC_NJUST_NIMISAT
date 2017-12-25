@@ -25,7 +25,17 @@
 extern xSemaphoreHandle i2c_lock;
 extern pca9665_device_object_t device[2];
 
-
+/**
+ * ISIS天线I2C接口函数
+ *
+ * @param addr 天线板MCU I2C地址
+ * @param txbuf 发送指针
+ * @param txlen 发送字节数
+ * @param rxbuf 接收指针
+ * @param rxlen 接收字节数
+ * @param delay 主发主收之间的延时，毫秒数
+ * @return E_NO_ERR为执行正确，其他错误类型参见error.h
+ */
 static int isis_ants_delay_cmd(uint8_t addr, void * txbuf, size_t txlen, void * rxbuf, size_t rxlen, int delay)
 {
     if (ANTS_I2C_HANDLE >= pca9665_device_count)
@@ -38,9 +48,7 @@ static int isis_ants_delay_cmd(uint8_t addr, void * txbuf, size_t txlen, void * 
         return E_INVALID_BUF_SIZE;
 
     i2c_frame_t * t_frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
-    i2c_frame_t * r_frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
-
-    if (t_frame == NULL || r_frame == NULL)
+    if (t_frame == NULL)
         return E_NO_BUFFER;
 
     /* Take the I2C lock */
@@ -55,13 +63,8 @@ static int isis_ants_delay_cmd(uint8_t addr, void * txbuf, size_t txlen, void * 
     t_frame->len = txlen;
     t_frame->len_rx = 0;
 
-    r_frame->dest = addr;
-    r_frame->len = 0;
-    r_frame->len_rx = rxlen;
-
     if (i2c_send(ANTS_I2C_HANDLE, t_frame, 0) != E_NO_ERR) {
         ObcMemFree(t_frame);
-        ObcMemFree(r_frame);
         device[ANTS_I2C_HANDLE].callback = tmp_callback;
         xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;
@@ -69,21 +72,35 @@ static int isis_ants_delay_cmd(uint8_t addr, void * txbuf, size_t txlen, void * 
 
     vTaskDelay(delay); /** 主发主收之间需要一个短暂延时给通信机准备数据的时间 */
 
-    if (rxlen == 0) {
-        ObcMemFree(r_frame);
+    if (rxlen == 0) { /*若i2c_send()函数执行成功则内存应该在底层被正确释放，此处不再释放内存*/
         device[ANTS_I2C_HANDLE].callback = tmp_callback;
         xSemaphoreGive(i2c_lock);
         return E_NO_ERR;
     }
 
-    if (i2c_send(ANTS_I2C_HANDLE, r_frame, 0) != E_NO_ERR) {
-        ObcMemFree(r_frame);
+    /**
+     * 若有I2C主收需求，则执行下面代码
+     */
+    t_frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
+    if (t_frame == NULL)
+        return E_NO_BUFFER;
+
+    t_frame->dest = addr;
+    t_frame->len = 0;
+    t_frame->len_rx = rxlen;
+
+    if (i2c_send(ANTS_I2C_HANDLE, t_frame, 0) != E_NO_ERR) {
+        ObcMemFree(t_frame);
         device[ANTS_I2C_HANDLE].callback = tmp_callback;
         xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;
     }
 
-    if (i2c_receive(ANTS_I2C_HANDLE, &r_frame, ISIS_I2C_TIME_OUT) != E_NO_ERR) {
+    i2c_frame_t * r_frame;
+
+    if ( (i2c_receive(ANTS_I2C_HANDLE, &r_frame, ISIS_I2C_TIME_OUT) != E_NO_ERR) ||
+            r_frame != t_frame) {
+        ObcMemFree(t_frame);
         device[ANTS_I2C_HANDLE].callback = tmp_callback;
         xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;

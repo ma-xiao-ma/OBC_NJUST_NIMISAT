@@ -2,14 +2,12 @@
 
 #include "stm32f4xx_flash.h"
 
-/*
-*********************************************************************************************************
-*	�� �� ��: bsp_GetSector
-*	����˵��: ���ݵ�ַ���������׵�ַ
-*	��    ��:  ��
-*	�� �� ֵ: �����׵�ַ
-*********************************************************************************************************
-*/
+/**
+ * 通过FLASH地址获取FLASH扇区号
+ *
+ * @param Address FLASH地址
+ * @return 对应扇区号
+ */
 uint32_t bsp_GetSector(uint32_t Address)
 {
 	uint32_t sector = 0;
@@ -115,27 +113,25 @@ void User_Write_FLASH(uint32_t start_addr, char *data, uint32_t len, uint32_t er
 	FLASH_Lock();
 }
 
-/*
-*********************************************************************************************************
-*	�� �� ��: bsp_ReadCpuFlash
-*	����˵��: ��ȡCPU Flash������
-*	��    ��:  _ucpDst : Ŀ�껺����
-*			 _ulFlashAddr : ��ʼ��ַ
-*			 _ulSize : ���ݴ�С����λ���ֽڣ�
-*	�� �� ֵ: 0=�ɹ���1=ʧ��
-*********************************************************************************************************
-*/
+/**
+ * 片内FALSH读取API
+ *
+ * @param _ulFlashAddr 读取FALSH地址
+ * @param _ucpDst 读取目的指针
+ * @param _ulSize 读取字节数
+ * @return 返回1为读取正确，0为错误
+ */
 uint8_t bsp_ReadCpuFlash(uint32_t _ulFlashAddr, uint8_t *_ucpDst, uint32_t _ulSize)
 {
 	uint32_t i;
 
-	/* ���ƫ�Ƶ�ַ����оƬ�������򲻸�д��������� */
+	/* 判断读取的地址范围是否在flash的地址内 */
 	if (_ulFlashAddr + _ulSize > FLASH_BASE_ADDR + FLASH_SIZE)
 	{
 		return 1;
 	}
 
-	/* ����Ϊ0ʱ����������,������ʼ��ַΪ���ַ����� */
+	/* 若读取长度为0，则认为错误 */
 	if (_ulSize == 0)
 	{
 		return 1;
@@ -149,39 +145,33 @@ uint8_t bsp_ReadCpuFlash(uint32_t _ulFlashAddr, uint8_t *_ucpDst, uint32_t _ulSi
 	return 0;
 }
 
-/*
-*********************************************************************************************************
-*	�� �� ��: bsp_CmpCpuFlash
-*	����˵��: �Ƚ�Flashָ����ַ������.
-*	��    ��: _ulFlashAddr : Flash��ַ
-*			 _ucpBuf : ���ݻ�����
-*			 _ulSize : ���ݴ�С����λ���ֽڣ�
-*	�� �� ֵ:
-*			FLASH_IS_EQU		0   Flash���ݺʹ�д���������ȣ�����Ҫ������д����
-*			FLASH_REQ_WRITE		1	Flash����Ҫ������ֱ��д
-*			FLASH_REQ_ERASE		2	Flash��Ҫ�Ȳ���,��д
-*			FLASH_PARAM_ERR		3	������������
-*********************************************************************************************************
-*/
+/**
+ * 比较待写入数据与FLASH中的原始数据，判断FLASH是否需要擦除
+ *
+ * @param _ulFlashAddr 待写入FLASH地址
+ * @param _ucpBuf 待写入数据指针
+ * @param _ulSize 待写入数据字节数
+ * @return
+ */
 uint8_t bsp_CmpCpuFlash(uint32_t _ulFlashAddr, uint8_t *_ucpBuf, uint32_t _ulSize)
 {
 	uint32_t i;
-	uint8_t ucIsEqu;	/* ��ȱ�־ */
+	uint8_t ucIsEqu;
 	uint8_t ucByte;
 
-	/* ���ƫ�Ƶ�ַ����оƬ�������򲻸�д��������� */
+	/* 参数有效性判断*/
 	if (_ulFlashAddr + _ulSize > FLASH_BASE_ADDR + FLASH_SIZE)
 	{
-		return FLASH_PARAM_ERR;		/*��������������*/
+		return FLASH_PARAM_ERR;
 	}
 
-	/* ����Ϊ0ʱ������ȷ */
+	/* 参数有效性判断*/
 	if (_ulSize == 0)
 	{
-		return FLASH_IS_EQU;		/* Flash���ݺʹ�д���������� */
+		return FLASH_IS_EQU;
 	}
 
-	ucIsEqu = 1;			/* �ȼ��������ֽںʹ�д���������ȣ���������κ�һ������ȣ�������Ϊ 0 */
+	ucIsEqu = 1;
 	for (i = 0; i < _ulSize; i++)
 	{
 		ucByte = *(uint8_t *)_ulFlashAddr;
@@ -190,11 +180,11 @@ uint8_t bsp_CmpCpuFlash(uint32_t _ulFlashAddr, uint8_t *_ucpBuf, uint32_t _ulSiz
 		{
 			if (ucByte != 0xFF)
 			{
-				return FLASH_REQ_ERASE;		/* ��Ҫ��������д */
+				return FLASH_REQ_ERASE;	 /*若FLASH中的数据与待写入的数据不一致且不等于0xFF，则需要擦除，才可写入*/
 			}
 			else
 			{
-				ucIsEqu = 0;	/* ����ȣ���Ҫд */
+				ucIsEqu = 0;
 			}
 		}
 
@@ -204,41 +194,40 @@ uint8_t bsp_CmpCpuFlash(uint32_t _ulFlashAddr, uint8_t *_ucpBuf, uint32_t _ulSiz
 
 	if (ucIsEqu == 1)
 	{
-		return FLASH_IS_EQU;	/* Flash���ݺʹ�д���������ȣ�����Ҫ������д���� */
+		return FLASH_IS_EQU;	/* 若FLASH中的数据与待写入的数据一致，则返回EQU，无需写入*/
 	}
 	else
 	{
-		return FLASH_REQ_WRITE;	/* Flash����Ҫ������ֱ��д */
+		return FLASH_REQ_WRITE;	/* 若FLASH中的数据与待写入的数据不一致，且为0xFF则不需要擦除，直接写入即可*/
 	}
 }
 
-/*
-*********************************************************************************************************
-*	�� �� ��: bsp_WriteCpuFlash
-*	����˵��: д���ݵ�CPU �ڲ�Flash��
-*	��    ��: _ulFlashAddr : Flash��ַ
-*			 _ucpSrc : ���ݻ�����
-*			 _ulSize : ���ݴ�С����λ���ֽڣ�
-*	�� �� ֵ: 0-�ɹ���1-���ݳ��Ȼ��ַ�����2-дFlash����(����Flash������)
-*********************************************************************************************************
-*/
+/**
+ * 片内FLASH写入
+ *
+ * @param _ulFlashAddr 待写入的片内FLASH地址
+ * @param _ucpSrc 待写入数据指针
+ * @param _ulSize 待写入字节数
+ * @return 返回0写入成功， 返回1为擦除错误，返回2为编程错误
+ */
 uint8_t bsp_WriteCpuFlash(uint32_t _ulFlashAddr, uint8_t *_ucpSrc, uint32_t _ulSize)
 {
 	uint32_t i;
 	uint8_t ucRet;
 
-	/* ���ƫ�Ƶ�ַ����оƬ�������򲻸�д��������� */
+	/* 判断读取的地址范围是否在flash的地址内 */
 	if (_ulFlashAddr + _ulSize > FLASH_BASE_ADDR + FLASH_SIZE)
 	{
 		return 1;
 	}
 
-	/* ����Ϊ0ʱ����������  */
+	/* 若读取长度为0，则认为错误 */
 	if (_ulSize == 0)
 	{
 		return 0;
 	}
 
+	/*比较待写入数据与FLASH中的原始数据，得出需不需要擦除*/
 	ucRet = bsp_CmpCpuFlash(_ulFlashAddr, _ucpSrc, _ulSize);
 
 	if (ucRet == FLASH_IS_EQU)
@@ -246,46 +235,61 @@ uint8_t bsp_WriteCpuFlash(uint32_t _ulFlashAddr, uint8_t *_ucpSrc, uint32_t _ulS
 		return 0;
 	}
 
-	__set_PRIMASK(1);  		/* ���ж� */
+//	__set_PRIMASK(1);  /*屏蔽中断 */
 
-	/* FLASH ���� */
+	/* FLASH 解锁 */
 	FLASH_Unlock();
+
+	/*禁止数据缓存*/
+	FLASH_DataCacheCmd(DISABLE);
 
   	/* Clear pending flags (if any) */
 	FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
                   FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR|FLASH_FLAG_PGSERR);
 
-	/* ��Ҫ���� */
+	/* 若需要擦除 */
 	if (ucRet == FLASH_REQ_ERASE)
 	{
 		if(FLASH_EraseSector(bsp_GetSector(_ulFlashAddr), VoltageRange_3) != FLASH_COMPLETE)
 		{
-			return 1; //������
+			return 1; //擦除错误
 		}
 	}
 
-	/* ���ֽ�ģʽ��̣�Ϊ���Ч�ʣ����԰��ֱ�̣�һ��д��4�ֽڣ� */
 	for (i = 0; i < _ulSize; i++)
 	{
 		if(FLASH_ProgramByte(_ulFlashAddr++, *_ucpSrc++) != FLASH_COMPLETE)
 		{
-			return 2;
+			return 2; //编程错误
 		}
 	}
 
-  	/* Flash ��������ֹдFlash���ƼĴ��� */
+	/* 开启数据缓存 */
+	FLASH_DataCacheCmd(ENABLE);
+  	/* Flash 锁定 */
   	FLASH_Lock();
 
-  	__set_PRIMASK(0);  		/* ���ж� */
+//  	__set_PRIMASK(0);  		/* ���ж� */
 
 	return 0;
 }
 
-uint8_t bsp_EraseCpuFlash(uint32_t _ulFlashAddr) {
+/**
+ * 片内FLASH擦除某个扇区
+ *
+ * @param _ulFlashAddr 待擦除的FLASH地址
+ * @return 返回0为擦除成功，返回1为擦除失败
+ */
+uint8_t bsp_EraseCpuFlash(uint32_t _ulFlashAddr)
+{
 
-	__set_PRIMASK(1);
+//	__set_PRIMASK(1);
 
+    /* Flash解锁 */
 	FLASH_Unlock();
+
+    /*禁止数据缓存*/
+    FLASH_DataCacheCmd(DISABLE);
 
 	/* Clear pending flags (if any) */
 	FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
@@ -296,9 +300,13 @@ uint8_t bsp_EraseCpuFlash(uint32_t _ulFlashAddr) {
 		return 1;
 	}
 
+    /*开启数据缓存 */
+    FLASH_DataCacheCmd(ENABLE);
+
+    /* Flash锁定 */
 	FLASH_Lock();
 
-	__set_PRIMASK(0);
+//	__set_PRIMASK(0);
 
 	return 0;
 }

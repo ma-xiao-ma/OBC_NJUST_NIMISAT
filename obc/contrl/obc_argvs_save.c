@@ -21,6 +21,8 @@
 
 extern uint32_t hk_down_cnt;
 extern uint32_t hk_store_cnt;
+extern uint16_t vu_isis_rx_count; //ISISvu 通信机接收上行遥控帧计数
+extern uint16_t vu_jlg_rx_count;  //JLGvu 通信机接收上行遥控帧计数
 
 obc_save_t obc_save = {0};
 
@@ -28,89 +30,113 @@ uint8_t obc_argvs_store(void)
 {
 	uint8_t res = 1;
 
-//	NOR_ReadBuffer(0, (uint8_t*)&obc_save, sizeof(obc_save));
-//	obc_save.obc_reset_time = clock_get_time_nopara();
-//	obc_save.antenna_status = antenna_status;
-//	res = flash_program(0, (uint8_t*)&obc_save, sizeof(obc_save), 1);
+    /*若读内部flash失败*/
+    /*if( bsp_ReadCpuFlash(OBC_STORE_FLASH_ADDR, (uint8_t*)&obc_save, sizeof(obc_save)) != 0 )
+        return 1;*/
 
-//	res = bsp_ReadCpuFlash(OBC_STORE_ADDR, (uint8_t*)&obc_save, sizeof(obc_save));
+	FSMC_NOR_ReadBuffer( (uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t)/2 );
 
 	obc_save.obc_reset_time = clock_get_time_nopara();
 	obc_save.antenna_status = antenna_status;
 	obc_save.hk_down_cnt = hk_down_cnt;
 	obc_save.hk_store_cnt = hk_store_cnt;
+	obc_save.vu_rec_cnt = vu_isis_rx_count;
+	obc_save.backup_vu_rec_cnt = vu_jlg_rx_count;
+
     for (int i = 0; i < 5; i++)
     {
         delay_task_t *task_para = (delay_task_t *)obc_save.delay_task_recover[i].task_para;
 
-        if (clock_get_time_nopara() > task_para->execution_utc && task_para->execution_utc != 0)
+        /*如果执行时间已经早于当前时间*/
+        if (task_para->execution_utc < clock_get_time_nopara() && task_para->execution_utc != 0)
             task_para->execution_utc = 0;
     }
 
-	res = bsp_WriteCpuFlash(OBC_STORE_ADDR, (uint8_t*)&obc_save, sizeof(obc_save));
+    if (USER_NOR_SectorErase(0) != NOR_SUCCESS)
+    {
+        printf("ERROR: NorFalsh erase sector 0 fail!\r\n");
+        return 1;
+    }
 
-	return res;
+    if (FSMC_NOR_WriteBuffer((uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t)/2) != NOR_SUCCESS)
+    {
+        printf("ERROR: NorFalsh write sector 0 fail!\r\n");
+        return 1;
+    }
+//	res = bsp_WriteCpuFlash(OBC_STORE_FLASH_ADDR, (uint8_t*)&obc_save, sizeof(obc_save));
+	return 0;
 }
 
-uint8_t obc_argvs_recover(void) {
+uint8_t obc_argvs_recover(void)
+{
 	uint8_t res = 1;
 
-//	NOR_ReadBuffer(0, (uint8_t*)&obc_save, sizeof(obc_save));
-//	if(obc_save.obc_boot_count == 0xFFFFFFFF || obc_save.obc_boot_count == 0) {
-//		obc_save.obc_boot_count = 1;
-//	}else{
-//		obc_save.obc_boot_count = obc_save.obc_boot_count + 1;
+//	/*若读内部flash失败*/
+//	if(bsp_ReadCpuFlash(OBC_STORE_FLASH_ADDR, (uint8_t*)&obc_save, sizeof(obc_save)) != 0)
+//	{
+//		obc_boot_count = 0;
+//		obc_reset_time = 0;
+//		antenna_status = 0;
+//
+//		return 1;
 //	}
-//	res = flash_program(0, (uint8_t*)&obc_save, sizeof(obc_save), 1);
+//	else
+//	{
 
-	if(bsp_ReadCpuFlash(OBC_STORE_ADDR, (uint8_t*)&obc_save, sizeof(obc_save)) == 1)
-	{
-		obc_boot_count = 0;
-		obc_reset_time = 0;
-		antenna_status = 0;
+	FSMC_NOR_ReadBuffer( (uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t)/2 );
 
-		return 1;
-	}
-	else
-	{
+    if(obc_save.obc_boot_count == 0xFFFFFFFF || obc_save.obc_boot_count == 0)
+    {
+        obc_save.obc_boot_count = 1;
+    }
+    else
+    {
+        obc_save.obc_boot_count = obc_save.obc_boot_count + 1;
+    }
 
-		if(obc_save.obc_boot_count == 0xFFFFFFFF || obc_save.obc_boot_count == 0)
-		{
-			obc_save.obc_boot_count = 1;
-		}
-		else
-		{
-			obc_save.obc_boot_count = obc_save.obc_boot_count + 1;
-		}
+    if (USER_NOR_SectorErase(0) == NOR_SUCCESS)
+    {
+        res = FSMC_NOR_WriteBuffer((uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t)/2);
+    }
 
-		res = bsp_WriteCpuFlash(OBC_STORE_ADDR, (uint8_t*)&obc_save, sizeof(obc_save));
+//		res = bsp_WriteCpuFlash(OBC_STORE_FLASH_ADDR, (uint8_t*)&obc_save, sizeof(obc_save));
 
-		if(obc_save.obc_reset_time == 0xFFFFFFFF)
-		{
-			obc_save.obc_reset_time = 0;
-		}
+    if(obc_save.obc_reset_time == 0xFFFFFFFF)
+    {
+        obc_save.obc_reset_time = 0;
+    }
 
-		if(obc_save.antenna_status != 0 && obc_save.antenna_status != 1 && obc_save.antenna_status != 2)
-		{
-			obc_save.antenna_status = 0;
-		}
+    if(obc_save.antenna_status != 0 && obc_save.antenna_status != 1 && obc_save.antenna_status != 2)
+    {
+        obc_save.antenna_status = 0;
+    }
 
-        if(obc_save.hk_down_cnt == 0xFFFFFFFF)
-        {
-            obc_save.hk_down_cnt = 0;
-        }
+    if(obc_save.hk_down_cnt == 0xFFFFFFFF)
+    {
+        obc_save.hk_down_cnt = 0;
+    }
 
-        if(obc_save.hk_store_cnt == 0xFFFFFFFF)
-        {
-            obc_save.hk_store_cnt = 0;
-        }
-	}
+    if(obc_save.hk_store_cnt == 0xFFFFFFFF)
+    {
+        obc_save.hk_store_cnt = 0;
+    }
+
+    if(obc_save.vu_rec_cnt == 0xFFFFFFFF)
+    {
+        obc_save.vu_rec_cnt = 0;
+    }
+
+    if(obc_save.backup_vu_rec_cnt == 0xFFFFFFFF)
+    {
+        obc_save.backup_vu_rec_cnt = 0;
+    }
+//	}
 	/* 延时任务恢复 */
 	for (int i = 0; i < 5; i++)
 	{
 	    delay_task_t *task_para = (delay_task_t *)obc_save.delay_task_recover[i].task_para;
 
-	    if (clock_get_time_nopara() < task_para->execution_utc &&
+	    if (task_para->execution_utc > clock_get_time_nopara() &&
 	            task_para->execution_utc != 0xFFFFFFFF && task_para->execution_utc != 0)
 	    {
 	        xTaskCreate(obc_save.delay_task_recover[i].task_function,
@@ -123,6 +149,8 @@ uint8_t obc_argvs_recover(void) {
 	antenna_status = obc_save.antenna_status;
 	hk_down_cnt = obc_save.hk_down_cnt;
 	hk_store_cnt = obc_save.hk_store_cnt;
+    vu_isis_rx_count = obc_save.vu_rec_cnt;
+    vu_jlg_rx_count = obc_save.backup_vu_rec_cnt;
 
 	return res;
 }

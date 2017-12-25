@@ -24,6 +24,7 @@
 #include "hexdump.h"
 #include "csp_endian.h"
 #include "bsp_switch.h"
+#include "switches.h"
 
 #include "if_jlgvu.h"
 #include "hk.h"
@@ -247,6 +248,8 @@ int vu_set_call_bencon_handler(struct command_context * context __attribute__((u
         return CMD_ERROR_SYNTAX;
 
     par_beacon_new_call_set *frame = ObcMemMalloc(sizeof(par_beacon_new_call_set)+ISIS_MTU);
+    if (frame == NULL)
+        return CMD_ERROR_FAIL;
 
     frame->RepeatInterval = Interval;
 
@@ -277,6 +280,8 @@ int vu_set_beacon_handler(struct command_context * context __attribute__((unused
         return CMD_ERROR_SYNTAX;
 
     par_beacon_set *beacon = ObcMemMalloc(sizeof(par_beacon_set)+ISIS_MTU);
+    if (beacon == NULL)
+        return CMD_ERROR_FAIL;
 
     beacon->RepeatInterval = Interval;
 
@@ -293,6 +298,8 @@ int vu_set_beacon_handler(struct command_context * context __attribute__((unused
 int vu_send_new_call_date_handler(struct command_context * context __attribute__((unused))) {
 
     par_frame_new_call *frame = ObcMemMalloc(sizeof(par_frame_new_call)+ISIS_MTU);
+    if (frame == NULL)
+        return CMD_ERROR_FAIL;
 
     char *str1 = "BI4ST-0";
     for(int i=0; *(str1+i) != '\0'; i++)
@@ -327,6 +334,8 @@ int vu_remove_frame_handler(struct command_context * context __attribute__((unus
 int vu_read_frame_handler(struct command_context * context __attribute__((unused))) {
 
     rsp_frame *frame = ObcMemMalloc(sizeof(rsp_frame)+/*ISIS_RX_MTU*/200);
+    if (frame == NULL)
+        return CMD_ERROR_FAIL;
 
     if( vu_get_frame(frame, /*ISIS_RX_MTU*/200) == E_NO_ERR)
     {
@@ -394,17 +403,11 @@ int vu_fm_off_handler(struct command_context * context __attribute__((unused))) 
     return CMD_ERROR_NONE;
 }
 
-extern uint8_t IsJLGvuWorking;
-
 int vu_power_on_handler(struct command_context * context __attribute__((unused))) {
 
     /* PC104_100 母线输出 */
-    if ( EpsOutSwitch(OUT_USB_EN, ENABLE) == EPS_OK )
-    {
-        vTaskDelay(3000); /* 延时等待备份板启动 */
-        IsJLGvuWorking = true;
+    if ( vu_backup_switch_on() == E_NO_ERR )
         printf("JLG vu switch on!!\r\n");
-    }
     else
         printf("ERROR: JLG vu switch error!!\r\n");
 
@@ -414,11 +417,8 @@ int vu_power_on_handler(struct command_context * context __attribute__((unused))
 int vu_power_off_handler(struct command_context * context __attribute__((unused))) {
 
     /* PC104_100 母线输出 */
-    if ( EpsOutSwitch(OUT_USB_EN, DISABLE) == EPS_OK )
-    {
-        IsJLGvuWorking = false;
+    if ( vu_backup_switch_off() == E_NO_ERR )
         printf("JLG vu switch off!!\r\n");
-    }
     else
         printf("ERROR: JLG vu switch error!!\r\n");
 
@@ -434,9 +434,11 @@ int vu_hk_handler(struct command_context * context __attribute__((unused))) {
     if(jlg_hk_get_peek(jlg) != pdTRUE)
         return CMD_ERROR_SYNTAX;
 
-    printf("MCU has been active: %u s\n\n", jlg->vu_tm.Uptime);
-    printf("Measured all TM:\r\n\r\n");
-
+    printf("\r\n");
+    printf("MCU has been active: %u s\n", jlg->vu_tm.Uptime);
+    printf("\r\n");
+    printf("Receive TC count: %u \n", jlg->vu_tm.RecCount);
+    printf("\r\n");
     printf("TM Item\t\t\tRaw Value\tActual value:\r\n");
     printf("*********************************************************\r\n");
     printf("SNR:\t\t\t%u\t\t%.4f S/N\n"
@@ -452,7 +454,7 @@ int vu_hk_handler(struct command_context * context __attribute__((unused))) {
            jlg->vu_tm.AmplifierTemp, JLG_PAT_C(jlg->vu_tm.AmplifierTemp)
            );
 
-    printf("\n\n");
+    printf("\r\n");
     printf("FM forwarding on:       %u\r\n", jlg->tx_state.FM_On);
     printf("Transmitter bit rate:   %u\r\n", jlg->tx_state.BitRate);
     printf("Beacon active:          %u\r\n", jlg->tx_state.BeaconAct);

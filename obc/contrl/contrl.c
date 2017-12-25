@@ -25,6 +25,7 @@
 #include "command.h"
 #include "if_downlink_vu.h"
 #include "obc_argvs_save.h"
+#include "bsp_nor_flash.h"
 
 #include "bsp_ds1302.h"
 #include "bsp_switch.h"
@@ -126,7 +127,7 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 	obc_hk_t *obc_tm = (obc_hk_t *)ObcMemMalloc(sizeof(obc_hk_t));
 
 	if (vu_tm == NULL || obc_tm == NULL)
-	    while(1);
+	    cpu_reset();
 
 	portTickType xLastWakeTime = xTaskGetTickCount();
 
@@ -146,7 +147,8 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 	        control_task.vu_idle_state = 0;
 
 	    /**如果备份通信机是开机状态，则计数器累加*/
-	    if ( ((obc_switch_t *)&obc_tm->on_off_status)->jlg_vu_on == true)
+	    if ( ((obc_switch_t *)&obc_tm->on_off_status)->jlg_vu_on == true ||
+	            ((obc_switch_t *)&obc_tm->on_off_status)->switch_vu_on == true)
 	        control_task.vu_jlg_switch_on++;
 	    else
 	        control_task.vu_jlg_switch_on = 0;
@@ -174,11 +176,8 @@ void ControlTask(void * pvParameters __attribute__((unused)))
         /* 如果备份通信机开启超过15分钟，则自动切换为主份 */
         if ( control_task.vu_jlg_switch_on > JUDGMENT(JLG_VU_SWITCH_ON) )
         {
-            /***此处应将通信机切换回ISIS通信机, 除能备份通信机加电*/
-
-            EpsOutSwitch(OUT_USB_EN, DISABLE); /*备份通信机断电*/
-
-            IsJLGvuWorking = false;
+            /***此处应将通信机切换回ISIS通信机, 除能备份通信机加电, 并将信道控制板断电*/
+            vu_backup_switch_off();
         }
 
         /* 每次过境不会超过15分钟，因此超过15分钟清除过境标志*/
@@ -191,6 +190,7 @@ void ControlTask(void * pvParameters __attribute__((unused)))
         if ( control_task.time_valid > JUDGMENT(TIME_SYSN) )
         {
             adcstimesync( clock_get_time_nopara() );
+            control_task.time_valid = 0;
         }
 
         /**功耗控制函数*/
@@ -612,14 +612,35 @@ void __attribute__((weak))Delay_Task_Mon(void *para)
  * @param para 延时任务参数
  * @return
  */
-int Delay_Task_Mon_Start(void *para)
+int Delay_Task_Mon_Start(delay_task_t *para)
 {
     extern obc_save_t obc_save;
+
+    if ( para->execution_utc < clock_get_time_nopara() )
+        return E_INVALID_PARAM;
+
+    /*片内FALSH 读、改、写*/
+//    if ( bsp_ReadCpuFlash( OBC_STORE_ADDR, (uint8_t*)&obc_save, sizeof(obc_save) ) != 0 )
+//        return E_FLASH_ERROR;
+
+    FSMC_NOR_ReadBuffer( (uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t)/2 );
 
     /* 给任务恢复结构体赋值 */
     obc_save.delay_task_recover[0].task_function = Delay_Task_Mon;
     strcpy(obc_save.delay_task_recover[0].task_name, "MON");
     memcpy( obc_save.delay_task_recover[0].task_para, para, 60);
+
+    if (USER_NOR_SectorErase(0) != NOR_SUCCESS)
+    {
+        printf("ERROR: NorFalsh erase sector 0 fail!\r\n");
+        return E_FLASH_ERROR;
+    }
+
+    if (FSMC_NOR_WriteBuffer((uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t)/2) != NOR_SUCCESS)
+    {
+        printf("ERROR: NorFalsh write sector 0 fail!\r\n");
+        return E_FLASH_ERROR;
+    }
 
     int ret = xTaskCreate( Delay_Task_Mon, "MON", 256,
             obc_save.delay_task_recover[0].task_para, 4, NULL );

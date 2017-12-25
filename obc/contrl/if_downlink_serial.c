@@ -194,22 +194,21 @@ void DMA1_Stream5_IRQHandler(void)
         {
             /* 为接收到的每一包数据申请内存 */
             Rx_Trans_Obj.frame = (usart2_frame_t *)ObcMemMalloc(sizeof(usart2_frame_t));
+            if (Rx_Trans_Obj.frame == NULL)
+                return;
 
-            if(Rx_Trans_Obj.frame != NULL)
-            {
-                /* 组包 */
-                Rx_Trans_Obj.frame->len_rx = 65535 - DMA1_Stream5->NDTR;
-                memcpy(Rx_Trans_Obj.frame->data, ReceiveBuffer, Rx_Trans_Obj.frame->len_rx);
-                xHigherPriorityTaskWoken = 0;
-                /* 送入接收队列 */
+            /* 组包 */
+            Rx_Trans_Obj.frame->len_rx = 65535 - DMA1_Stream5->NDTR;
+            memcpy(Rx_Trans_Obj.frame->data, ReceiveBuffer, Rx_Trans_Obj.frame->len_rx);
+            xHigherPriorityTaskWoken = 0;
+            /* 送入接收队列 */
 #if USE_ROUTE_PROTOCOL
-                Rx_Trans_Obj.frame->len_rx -= 3;
-                packet = (route_packet_t *)Rx_Trans_Obj.frame;
-                route_queue_wirte(packet, &xHigherPriorityTaskWoken);
+            Rx_Trans_Obj.frame->len_rx -= 3;
+            packet = (route_packet_t *)Rx_Trans_Obj.frame;
+            route_queue_wirte(packet, &xHigherPriorityTaskWoken);
 #else
-                xQueueSendToBackFromISR(Rx_Trans_Obj.queue, &Rx_Trans_Obj.frame, &xHigherPriorityTaskWoken);
+            xQueueSendToBackFromISR(Rx_Trans_Obj.queue, &Rx_Trans_Obj.frame, &xHigherPriorityTaskWoken);
 #endif
-            }
             /* 使能DMA接收 */
             DMA_Cmd(DMA1_Stream5, ENABLE);
         }

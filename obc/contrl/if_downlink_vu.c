@@ -20,6 +20,7 @@
 #include "ff.h"
 #include "bsp_switch.h"
 #include "task_monitor.h"
+#include "switches.h"
 
 #include "if_downlink_vu.h"
 
@@ -441,11 +442,14 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
 
         rsp_frame *recv_frame = (rsp_frame *)ObcMemMalloc(sizeof(route_packet_t) + MAX_UPLINK_CONTENT_SIZE);
         if (recv_frame == NULL)
-            continue;
-
-        if (vu_receiver_get_frame(recv_frame, MAX_UPLINK_CONTENT_SIZE) != E_NO_ERR /*||
-                vu_receiver_get_frame(recv_frame, MAX_UPLINK_CONTENT_SIZE) != E_NO_ERR*/)
         {
+            driver_debug(DEBUG_TTC, "ERROR: ISIS task malloc fail!!\r\n");
+            continue;
+        }
+
+        if (vu_receiver_get_frame(recv_frame, MAX_UPLINK_CONTENT_SIZE) != E_NO_ERR)
+        {
+            driver_debug(DEBUG_TTC, "ERROR: ISIS task get frame fail!!\r\n");
             ObcMemFree(recv_frame);
             continue;
         }
@@ -456,11 +460,14 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
         /* 若收到的帧数据长度字段不匹配，则视为错帧 */
         if (recv_frame->DateSize == 0 || recv_frame->DateSize > MAX_UPLINK_CONTENT_SIZE)
         {
+            driver_debug(DEBUG_TTC, "WARNING: ISIS vu has received a incorrect frame!!\r\n");
             ObcMemFree(recv_frame);
             continue;
         }
 
         PassFlag = true; /*置过境标志 */
+
+        driver_debug(DEBUG_TTC, "INFO: ISIS rLen: %u bytes.\r\n", recv_frame->DateSize);
 
         /* 给多普勒和信号强度遥测变量赋值 */
         if(rx_tm_queue != NULL)
@@ -497,13 +504,7 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
 
         /*若指令为关闭备份通信机指令，为了防止备份通信机接收出问题，在ISIS上行处理任务中直接关闭*/
         if ( ((route_packet_t *)recv_frame)->typ == VU_INS_BACKUP_OFF )
-        {
-            /**
-             * 需要添加切换控制板上电指令
-             */
-            EpsOutSwitch(OUT_USB_EN, DISABLE);
-            IsJLGvuWorking = false;
-        }
+            vu_backup_switch_off();
 
         /**成功接收后移除此帧*/
         if (vu_receiver_remove_frame() != E_NO_ERR)
@@ -574,6 +575,46 @@ int file_whole_download(FIL *file, char *file_name)
 
     return E_NO_ERR;
 
+}
+
+/**
+ * 恩来星文件下行接口
+ *
+ * @param file_id 图谱按文件编号
+ * @return E_NO_ERR 正常，任务创建成功
+ */
+int enlai_file_down(uint32_t file_id)
+{
+    FIL *myfile = (FIL *)ObcMemMalloc( sizeof(FIL) );
+    if (myfile == NULL)
+        return E_MALLOC_FAIL;
+
+    char *file_name = (char *)ObcMemMalloc(20);
+    if(file_name == NULL)
+    {
+        ObcMemFree(myfile);
+        return E_MALLOC_FAIL;
+    }
+
+    sprintf(file_name, "0:enlai/%u.jpg", file_id);
+
+    if (f_open( myfile, file_name, FA_READ | FA_OPEN_EXISTING ) != FR_OK)
+    {
+        ObcMemFree(myfile);
+        ObcMemFree(file_name);
+        return E_NO_SS;
+    }
+
+    sprintf(file_name, "enlai-%u.jpg", file_id);
+
+    if( file_whole_download( myfile, file_name ) != E_NO_ERR)
+    {
+        ObcMemFree(myfile);
+        ObcMemFree(file_name);
+        return E_NO_SS;
+    }
+
+    return E_NO_ERR;
 }
 
 /**
@@ -776,23 +817,11 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
 
         PassFlag = true; /*置过境标志 */
 
-//        /* 给多普勒和信号强度遥测变量赋值 */
-//        if(rx_tm_queue != NULL)
-//        {
-//            receiving_tm rx_tm =
-//            {
-//                rx_tm.DopplerOffset = recv_frame->DopplerOffset,
-//                rx_tm.RSSI = recv_frame->RSSI
-//            };
-//
-//            xQueueOverwrite(rx_tm_queue, &rx_tm);
-//        }
-
         driver_debug(DEBUG_TTC, "INFO: JLG rLen: %u bytes.\r\n", recv_frame->DateSize);
 
-        /*显示解理工通信板上行消息， 上天前需要屏蔽掉*/
-        hex_dump( recv_frame->Data, recv_frame->DateSize );
-        printf("\n\n");
+//        /*显示解理工通信板上行消息， 上天前需要屏蔽掉*/
+//        hex_dump( recv_frame->Data, recv_frame->DateSize );
+//        printf("\n\n");
 
         frame_num = recv_frame->DateSize;
 

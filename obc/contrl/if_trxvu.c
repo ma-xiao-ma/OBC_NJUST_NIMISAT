@@ -43,9 +43,7 @@ static int i2c_isis_transaction(uint8_t addr, void * txbuf, size_t txlen, void *
         return E_INVALID_BUF_SIZE;
 
     i2c_frame_t * t_frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
-    i2c_frame_t * r_frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
-
-    if (t_frame == NULL || r_frame == NULL)
+    if (t_frame == NULL)
         return E_NO_BUFFER;
 
     /* Take the I2C lock */
@@ -60,13 +58,8 @@ static int i2c_isis_transaction(uint8_t addr, void * txbuf, size_t txlen, void *
     t_frame->len = txlen;
     t_frame->len_rx = 0;
 
-    r_frame->dest = addr;
-    r_frame->len = 0;
-    r_frame->len_rx = rxlen;
-
     if (i2c_send(ISIS_I2C_HANDLE, t_frame, 0) != E_NO_ERR) {
         ObcMemFree(t_frame);
-        ObcMemFree(r_frame);
         device[ISIS_I2C_HANDLE].callback = tmp_callback;
         xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;
@@ -74,21 +67,35 @@ static int i2c_isis_transaction(uint8_t addr, void * txbuf, size_t txlen, void *
 
     vTaskDelay(10); /** 主发主收之间需要一个短暂延时给通信机准备数据的时间 */
 
-    if (rxlen == 0) {
-        ObcMemFree(r_frame);
+    if (rxlen == 0) { /*若i2c_send()函数执行成功则内存应该在底层被正确释放，此处不再释放内存*/
         device[ISIS_I2C_HANDLE].callback = tmp_callback;
         xSemaphoreGive(i2c_lock);
         return E_NO_ERR;
     }
 
-    if (i2c_send(ISIS_I2C_HANDLE, r_frame, 0) != E_NO_ERR) {
-        ObcMemFree(r_frame);
+    /**
+     * 若有I2C主收需求，则执行下面代码
+     */
+    t_frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
+    if (t_frame == NULL)
+        return E_NO_BUFFER;
+
+    t_frame->dest = addr;
+    t_frame->len = 0;
+    t_frame->len_rx = rxlen;
+
+    if (i2c_send(ISIS_I2C_HANDLE, t_frame, 0) != E_NO_ERR) {
+        ObcMemFree(t_frame);
         device[ISIS_I2C_HANDLE].callback = tmp_callback;
         xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;
     }
 
-    if (i2c_receive(ISIS_I2C_HANDLE, &r_frame, timeout) != E_NO_ERR) {
+    i2c_frame_t * r_frame;
+
+    if ( (i2c_receive(ISIS_I2C_HANDLE, &r_frame, timeout) != E_NO_ERR) ||
+            r_frame != t_frame) {
+        ObcMemFree(t_frame);
         device[ISIS_I2C_HANDLE].callback = tmp_callback;
         xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;
@@ -141,9 +148,8 @@ static int vu_cmd_rsp( vu_i2c_addr addr, uint8_t cmd, void * rsp, size_t rsplen 
 static int vu_cmd_par(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen)
 {
     cmd_with_para *dat = ObcMemMalloc(sizeof(cmd_with_para) + paralen);
-
     if (dat == NULL)
-        return E_MALLOC_FAIL;
+        return E_NO_BUFFER;
 
     dat->command = cmd;
     if (paralen > 0)
@@ -169,9 +175,8 @@ static int vu_cmd_par(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen
 static int vu_cmd_par_rsp(vu_i2c_addr addr, uint8_t cmd, void * para, size_t paralen, void * rsp, size_t rsplen)
 {
     cmd_with_para *dat = ObcMemMalloc(sizeof(cmd_with_para) + paralen);
-
     if (dat == NULL)
-        return E_MALLOC_FAIL;
+        return E_NO_BUFFER;
 
     dat->command = cmd;
     if (paralen > 0)

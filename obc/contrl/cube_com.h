@@ -26,6 +26,7 @@
 #define INS_RSH_CMD             0x0D
 #define INS_DELAY_CMD           0x0E
 #define INS_SD_MOUNT            0x0F
+
 /*GROUP1*/
 #define TR_BOOT			        0x10
 #define TR_SHUT_DOWN			0x11
@@ -61,22 +62,45 @@
 #define VU_INS_IDLE_STATE_SET   0x2C/* 新增 */
 #define VU_INS_BACKUP_ON        0x2D/* 新增 */
 #define VU_INS_BACKUP_OFF       0x2E/* 新增 */
-
+#define VU_INS_BACKUP_FM        0x2F/* 新增 */
 /*GROUP3*/
+/*********************************************/
+/*805 Camera*/
 #define CAM_SOFTWARE_RESET      0x30
 #define CAM_EXPOSURE_TIME_SET   0x31
 #define CAM_GAIN_SET            0x32
 #define CAM_WORK_MODE_SET       0x33
+/**********************************************/
 
+/**********************************************/
+/*照片下行，通用*/
 #define DOWN_NEWEST_IMAGE_INFO  0x34
 #define DOWN_IMAGE_INFO         0x35
 #define DOWN_IMAGE_DATA_WHOLE   0x36
 #define DOWN_IMAGE_DATA_SINGLE  0x37
 #define DOWN_IMAGE_DATA_PART    0x38
+/**********************************************/
+
+/**********************************************/
+/*805 相机供电*/
 #define CAM_POWER_ON            0x39
 #define CAM_POWER_OFF           0x3A
+/**********************************************/
+
+/*********************************************/
+/*805 Camera heat*/
 #define CAM_HEAT2_ON            0x3B
 #define CAM_HEAT2_OFF           0x3C
+/**********************************************/
+
+/*********************************************/
+/*恩来相机*/
+#define CAM_GET_PICTURE         0x3D/* 新增 */
+#define CAM_MEM_CLEAN           0x3E/* 新增 */
+
+/*恩来文件*/
+#define ENLAI_FILE_DOWN         0x3F/* 新增 */
+/*********************************************/
 
 
 

@@ -24,6 +24,7 @@
 #include "ctrl_cmd_types.h"
 #include "route.h"
 
+
 /** I2C master mode lock */
 xSemaphoreHandle i2c_lock = NULL;
 
@@ -156,19 +157,11 @@ static inline void pca9665_write_data(int handler, uint8_t* src, int len) {
  * @param src Source data pointer
  * @param len number of bytes to read
  */
-static inline void pca9665_read_data(int handler, uint8_t* dst, int len)
-{
+static inline void pca9665_read_data(int handler, uint8_t* dst, int len) {
 
-//	uint8_t chr;
 	while (len--)
-	{
 		*dst++ = *(uint8_t *) (device[handler].base + I2CDAT);
 
-//		*dst = *(uint8_t *) (device[handler].base + I2CDAT);
-//		chr = *dst++;
-//		driver_debug(DEBUG_I2C, "%x ", chr);
-	}
-//	driver_debug(DEBUG_I2C, "\n");
 }
 
 static inline void pca9665_read_data_to_buffer(int handle) {
@@ -376,7 +369,6 @@ void __attribute__((noinline)) pca9665_dsr(portBASE_TYPE * task_woken) {
 
 				pca9665_write_data(handle, &dest, 1);
 
-				/* If mode is master transmitter then set the write-bit in the address field */
 			} else {
 
 				dest = device[handle].tx.frame->dest << 1;
@@ -427,7 +419,7 @@ void __attribute__((noinline)) pca9665_dsr(portBASE_TYPE * task_woken) {
 				pca9665_write_reg(handle, I2CCON, CON_ENSIO | CON_MODE | CON_AA);
 				break;
 
-				/* Or, Change from master transmit, to master read if wanted */
+			/* Or, Change from master transmit, to master read if wanted */
 			} else if (device[handle].tx.frame->len_rx) {
 
 				device[handle].mode = DEVICE_MODE_M_R;
@@ -542,8 +534,6 @@ void __attribute__((noinline)) pca9665_dsr(portBASE_TYPE * task_woken) {
 		case STA_S_SLAW_RECEIVED_ACKED:
 		case STA_S_GC_RECEIVED:
 
-		    device[handle].is_busy = 1;
-
 			/* Check if RX frame was started */
 			if (device[handle].rx.frame != NULL)
 				goto isr_error;
@@ -553,7 +543,7 @@ void __attribute__((noinline)) pca9665_dsr(portBASE_TYPE * task_woken) {
 			if (device[handle].rx.frame == NULL)
 				goto isr_error;
 
-//			device[handle].is_busy = 1;
+			device[handle].is_busy = 1;
 			device[handle].rx.next_byte = 0;
 			device[handle].rx.frame->len = 0;
 			device[handle].rx.frame->dest = device[handle].slave_addr;
@@ -913,6 +903,46 @@ int i2c_send(int handle, i2c_frame_t * frame, uint16_t timeout) {
 
 	return E_NO_ERR;
 
+}
+
+/**
+ * 与ADCS通信时为了防止FLASH编程操作时I2C出错
+ *
+ * @param handle Handle to the device
+ * @param frame Pointer to I2C frame
+ * @param timeout Ticks to wait
+ * @return Error code as per error.h
+ */
+int adcs_i2c_send(int handle, i2c_frame_t * frame, uint16_t timeout)
+{
+    if (handle >= pca9665_device_count)
+        return E_NO_DEVICE;
+
+    if (!device[handle].is_initialised)
+        return E_NO_DEVICE;
+
+    if (uxQueueMessagesWaiting(device[handle].tx.queue) != 0)
+    {
+        vPortEnterCritical();
+        {
+            device[handle].is_busy = 0;
+        }
+        vPortExitCritical();
+    }
+
+    if (xQueueSendToBack(device[handle].tx.queue, &frame, timeout) == pdFALSE)
+        return E_TIMEOUT;
+
+    /* Check state in critical region */
+    vPortEnterCritical();
+    {
+        /* If not currently busy, send the start condition... */
+        if (device[handle].is_busy == 0)
+            pca9665_write_reg(handle, I2CCON, CON_ENSIO | CON_MODE | CON_AA | CON_STA);
+    }
+    vPortExitCritical();
+
+    return E_NO_ERR;
 }
 
 /**

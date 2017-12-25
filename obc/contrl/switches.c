@@ -136,7 +136,7 @@ int get_switch_status(uint8_t * pstatus)
     if(OUT_SW_VU_5V_PIN())
         pstatus[2] |= SW_VU_5V_EN;
     else
-        pstatus[2] |= SW_VU_5V_EN;
+        pstatus[2] &= ~SW_VU_5V_EN;
 
     /*可展开帆展开状态*/
     if (IN_SW_SAIL_STATUS_PIN())

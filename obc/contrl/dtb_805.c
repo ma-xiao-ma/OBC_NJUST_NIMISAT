@@ -24,9 +24,7 @@ int xDTBTelemetryGet(uint8_t *pRxData, uint16_t Timeout)
 
     uint8_t *pBuffer = (uint8_t *)ObcMemMalloc(24);
     if(pBuffer == NULL)
-    {
         return E_MALLOC_FAIL;
-    }
 
     pBuffer[0] = 0x04;
     pBuffer[1] = 0x00;
@@ -72,9 +70,7 @@ int xDTBTeleControlSend(uint8_t Cmd, uint16_t Timeout)
 
     uint8_t *pBuffer = (uint8_t *)ObcMemMalloc(8);
     if(pBuffer == NULL)
-    {
         return E_MALLOC_FAIL;
-    }
 
     pBuffer[0] = 0x06;
     pBuffer[1] = 0x20;

@@ -166,7 +166,7 @@ command_t __sub_command rtc_subcommands[] = {
 	}
 };
 
-command_t __sub_command __root_command rtc_commands[] = {
+command_t __root_command __root_command rtc_commands[] = {
 	{
 		.name = "rtc",
 		.help = "DS1302 RTC commands",

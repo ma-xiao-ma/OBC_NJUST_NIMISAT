@@ -123,7 +123,7 @@ int adcs_transaction(uint8_t type, void * txbuf, size_t txlen, void * rxbuf, siz
 
     memcpy(&r_frame->dat[0], txbuf, txlen);
 
-    if (i2c_send(OBC_TO_ADCS_HANDLE, frame, 0) != E_NO_ERR)
+    if (adcs_i2c_send(OBC_TO_ADCS_HANDLE, frame, 0) != E_NO_ERR)
     {
         ObcMemFree(frame);
         xSemaphoreGive(i2c_lock);

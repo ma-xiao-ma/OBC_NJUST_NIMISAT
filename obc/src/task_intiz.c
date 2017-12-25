@@ -115,8 +115,8 @@ void task_initz(void)
     /*I2C(PCA9665) initialize*/
     PCA9665_IO_Init();
     //driver_debug_switch[DEBUG_I2C] = 1;
-    i2c_init(0, I2C_MASTER, 0x1A, 40, 10, 10, NULL); //frequency = 40Kbit/s
-    i2c_init(1, I2C_MASTER, 0x08, 60, 10, 10, i2c_rx_callback);
+    i2c_init(0, I2C_MASTER, 0x1A, 40, 10, 5, NULL); //frequency = 40Kbit/s
+    i2c_init(1, I2C_MASTER, 0x08, 60, 10, 5, i2c_rx_callback);
     pca9665_isr_init();
 
 	/*采温芯片初始化*/

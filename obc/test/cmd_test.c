@@ -259,6 +259,8 @@ int route_queue_send_pack(struct command_context *ctx)
         return CMD_ERROR_SYNTAX;
 
     route_packet_t *packet = (route_packet_t *)ObcMemMalloc(sizeof(route_packet_t)+len);
+    if (packet == NULL)
+        return CMD_ERROR_FAIL;
 
     packet->len = len;
     packet->dst = dst;
@@ -282,6 +284,8 @@ int CubeUnPacket_test(struct command_context *ctx)
         return CMD_ERROR_SYNTAX;
 
     route_packet_t *packet = (route_packet_t *)ObcMemMalloc(sizeof(route_packet_t) + 50);
+    if (packet == NULL)
+        return CMD_ERROR_FAIL;
 
     packet->len = 10;
     packet->dst = router_get_my_address();
@@ -335,6 +339,8 @@ int cmd_delay_task_test(struct command_context *ctx)
         return CMD_ERROR_SYNTAX;
 
     delay_task_t * task_para = (delay_task_t *)ObcMemMalloc(60);
+    if (task_para == NULL)
+        return CMD_ERROR_FAIL;
 
     memset(task_para, 0, 60);
 
@@ -371,6 +377,7 @@ int cmd_obc_hk(struct command_context *ctx __attribute__((unused)))
     printf("reboot_count\t%u\n", obc->reboot_count);
     printf("rec_cmd_count\t%u\n", obc->rec_cmd_count);
     printf("hk_down_count\t%u\n", obc->hk_down_count);
+    printf("vu_rec_count\t%u\n", obc->vu_rec_count);
     printf("hk_store_count\t%u\n", obc->hk_store_count);
     printf("i2c_error_count\t%u\n", obc->i2c_error_count);
     printf("last_reset\t%u\n", obc->last_reset_time);

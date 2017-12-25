@@ -53,7 +53,7 @@ void hk_down_store_task(void);
  * @param para 延时任务参数
  * @return
  */
-int Delay_Task_Mon_Start(void *para);
+int Delay_Task_Mon_Start(delay_task_t *para);
 
 
 void adcs_pwr_task(void *pvParameters __attribute__((unused)));

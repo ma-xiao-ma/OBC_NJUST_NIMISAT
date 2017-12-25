@@ -110,6 +110,14 @@ int vu_router_downlink(route_packet_t *packet);
 int file_whole_download(FIL *file, char *file_name);
 
 /**
+ * 恩来星文件下行接口
+ *
+ * @param file_id 图谱按文件编号
+ * @return E_NO_ERR 正常，任务创建成功
+ */
+int enlai_file_down(uint32_t file_id);
+
+/**
  * 下行整幅图片接口函数
  *
  * @param pdata 图像数据指针

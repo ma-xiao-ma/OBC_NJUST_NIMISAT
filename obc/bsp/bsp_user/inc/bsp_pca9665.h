@@ -102,6 +102,16 @@ int i2c_init(int handle, int mode, uint8_t addr, uint16_t speed, int queue_len_t
  */
 int i2c_send(int handle, i2c_frame_t * frame, uint16_t timeout);
 
+/**
+ * 与ADCS通信时为了防止FLASH编程操作时I2C出错
+ *
+ * @param handle Handle to the device
+ * @param frame Pointer to I2C frame
+ * @param timeout Ticks to wait
+ * @return Error code as per error.h
+ */
+int adcs_i2c_send(int handle, i2c_frame_t * frame, uint16_t timeout);
+
 
 /**
  * Receive I2C frame from selected device

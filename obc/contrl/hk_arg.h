@@ -13,7 +13,9 @@
 #include "bsp_adc.h"
 #include "sensor/flash_sd.h"
 
-#define OBC_STORE_ADDR				((uint32_t)(0x080C0000))
+#define OBC_STORE_FLASH_ADDR                ((uint32_t)(0x080C0000))
+/*存在片外NORFLASH的第一个扇区*/
+#define OBC_STORE_NOR_ADDR                  ((uint32_t)0)
 
 extern double mag_get[3];
 extern float magtemparature;

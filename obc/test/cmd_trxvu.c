@@ -302,6 +302,8 @@ int isis_set_call_beacon_handler(struct command_context * context __attribute__(
         return CMD_ERROR_SYNTAX;
 
     par_beacon_new_call_set *frame = ObcMemMalloc(sizeof(par_beacon_new_call_set)+ISIS_MTU);
+    if (frame == NULL)
+        return CMD_ERROR_FAIL;
 
     frame->RepeatInterval = Interval;
 
@@ -333,6 +335,8 @@ int isis_set_beacon_handler(struct command_context * context __attribute__((unus
         return CMD_ERROR_SYNTAX;
 
     par_beacon_set *beacon = ObcMemMalloc(sizeof(par_beacon_set)+ISIS_MTU);
+    if (beacon == NULL)
+        return CMD_ERROR_FAIL;
 
     beacon->RepeatInterval = Interval;
 
@@ -352,6 +356,8 @@ int isis_sendAXdate_handler(struct command_context * context __attribute__((unus
 {
 
 	par_frame_new_call *frame = ObcMemMalloc(sizeof(par_frame_new_call)+ISIS_MTU);
+    if (frame == NULL)
+        return CMD_ERROR_FAIL;
 
     char *str1 = "BI4ST-0";
     for(int i=0; *(str1+i) != '\0'; i++)
@@ -388,6 +394,8 @@ int isis_read_frame_handler(struct command_context * context __attribute__((unus
 {
 
     rsp_frame *frame = ObcMemMalloc(sizeof(rsp_frame)+ISIS_RX_MTU);
+    if (frame == NULL)
+        return CMD_ERROR_FAIL;
 
 	if( vu_receiver_get_frame(frame, ISIS_RX_MTU) == E_NO_ERR)
 	{

@@ -790,7 +790,7 @@ int cmd_eps_read(struct command_context *ctx __attribute__((unused)))
 	else
 		temp = "off";
 	printf("*       %s         %s        %03d mA        *\r\n",
-	        "BLS3", temp, EpsHouseKeeping.Out_BranchC[2]);
+	        "SWIH", temp, EpsHouseKeeping.Out_BranchC[2]);
 	if (SW_7_4V_3_PIN())
 		temp = "on ";
 	else

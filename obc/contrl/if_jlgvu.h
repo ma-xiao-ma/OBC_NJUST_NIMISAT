@@ -56,13 +56,13 @@
 /*获取vu遥测响应结构体*/
 typedef struct __attribute__((packed))
 {
-    uint32_t Uptime; /*获取遥测回复中无此字段 */
+    uint32_t Uptime; /*自上次复位以来MCU活动时间*/
     uint16_t SNR;    /*信噪比 */
     uint16_t DopplerOffset; /*多普勒频偏 */
     uint16_t BusVoltage;  /*母线电压*/
     uint16_t BoardVoltage; /*板上电压*/
     uint16_t AmplifierTemp; /*功放温度*/
-    uint16_t RecCount; /* 获取遥测回复中无此字段 */
+    uint16_t RecCount; /* 接收指令计数 */
 } rsp_vu_tm;
 
 /**
@@ -217,5 +217,18 @@ int vu_fm_on(void);
  */
 int vu_fm_off(void);
 
+/**
+ * 备份通信机切换开
+ *
+ * @return E_NO_ERR执行成功，否则执行错误，参见error.h
+ */
+int vu_backup_switch_on(void);
+
+/**
+ * 备份通信机切换关
+ *
+ * @return E_NO_ERR执行成功，否则执行错误，参见error.h
+ */
+int vu_backup_switch_off(void);
 
 #endif /* CONTRL_IF_JLGVU_H_ */

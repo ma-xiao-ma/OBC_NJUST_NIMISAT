@@ -212,13 +212,12 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
         case INS_TIME_TO_OBC:
 
             obc_unpacket->time_sysn_para += 2;
-            result = timesync(obc_unpacket->time_sysn_para);
 
-            if (result == -1) {
-                result = Success;
-            }else {
+            if (timesync(obc_unpacket->time_sysn_para) != E_NO_ERR)
                 result = Fail;
-            }
+            else
+                result = Success;
+
             obc_cmd_ack(cmd_id, result);
             break;
 
@@ -327,7 +326,8 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
 	}
 }
 
-static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf) {
+static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
+{
 	int result = Fail;
 
 	switch (cmd_id)
@@ -486,8 +486,6 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
 {
 	int result = Fail;
 
-	extern uint8_t IsJLGvuWorking;
-
 	switch (cmd_id) {
 
         case TR_PC_ON:
@@ -609,15 +607,8 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
 
         case VU_INS_BACKUP_ON:
 
-            /* PC104_100 母线输出 */
-            if (EpsOutSwitch(OUT_BACKUP_VU, ENABLE) != EPS_ERROR &&
-                    EpsOutSwitch(OUT_SWITCH_5V, ENABLE) != EPS_ERROR)
-            {
-                vTaskDelay(3000); /* 延时等待备份板启动 */
-
-                IsJLGvuWorking = true;
+            if( vu_backup_switch_on() == E_NO_ERR )
                 result = Success;
-            }
             else
                 result = Fail;
 
@@ -627,15 +618,30 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
 
         case VU_INS_BACKUP_OFF:
 
-            /* PC104_100 母线输出 */
-            if (EpsOutSwitch(OUT_BACKUP_VU, DISABLE) != EPS_ERROR &&
-                    EpsOutSwitch(OUT_SWITCH_5V, DISABLE) != EPS_ERROR)
-            {
-                IsJLGvuWorking = false;
+            if( vu_backup_switch_off() == E_NO_ERR )
                 result = Success;
-            }
             else
                 result = Fail;
+
+            obc_cmd_ack(cmd_id, result);
+            break;
+
+        case VU_INS_BACKUP_FM:
+
+            if ( *cube_buf )
+            {
+                if (vu_fm_on() != E_NO_ERR)
+                    result = Fail;
+                else
+                    result = Success;
+            }
+            else
+            {
+                if (vu_fm_off() != E_NO_ERR)
+                    result = Fail;
+                else
+                    result = Success;
+            }
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -742,13 +748,9 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
 
             if(EpsOutSwitch(OUT_CAMERA_10W, ENABLE) != EPS_ERROR
                     && EpsOutSwitch(OUT_CAMERA_5W, ENABLE) != EPS_ERROR)
-            {
                 result = Success;
-            }
             else
-            {
                 result = Fail;
-            }
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -757,13 +759,9 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
 
             if(EpsOutSwitch(OUT_CAMERA_10W, DISABLE) != EPS_ERROR
                     && EpsOutSwitch(OUT_CAMERA_5W, DISABLE) != EPS_ERROR)
-            {
                 result = Success;
-            }
             else
-            {
                 result = Fail;
-            }
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -771,13 +769,9 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
         case CAM_HEAT2_ON:
 
             if(EpsOutSwitch(OUT_CAMERA_HEAT_2, ENABLE) != EPS_ERROR)
-            {
                 result = Success;
-            }
             else
-            {
                 result = Fail;
-            }
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -785,13 +779,29 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
         case CAM_HEAT2_OFF:
 
             if(EpsOutSwitch(OUT_CAMERA_HEAT_2, DISABLE) != EPS_ERROR)
-            {
                 result = Success;
-            }
             else
-            {
                 result = Fail;
-            }
+
+            obc_cmd_ack(cmd_id, result);
+            break;
+
+        case CAM_GET_PICTURE:
+
+            obc_cmd_ack(cmd_id, result);
+            break;
+
+        case CAM_MEM_CLEAN:
+
+            obc_cmd_ack(cmd_id, result);
+            break;
+
+        case ENLAI_FILE_DOWN:
+
+            if ( enlai_file_down(cam_cmd->img_id) != E_NO_ERR )
+                result = Fail;
+            else
+                result = Success;
 
             obc_cmd_ack(cmd_id, result);
             break;
