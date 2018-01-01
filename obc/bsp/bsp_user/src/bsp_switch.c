@@ -24,7 +24,7 @@ void bsp_InitSwitch(void) {
 			RCC_USB_EN_PORT   |
 			RCC_EPS_S0_PORT   | RCC_EPS_S1_PORT   | RCC_EPS_S2_PORT   | RCC_EPS_S3_PORT|
 			RCC_DTB_5V_PORT|RCC_DTB_12V_PORT|RCC_CAMERA_10W_PORT|RCC_CAMERA_5W_PORT|
-			RCC_CAMERA_HEAT_1_PORT|RCC_CAMERA_HEAT_2_PORT
+			RCC_CAMERA_HEAT_1_PORT/*|RCC_CAMERA_HEAT_2_PORT*/
 			, ENABLE);
 
 	//配置GPIO
@@ -84,14 +84,21 @@ void bsp_InitSwitch(void) {
 	GPIO_InitStructure.GPIO_Pin = GPIO_CAMERA_HEAT_1_PIN;
 	GPIO_Init(GPIO_CAMERA_HEAT_1_PORT, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_CAMERA_HEAT_2_PIN;
-	GPIO_Init(GPIO_CAMERA_HEAT_2_PORT, &GPIO_InitStructure);
+//	GPIO_InitStructure.GPIO_Pin = GPIO_CAMERA_HEAT_2_PIN;
+//	GPIO_Init(GPIO_CAMERA_HEAT_2_PORT, &GPIO_InitStructure);
 
-	GPIO_InitStructure.GPIO_Pin = GPIO_PAL_STATUS_1_PIN|GPIO_PAL_STATUS_2_PIN;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+
+	GPIO_InitStructure.GPIO_Pin = GPIO_PAL_STATUS_1_PIN;
 	GPIO_Init(GPIO_PAL_STATUS_1_PORT, &GPIO_InitStructure);
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_PAL_STATUS_2_PIN;
+    GPIO_Init(GPIO_PAL_STATUS_2_PORT, &GPIO_InitStructure);
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_SAIL_STATUS_PIN;
+    GPIO_Init(GPIO_SAIL_STATUS_PORT, &GPIO_InitStructure);
 
 	EpsOutSwitch(OUT_ALL, DISABLE);
 }
@@ -357,20 +364,20 @@ uint8_t EpsOutSwitch(uint8_t ch, uint8_t status) {
 		}
 		break;
 
-	case OUT_CAMERA_HEAT_2://PC2 相机加热开关2使能
-		if (status ^ OUT_SW_CAMERA_HEAT_2_PIN()) {
-			status == ENABLE ? SW_CAMERA_HEAT_2_ENABLE : SW_CAMERA_HEAT_2_DISABLE;
-			while ((status ^ OUT_SW_CAMERA_HEAT_2_PIN()) && --time) {
-				status == ENABLE ? SW_CAMERA_HEAT_2_ENABLE : SW_CAMERA_HEAT_2_DISABLE;
-			}
-			if (time)
-				res = EPS_OK;
-			else
-				res = EPS_ERROR;
-		} else {
-			res = EPS_UNDO;
-		}
-		break;
+//	case OUT_CAMERA_HEAT_2://PC2 相机加热开关2使能
+//		if (status ^ OUT_SW_CAMERA_HEAT_2_PIN()) {
+//			status == ENABLE ? SW_CAMERA_HEAT_2_ENABLE : SW_CAMERA_HEAT_2_DISABLE;
+//			while ((status ^ OUT_SW_CAMERA_HEAT_2_PIN()) && --time) {
+//				status == ENABLE ? SW_CAMERA_HEAT_2_ENABLE : SW_CAMERA_HEAT_2_DISABLE;
+//			}
+//			if (time)
+//				res = EPS_OK;
+//			else
+//				res = EPS_ERROR;
+//		} else {
+//			res = EPS_UNDO;
+//		}
+//		break;
 
 
 
@@ -393,7 +400,7 @@ uint8_t EpsOutSwitch(uint8_t ch, uint8_t status) {
 			SW_CAMERA_10W_ENABLE;
 			SW_CAMERA_5W_ENABLE;
 			SW_CAMERA_HEAT_1_ENABLE;
-			SW_CAMERA_HEAT_2_ENABLE;
+//			SW_CAMERA_HEAT_2_ENABLE;
 
 			res = EPS_OK;
 		} else {
@@ -415,7 +422,7 @@ uint8_t EpsOutSwitch(uint8_t ch, uint8_t status) {
 			SW_CAMERA_10W_DISABLE;
 			SW_CAMERA_5W_DISABLE;
 			SW_CAMERA_HEAT_1_DISABLE;
-			SW_CAMERA_HEAT_2_DISABLE;
+//			SW_CAMERA_HEAT_2_DISABLE;
 
 			res = EPS_OK;
 		}

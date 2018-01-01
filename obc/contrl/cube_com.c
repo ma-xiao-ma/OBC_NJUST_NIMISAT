@@ -243,7 +243,7 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
 
         case INS_PAL_ON:
 
-            if (enable_panel(0, 0) == 1)
+            if ( enable_panel(obc_unpacket->time_sysn_para) == E_NO_ERR )
                 result = Success;
             else
                 result = Fail;
@@ -766,30 +766,35 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
             obc_cmd_ack(cmd_id, result);
             break;
 
-        case CAM_HEAT2_ON:
+//        case CAM_HEAT2_ON:
+//
+//            if(EpsOutSwitch(OUT_CAMERA_HEAT_2, ENABLE) != EPS_ERROR)
+//                result = Success;
+//            else
+//                result = Fail;
+//
+//            obc_cmd_ack(cmd_id, result);
+//            break;
 
-            if(EpsOutSwitch(OUT_CAMERA_HEAT_2, ENABLE) != EPS_ERROR)
-                result = Success;
-            else
-                result = Fail;
-
-            obc_cmd_ack(cmd_id, result);
-            break;
-
-        case CAM_HEAT2_OFF:
-
-            if(EpsOutSwitch(OUT_CAMERA_HEAT_2, DISABLE) != EPS_ERROR)
-                result = Success;
-            else
-                result = Fail;
-
-            obc_cmd_ack(cmd_id, result);
-            break;
+//        case CAM_HEAT2_OFF:
+//
+//            if(EpsOutSwitch(OUT_CAMERA_HEAT_2, DISABLE) != EPS_ERROR)
+//                result = Success;
+//            else
+//                result = Fail;
+//
+//            obc_cmd_ack(cmd_id, result);
+//            break;
 
         case CAM_GET_PICTURE:
 
-            obc_cmd_ack(cmd_id, result);
-            break;
+//            if (enlai_take_pic_task(uint8_t pic_size) != E_NO_ERR)
+//                result = Fail;
+//            else
+//                result = Success;
+//
+//            obc_cmd_ack(cmd_id, result);
+//            break;
 
         case CAM_MEM_CLEAN:
 

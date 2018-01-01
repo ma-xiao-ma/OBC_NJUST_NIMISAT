@@ -49,6 +49,15 @@ void task_initz(void)
 //
 //    driver_debug_switch[DEBUG_HK] = 1;
 
+    /*调试穿口初始化，波特率115200*/
+    Console_Usart_init(115200);
+
+    /*OBC系统时间 与 RTC时间 同步*/
+    obc_timesync();
+
+    /*use cpu flash to store the info*/
+    obc_argvs_recover();
+
     /** 给SD卡挂载FATFS文件系统 */
     f_mount(0,&fs);
 
@@ -60,8 +69,6 @@ void task_initz(void)
 
     /*姿控上电*/
     EpsOutSwitch(OUT_EPS_S0, ENABLE);
-
-	Console_Usart_init(115200);
 
 	/*协议串口输出输入*/
 #if USE_SERIAL_PORT_DOWNLINK_INTERFACE
@@ -87,14 +94,8 @@ void task_initz(void)
 	/*片外 RTC初始化*/
 	bsp_InitDS1302();
 
-	/*OBC系统时间与RTC时间同步*/
-	obc_timesync();
-
 	/*command initialize*/
 	command_init();
-
-	/*use cpu flash to store the info*/
-	obc_argvs_recover();
 
 	/*house-keeping store to SD card*/
 	hk_list_init(&hk_list);
@@ -153,8 +154,8 @@ void task_initz(void)
 	cmd_norflash_setup();
 	extern void cmd_camera_setup(void);
 	cmd_camera_setup();
-
 	cmd_ina_temp_setup();
 
-//	vTaskDelete(NULL);
+    /*OBC系统时间与RTC时间同步*/
+    obc_timesync();
 }

@@ -65,7 +65,7 @@ static int i2c_isis_transaction(uint8_t addr, void * txbuf, size_t txlen, void *
         return E_TIMEOUT;
     }
 
-    vTaskDelay(10); /** 主发主收之间需要一个短暂延时给通信机准备数据的时间 */
+    vTaskDelay(11); /** 主发主收之间需要一个短暂延时给通信机准备数据的时间 */
 
     if (rxlen == 0) { /*若i2c_send()函数执行成功则内存应该在底层被正确释放，此处不再释放内存*/
         device[ISIS_I2C_HANDLE].callback = tmp_callback;
@@ -95,7 +95,6 @@ static int i2c_isis_transaction(uint8_t addr, void * txbuf, size_t txlen, void *
 
     if ( (i2c_receive(ISIS_I2C_HANDLE, &r_frame, timeout) != E_NO_ERR) ||
             r_frame != t_frame) {
-        ObcMemFree(t_frame);
         device[ISIS_I2C_HANDLE].callback = tmp_callback;
         xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;

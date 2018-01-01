@@ -100,7 +100,6 @@ static int isis_ants_delay_cmd(uint8_t addr, void * txbuf, size_t txlen, void * 
 
     if ( (i2c_receive(ANTS_I2C_HANDLE, &r_frame, ISIS_I2C_TIME_OUT) != E_NO_ERR) ||
             r_frame != t_frame) {
-        ObcMemFree(t_frame);
         device[ANTS_I2C_HANDLE].callback = tmp_callback;
         xSemaphoreGive(i2c_lock);
         return E_TIMEOUT;

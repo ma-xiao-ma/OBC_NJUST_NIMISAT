@@ -42,8 +42,8 @@ int cmd_panel(struct command_context *ctx) {
 	}
 
 	if(opt == 1)	{
-		int res = enable_panel(delay, 0);
-		if(res != 1)
+		int res = enable_panel(delay);
+		if(res != -1)
 			printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
 		else
 			printf("panel open\r\n");

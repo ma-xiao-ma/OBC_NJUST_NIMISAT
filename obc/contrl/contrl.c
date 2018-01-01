@@ -310,15 +310,14 @@ void OpenAntenna_Task(void* param __attribute__((unused))) {
 /////////////////////////////////////////////
 void OpenPanel_Task(void* param __attribute__((unused)))
 {
-
-	if (obc_boot_count > 5)
+	if (obc_boot_count > 2)
 	{
 		vTaskDelete(NULL);
 	}
 
 	portTickType CurTime = xTaskGetTickCount();
 
-	if(obc_boot_count <= 3)
+	if(obc_boot_count <= 2)
 	{
 		vTaskDelayUntil(&CurTime, OpenBattery_Time * (1000 / portTICK_RATE_MS));
 	}
@@ -329,7 +328,7 @@ void OpenPanel_Task(void* param __attribute__((unused)))
 
 	while (1)
 	{
-		enable_panel(0,0);
+		enable_panel(3000);
 
 		openpanel_times++;
 
@@ -651,3 +650,14 @@ int Delay_Task_Mon_Start(delay_task_t *para)
     return E_NO_ERR;
 }
 
+
+void vWatchDogTask1( void *pvParameters __attribute__((unused)))
+{
+    for(;;)
+    {
+        vTaskDelay(100);
+        bsp_WatchDogToggle();
+    }
+//  xTaskCreate( vWatchDogTask1, "Watchdog", configMINIMAL_STACK_SIZE,
+//          ( void * ) NULL, tskIDLE_PRIORITY + 3, ( TaskHandle_t * ) NULL );
+}

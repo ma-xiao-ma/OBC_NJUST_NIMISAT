@@ -196,7 +196,13 @@ uint8_t get_antenna_status(uint8_t * sta);
 
 uint8_t get_panel_status(void);
 
-int enable_panel(uint32_t delay, uint32_t data __attribute__((unused)));
+/**
+ * 可展开电池阵展开系统使能
+ *
+ * @param delay 展开系统烧线使能时间（单位：毫秒）
+ * @return 返回E_NO_ERR(-1)为成功
+ */
+int enable_panel(uint32_t delay);
 
 int disable_panel(uint32_t delay, uint32_t data __attribute__((unused)));
 

@@ -21,6 +21,7 @@
 #include "semphr.h"
 
 #include "crc.h"
+#include "error.h"
 #include "driver_debug.h"
 #include "stm32f4xx.h"
 #include "hk_arg.h"
@@ -118,11 +119,11 @@ int get_switch_status(uint8_t * pstatus)
     else
         pstatus[1] &= ~CAMERA_HEAT1_EN;
 
-    /*相机加热2开关*/
-    if(OUT_SW_CAMERA_HEAT_2_PIN())
-        pstatus[1] |= CAMERA_HEAT2_EN;
-    else
-        pstatus[1] &= ~CAMERA_HEAT2_EN;
+//    /*相机加热2开关*/
+//    if(OUT_SW_CAMERA_HEAT_2_PIN())
+//        pstatus[1] |= CAMERA_HEAT2_EN;
+//    else
+//        pstatus[1] &= ~CAMERA_HEAT2_EN;
 
     /*W2*/
 
@@ -264,32 +265,43 @@ uint8_t get_antenna_status(uint8_t * sta){
 	return 1;
 }
 
-uint8_t get_panel_status(void){
-	uint8_t result = 0;
+/**
+ * 可展开电池阵展开系统使能
+ *
+ * @param delay 展开系统烧线使能时间（单位：毫秒）
+ * @return 返回E_NO_ERR(-1)为成功
+ */
+int enable_panel(uint32_t delay)
+{
+	int result = E_TIMEOUT;
 
-	if(PANELA_PIN_STATUS())
-		result++;
-	if(PANELB_PIN_STATUS())
-		result++;
-
-	return result;
-}
-
-int enable_panel(uint32_t delay, uint32_t data __attribute__((unused))){
-	int result = 0;
-
-	if(delay > 0) {
-		vTaskDelay(delay);
+	if (delay > 6000)
+	{
+	    driver_debug(DEBUG_WARN, "WARN: Solar Burn Invalid Parameter.\r\n");
+	    return E_INVALID_PARAM;
 	}
 
-	EpsOutSwitch(OUT_SOLAR_EN, ENABLE);
-	result = SW_SOLAR_EN_PIN();
+	if ( EpsOutSwitch(OUT_SOLAR_EN, ENABLE) != EPS_ERROR)
+	{
+	    driver_debug(DEBUG_INFO, "INFO: Solar Burn Enable.\r\n");
 
-	/* 上天前需修改 */
-	vTaskDelay(2500);
+	    vTaskDelay( delay / portTICK_RATE_MS );
 
-	EpsOutSwitch(OUT_SOLAR_EN, DISABLE);
-	EpsOutSwitch(OUT_SOLAR_EN, DISABLE);
+        do
+        {
+            EpsOutSwitch(OUT_SOLAR_EN, DISABLE);
+            driver_debug(DEBUG_INFO, "INFO: Solar Burn Disable.\r\n");
+            vTaskDelay( 50 / portTICK_RATE_MS );
+
+        } while( SW_SOLAR_EN_PIN() );
+
+        result = E_NO_ERR;
+	}
+	else
+	{
+	    driver_debug(DEBUG_ERROR, "ERROR: Solar Burn Enable fail!!\r\n");
+	    result = E_NO_SS;
+	}
 
 	return result;
 }
@@ -360,6 +372,6 @@ int obc_closeall(uint32_t delay, uint32_t data __attribute__((unused)))
     SW_CAMERA_10W_DISABLE;
     SW_CAMERA_5W_DISABLE;
     SW_CAMERA_HEAT_1_DISABLE;
-    SW_CAMERA_HEAT_2_DISABLE;
+//    SW_CAMERA_HEAT_2_DISABLE;
 	return result;
 }

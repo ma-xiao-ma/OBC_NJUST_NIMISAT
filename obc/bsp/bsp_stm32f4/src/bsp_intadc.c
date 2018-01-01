@@ -49,7 +49,6 @@ void int_adc_init(void)
 
 static u16 Get_Adc1(u8 ch)
 {
-
     ADC_RegularChannelConfig(ADC1, ch, 1, ADC_SampleTime_480Cycles );
 
     ADC_SoftwareStartConv(ADC1);

@@ -69,7 +69,8 @@ int board_temp_get_cmd(struct command_context *ctx __attribute__((unused)))
     return CMD_ERROR_NONE;
 }
 
-command_t __sub_command __root_command ina_temp_commands_master[] = {
+command_t __root_command ina_temp_commands_master[] =
+{
     {
         .name = "temp175",
         .help = "Board temp get",

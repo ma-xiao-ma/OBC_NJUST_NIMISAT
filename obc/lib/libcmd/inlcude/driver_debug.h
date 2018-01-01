@@ -11,15 +11,18 @@
 #include "command.h"
 
 typedef enum driver_debug_e {
-	DEBUG_I2C = 0,
-	DEBUG_OBC = 1,
-	DEBUG_SPI = 2,
-	DEBUG_CAMERA = 3,
-	DEBUG_ICD = 4,
-	DEBUG_HK = 5,
-	DEBUG_TTC = 6,
-	DEBUG_FLASH = 7,
-	DEBUG_ROUTER = 8,
+    DEBUG_ERROR = 0,
+    DEBUG_WARN = 1,
+    DEBUG_INFO = 2,
+    DEBUG_I2C = 3,
+	DEBUG_OBC = 4,
+	DEBUG_SPI = 5,
+	DEBUG_CAMERA = 6,
+	DEBUG_ICD = 7,
+	DEBUG_HK = 8,
+	DEBUG_TTC = 9,
+	DEBUG_FLASH = 10,
+	DEBUG_ROUTER = 11,
 	DEBUG_ENUM_MAX = DEBUG_ROUTER,
 } driver_debug_t;
 

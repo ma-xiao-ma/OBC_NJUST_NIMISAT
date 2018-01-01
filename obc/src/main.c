@@ -16,18 +16,6 @@
 
 
 
-void vWatchDogTask1( void *pvParameters __attribute__((unused)))
-{
-	for(;;)
-	{
-		vTaskDelay(100);
-		bsp_WatchDogToggle();
-	}
-//	xTaskCreate( vWatchDogTask1, "Watchdog", configMINIMAL_STACK_SIZE,
-//			( void * ) NULL, tskIDLE_PRIORITY + 3, ( TaskHandle_t * ) NULL );
-}
-
-
 int main(void)
 {
 
