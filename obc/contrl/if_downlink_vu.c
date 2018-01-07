@@ -485,11 +485,15 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
 
         memmove(&((route_packet_t *)recv_frame)->dst, &recv_frame->Data, frame_num);
 
-        /* 去掉路由头长度 */
-        ((route_packet_t *)recv_frame)->len = frame_num - ROUTE_HEAD_SIZE;
+        /*若指令为关闭备份通信机指令，为了防止备份通信机接收出问题，在ISIS上行处理任务中直接关闭*/
+        if ( ((route_packet_t *)recv_frame)->typ == VU_INS_BACKUP_OFF )
+            vu_backup_switch_off();
 
         if (!IsJLGvuWorking)/* 若关闭备份通信机 */
         {
+            /* 去掉路由头长度 */
+            ((route_packet_t *)recv_frame)->len = frame_num - ROUTE_HEAD_SIZE;
+
             /* 送入路由队列 */
             route_queue_wirte((route_packet_t *)recv_frame, NULL);
 
@@ -498,13 +502,11 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
         }
         else/* 若开启备份通信机 */
         {
+            /* 释放申请的内存 */
+            ObcMemFree(recv_frame);
             /*关闭ISIS连续发射*/
             vu_transmitter_set_idle_state(TurnOff);
         }
-
-        /*若指令为关闭备份通信机指令，为了防止备份通信机接收出问题，在ISIS上行处理任务中直接关闭*/
-        if ( ((route_packet_t *)recv_frame)->typ == VU_INS_BACKUP_OFF )
-            vu_backup_switch_off();
 
         /**成功接收后移除此帧*/
         if (vu_receiver_remove_frame() != E_NO_ERR)

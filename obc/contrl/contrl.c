@@ -191,21 +191,20 @@ void ControlTask(void * pvParameters __attribute__((unused)))
             control_task.time_valid = 0;
         }
 
-        /**功耗控制函数*/
-		switch( Battery_Task(eps_tm) )
-		{
-            case 0:
-                SleepWorkMode();
-                break;
-            case 1:
-                NormalWorkMode();
-                break;
-            case 2:
-                break;
-            default:
-                break;
-		}
-
+//        /**功耗控制函数*/
+//		switch( Battery_Task(eps_tm) )
+//		{
+//            case 0:
+//                SleepWorkMode();
+//                break;
+//            case 1:
+//                NormalWorkMode();
+//                break;
+//            case 2:
+//                break;
+//            default:
+//                break;
+//		}
 	}
 }
 

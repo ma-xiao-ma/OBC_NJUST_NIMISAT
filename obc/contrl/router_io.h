@@ -23,9 +23,9 @@
 
 #define MY_ROUTE_ADDR   1
 
-#define SERVER_QUEUE_LEN            5
-#define ADCS_QUEUE_LEN              5
-#define SEND_PROCESSING_QUEUE_LEN   5
+#define SERVER_QUEUE_LEN            10
+#define ADCS_QUEUE_LEN              10
+#define SEND_PROCESSING_QUEUE_LEN   10
 
 /**
  * 发送处理任务调用， 将待发送的分组信息通过相应接口发送出去
