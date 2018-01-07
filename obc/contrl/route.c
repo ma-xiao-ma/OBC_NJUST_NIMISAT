@@ -159,11 +159,13 @@ static void server_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoke
  */
 static void server_task(void *param __attribute__((unused)))
 {
-    static route_packet_t *packet = NULL;
+    static route_packet_t *packet;
 
     while (1)
     {
         task_report_alive(Server);
+
+        packet = NULL;
 
         if (server_queue_read(&packet) != E_NO_ERR)
         {
@@ -265,11 +267,13 @@ static void send_processing_queue_wirte(route_packet_t *packet, portBASE_TYPE *p
 
 static void send_processing_task(void *param __attribute__((unused)))
 {
-    static route_packet_t *packet = NULL;
+    static route_packet_t *packet;
 
     while (1)
     {
         task_report_alive(Send);
+
+        packet = NULL;
 
         if (send_processing_queue_read(&packet) != E_NO_ERR)
         {
@@ -378,13 +382,15 @@ void route_queue_wirte(route_packet_t *packet, portBASE_TYPE *pxTaskWoken)
  */
 static void router_task(void *param __attribute__((unused)))
 {
-    static route_packet_t *packet = NULL;
+    static route_packet_t *packet;
     uint16_t len    = 0;
 
     while (1)
     {
         /* 软件看门狗喂狗 */
         task_report_alive(Router);
+
+        packet = NULL;
 
         if (route_queue_read(&packet) != E_NO_ERR)
         {
@@ -443,7 +449,7 @@ int router_start_task(uint16_t task_stack_size, uint32_t priority)
  * 路由器初始化函数，设置路由地址，创建相关队列
  *
  * @param address 路由地址设置值
- * @param router_queue_len 路由队列胜读
+ * @param router_queue_len 路由队列深度
  * @return
  */
 int router_init(uint8_t address, uint32_t router_queue_len)

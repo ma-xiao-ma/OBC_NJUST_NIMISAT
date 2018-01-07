@@ -458,10 +458,13 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
         vu_isis_rx_count++;
 
         /* 若收到的帧数据长度字段不匹配，则视为错帧 */
-        if (recv_frame->DateSize == 0 || recv_frame->DateSize > MAX_UPLINK_CONTENT_SIZE)
+        if (recv_frame->DateSize < ROUTE_HEAD_SIZE || recv_frame->DateSize > MAX_UPLINK_CONTENT_SIZE)
         {
             driver_debug(DEBUG_TTC, "WARNING: ISIS vu has received a incorrect frame!!\r\n");
             ObcMemFree(recv_frame);
+
+            /* 移除错误帧 */
+            vu_receiver_remove_frame();
             continue;
         }
 
@@ -812,10 +815,13 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
         vu_jlg_rx_count++;
 
         /* 若收到的帧数据长度字段不匹配，则视为错帧 */
-        if (recv_frame->DateSize == 0 || recv_frame->DateSize > MAX_UPLINK_CONTENT_SIZE)
+        if (recv_frame->DateSize < ROUTE_HEAD_SIZE || recv_frame->DateSize > MAX_UPLINK_CONTENT_SIZE)
         {
             driver_debug(DEBUG_TTC, "WARNING: JLG vu has received a incorrect frame!!\r\n");
             ObcMemFree(recv_frame);
+
+            /* 移除错误帧 */
+            vu_remove_frame();
             continue;
         }
 
