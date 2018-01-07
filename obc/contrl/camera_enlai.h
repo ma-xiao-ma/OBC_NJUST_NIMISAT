@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "ctrl_cmd_types.h"
 
 #define IMAGE_PACK_MAX_SIZE         220
 
@@ -52,21 +53,24 @@
 
 
 typedef struct __attribute__((packed)) {
+    uint32_t     ImageID;           //图片的编号（所拍的第几张相片）,一直递增
 	uint32_t     ImageSize;         //图片的大小
-	uint32_t     ImageDddress;      //相片存储地址
-	uint32_t     ImageTime;         //相片的拍摄时间
     uint16_t     TotalPacket;       //相片的分包数量,220每包大小
-	uint8_t      ImageID;           //图片的编号（所拍的第几张相片）,一直递增
+    uint8_t      PacketSize;        //数据包大小
+    uint8_t      LastPacketSize;    //尾包大小
+	uint32_t     ImageTime;         //相片的拍摄时间
+	uint32_t     ImageDddress;      //相片存储地址
 	uint8_t		 erase_period;      //norflash写满一次，递增1
-	uint8_t      PacketSize;        //数据包大小
-	uint8_t      LastPacketSize;    //尾包大小
+	uint8_t      reserved[7];
 }ImageInfo_el_t;                    //图片信息存储
+
 
 typedef struct __attribute__((__packed__))
 {
+    //uint16_t PacketNum;
     uint16_t PacketID;
-    uint8_t PacketSize;
-    uint8_t ImageData[IMAGE_PACK_MAX_SIZE];
+    uint8_t  PacketSize;
+    uint8_t  ImageData[IMAGE_PACK_MAX_SIZE];
 } ImagePacket_enlai_t;
 
 
@@ -102,6 +106,22 @@ int cam_enlaiimg_data_packet_down(uint8_t erase_period, uint8_t id, uint16_t sta
  * @return E_NO_ERR(-1)为任务创建成功
  */
 int enlai_take_pic_task(uint8_t pic_size);
+
+/**
+ * 下行整幅照片
+ *
+ * @param pic_size 照片大小
+ * @return E_NO_ERR(-1)为任务创建成功
+ */
+int enlai_pic_whole_down(enlaiimgdata_down_para *pic_size);
+
+/**
+ * 下行指定起始包照片任务
+ *
+ * @param pic_size 照片大小
+ * @return E_NO_ERR(-1)为任务创建成功
+ */
+int enlai_pic_data_packet_down(enlaiimgpack_down_para *pic_size);
 
 void close_camera(void);
 

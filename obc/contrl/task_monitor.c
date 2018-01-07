@@ -76,8 +76,8 @@ void supervisor_task(void *para)
     /*等待任务进入正常循环*/
     vTaskDelay(5000);
 
-    /*初始化片内硬件看门狗超时间， 设置超时时间20s */
-    IWDG_Init(20000);
+    /*初始化片内硬件看门狗超时间， 设置超时时间32s */
+    IWDG_Init(32000);
 
     while(1)
     {

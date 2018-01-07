@@ -596,6 +596,7 @@ int enlai_file_down(uint32_t file_id)
         return E_MALLOC_FAIL;
     }
 
+    memset(file_name, 0, 20);
     sprintf(file_name, "0:enlai/%u.jpg", file_id);
 
     if (f_open( myfile, file_name, FA_READ | FA_OPEN_EXISTING ) != FR_OK)
@@ -605,6 +606,7 @@ int enlai_file_down(uint32_t file_id)
         return E_NO_SS;
     }
 
+    memset(file_name, 0, 20);
     sprintf(file_name, "enlai-%u.jpg", file_id);
 
     if( file_whole_download( myfile, file_name ) != E_NO_ERR)

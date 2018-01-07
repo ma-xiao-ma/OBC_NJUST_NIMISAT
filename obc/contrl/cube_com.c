@@ -33,6 +33,7 @@
 #include "route.h"
 #include "router_io.h"
 #include "if_downlink_vu.h"
+#include "camera_enlai.h"
 
 uint32_t rec_cmd_cnt = 0; //obc接收本地指令计数
 
@@ -653,64 +654,65 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
 
 static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 {
-	int result = Fail;
+    int result = Fail;
 
-	cam_cmd_t * cam_cmd    = (cam_cmd_t *)cube_buf;
+    enlaicam_cmd_t * cam_cmd    = (enlaicam_cmd_t *)cube_buf;
 
-	switch (cmd_id)
-	{
+    switch (cmd_id)
+    {
 
         case CAM_SOFTWARE_RESET:
 
-            if(Camera_805_reset() == E_NO_ERR)
+            if( init_enlai_camera(cam_cmd->img_store_period ) == E_NO_ERR)
                 result = Success;
             else
                 result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
-
-        case CAM_EXPOSURE_TIME_SET:
-
-            if(Camera_Exposure_Time_Set( cam_cmd->exp_time ) == E_NO_ERR)
-                result = Success;
-            else
-                result = Fail;
-
-            obc_cmd_ack(cmd_id, result);
-            break;
-
-        case CAM_GAIN_SET:
-
-            if(Camera_Gain_Set( cam_cmd->gain ) == E_NO_ERR)
-                result = Success;
-            else
-                result = Fail;
-
-            obc_cmd_ack(cmd_id, result);
-            break;
-
-        case CAM_WORK_MODE_SET:
-
-            if(Camera_Work_Mode_Set( cam_cmd->cam_ctl_mode ) == E_NO_ERR)
-                result = Success;
-            else
-                result = Fail;
-
-            obc_cmd_ack(cmd_id, result);
-            break;
-        case DOWN_NEWEST_IMAGE_INFO:
-
-            if(cam_newest_img_info_down() == E_NO_ERR)
-                result = Success;
-            else
-                result = Fail;
-
-            obc_cmd_ack(cmd_id, result);
-            break;
+//
+//        case CAM_EXPOSURE_TIME_SET:
+//
+//            if(Camera_Exposure_Time_Set( cam_cmd->exp_time ) == E_NO_ERR)
+//                result = Success;
+//            else
+//                result = Fail;
+//
+//            obc_cmd_ack(cmd_id, result);
+//            break;
+//
+//        case CAM_GAIN_SET:
+//
+//            if(Camera_Gain_Set( cam_cmd->gain ) == E_NO_ERR)
+//                result = Success;
+//            else
+//                result = Fail;
+//
+//            obc_cmd_ack(cmd_id, result);
+//            break;
+//
+//        case CAM_WORK_MODE_SET:
+//
+//            if(Camera_Work_Mode_Set( cam_cmd->cam_ctl_mode ) == E_NO_ERR)
+//                result = Success;
+//            else
+//                result = Fail;
+//
+//            obc_cmd_ack(cmd_id, result);
+//            break;
+//        case DOWN_NEWEST_IMAGE_INFO:
+//
+//            if(cam_newest_img_info_down() == E_NO_ERR)
+//                result = Success;
+//            else
+//                result = Fail;
+//
+//            obc_cmd_ack(cmd_id, result);
+//            break;
         case DOWN_IMAGE_INFO:
 
-            if(cam_img_info_down( cam_cmd->img_down.img_id ) == E_NO_ERR)
+            if(cam_enlaiimg_info_down(cam_cmd->info_data_down.store_period,
+                    cam_cmd->info_data_down.img_id, cam_cmd->info_data_down.source) == E_NO_ERR)
                 result = Success;
             else
                 result = Fail;
@@ -719,7 +721,7 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
             break;
         case DOWN_IMAGE_DATA_WHOLE:
 
-            if(cam_img_data_down( cam_cmd->img_down.img_id ) != E_NO_ERR)
+            if(enlai_pic_whole_down(&(cam_cmd->info_data_down)) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -728,7 +730,8 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
             break;
         case DOWN_IMAGE_DATA_SINGLE:
 
-            if(cam_img_packet_down( cam_cmd->img_down.img_id, cam_cmd->img_down.packet_id ) != E_NO_ERR)
+            if(cam_enlaiimg_packet_down(cam_cmd->pack_down.store_period,
+                    cam_cmd->pack_down.img_id, cam_cmd->pack_down.packet_id, cam_cmd->pack_down.source) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -737,100 +740,112 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
             break;
         case DOWN_IMAGE_DATA_PART:
 
-            if(cam_img_data_packet_down( cam_cmd->img_down.img_id, cam_cmd->img_down.packet_id ) != E_NO_ERR)
+            if(enlai_pic_data_packet_down(&(cam_cmd->pack_down)) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
 
             obc_cmd_ack(cmd_id, result);
             break;
-        case CAM_POWER_ON:
-
-            if(EpsOutSwitch(OUT_CAMERA_10W, ENABLE) != EPS_ERROR
-                    && EpsOutSwitch(OUT_CAMERA_5W, ENABLE) != EPS_ERROR)
-                result = Success;
-            else
-                result = Fail;
-
-            obc_cmd_ack(cmd_id, result);
-            break;
-
-        case CAM_POWER_OFF:
-
-            if(EpsOutSwitch(OUT_CAMERA_10W, DISABLE) != EPS_ERROR
-                    && EpsOutSwitch(OUT_CAMERA_5W, DISABLE) != EPS_ERROR)
-                result = Success;
-            else
-                result = Fail;
-
-            obc_cmd_ack(cmd_id, result);
-            break;
-
+//        case CAM_POWER_ON:
+//
+//            if(EpsOutSwitch(OUT_CAMERA_10W, ENABLE) != EPS_ERROR
+//                    && EpsOutSwitch(OUT_CAMERA_5W, ENABLE) != EPS_ERROR)
+//            {
+//                result = Success;
+//            }
+//            else
+//            {
+//                result = Fail;
+//            }
+//
+//            obc_cmd_ack(cmd_id, result);
+//            break;
+//
+//        case CAM_POWER_OFF:
+//
+//            if(EpsOutSwitch(OUT_CAMERA_10W, DISABLE) != EPS_ERROR
+//                    && EpsOutSwitch(OUT_CAMERA_5W, DISABLE) != EPS_ERROR)
+//            {
+//                result = Success;
+//            }
+//            else
+//            {
+//                result = Fail;
+//            }
+//
+//            obc_cmd_ack(cmd_id, result);
+//            break;
+//
 //        case CAM_HEAT2_ON:
 //
 //            if(EpsOutSwitch(OUT_CAMERA_HEAT_2, ENABLE) != EPS_ERROR)
+//            {
 //                result = Success;
+//            }
 //            else
+//            {
 //                result = Fail;
+//            }
 //
 //            obc_cmd_ack(cmd_id, result);
 //            break;
-
+//
 //        case CAM_HEAT2_OFF:
 //
 //            if(EpsOutSwitch(OUT_CAMERA_HEAT_2, DISABLE) != EPS_ERROR)
+//            {
 //                result = Success;
+//            }
 //            else
+//            {
 //                result = Fail;
+//            }
 //
 //            obc_cmd_ack(cmd_id, result);
 //            break;
-
         case CAM_GET_PICTURE:
 
-//            if (enlai_take_pic_task(uint8_t pic_size) != E_NO_ERR)
-//                result = Fail;
-//            else
-//                result = Success;
-//
-//            obc_cmd_ack(cmd_id, result);
-//            break;
-
-        case CAM_MEM_CLEAN:
+            if(enlai_take_pic_task(cam_cmd->img_size) == E_NO_ERR)
+                result = Success;
+            else
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
+        case CAM_GET_NUMBER:
 
-        case ENLAI_FILE_DOWN:
-
-            if ( enlai_file_down(cam_cmd->img_id) != E_NO_ERR )
-                result = Fail;
-            else
+            if(get_imagenumber_sd((uint8_t)cam_cmd->img_store_period) == E_NO_ERR)
                 result = Success;
+            else
+                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
         default:
             break;
-	}
+    }
 }
-
 static void up_group_four_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 {
 	ctrl_nopara_t 	* pdata 	= (ctrl_nopara_t *)cube_buf;
 	ctrl_downtime_t * pperiod	= (ctrl_downtime_t *)cube_buf;
-	int result = -1;
+	int result = Fail;
 
-	switch (cmd_id) {
-	case INS_DOWN_PERIOD:
-		if(pperiod->msecs > 0) {
-			downtimeset = pperiod->msecs;
-			StorageIntervalCount = (HK_STORAGE_INTERVAL*1000)/downtimeset;;
-			Stop_Down_Time = 600000/downtimeset;
-		}
-		break;
-	default:
-		break;
+	switch (cmd_id)
+	{
+	    case ENLAI_FILE_DOWN:
+
+	        if( enlai_file_down(pdata->delay) != E_NO_ERR )
+	            result = Fail;
+	        else
+	            result = Success;
+
+	        obc_cmd_ack(cmd_id, result);
+	        break;
+
+	    default:
+            break;
 	}
 }
 

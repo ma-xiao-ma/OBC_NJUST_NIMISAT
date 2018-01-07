@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "bsp_adc.h"
+#include "hk.h"
 
 #define OBC_I2C_RECEIVEMASK_1		0x0F
 #define OBC_I2C_RECEIVEMASK_2		0xF0
@@ -36,7 +36,7 @@ void OpenPanel_Task(void* param);
 void OpenAntenna_Task(void* param);
 
 
-int Battery_Task(const EpsAdcValue_t *eps_hk);
+int Battery_Task(const eps_hk_t *eps_hk);
 void SleepWorkMode(void);
 void NormalWorkMode(void);
 

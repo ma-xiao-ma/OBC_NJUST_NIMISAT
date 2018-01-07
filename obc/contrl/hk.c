@@ -36,7 +36,7 @@
 
 #include "hk.h"
 
-
+extern unsigned int i2c_error_count;
 FIL fd = {0};
 static unsigned int fd_timestamp = 0;
 static int fs_ok = 0;
@@ -245,16 +245,18 @@ uint32_t hk_list_remove(hkListNode_t * pxNodeToRemove) {
 	( pxList->uxNumberOfItems )--;
 
 	char hkpath[25];
-	FILINFO fno;
+	FIL file_handle;
+
 	/* 移除列表项内容所对应的遥测文件 */
 	sprintf(hkpath, "0:hk/%u.txt", pxNodeToRemove->TimeValue);
 
-	if(f_stat(hkpath, &fno) != FR_NO_FILE) {
-		sprintf(hkpath, "0:hk/%u.txt", pxNodeToRemove->TimeValue);
-		/* 删除文件 */
-		f_unlink(hkpath);
-		driver_debug(DEBUG_HK, " ^^ DELETE file: %s ^^\r\n", hkpath);
-	}
+	/* 尝试打开文件，如果打开失败，则说明文件不存在 */
+	if( f_open(&file_handle, hkpath, FA_READ) == FR_OK ) {
+        f_close(&file_handle);
+        /* 删除文件 */
+        f_unlink(hkpath);
+        driver_debug(DEBUG_HK, " ^^ DELETE file: %s ^^\r\n", hkpath);
+    }
 
 	ObcMemFree(pxNodeToRemove);
 

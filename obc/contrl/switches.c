@@ -169,7 +169,7 @@ int open_antenna(void){
 
 	if(ants_arm() == 0) return 0;
 
-	if(ants_deploy_auto(10) == 0) return 0;
+	if(ants_deploy_auto(20) == 0) return 0;
 
 	return -1;
 }
@@ -275,7 +275,7 @@ int enable_panel(uint32_t delay)
 {
 	int result = E_TIMEOUT;
 
-	if (delay > 6000)
+	if (delay > 10000)
 	{
 	    driver_debug(DEBUG_WARN, "WARN: Solar Burn Invalid Parameter.\r\n");
 	    return E_INVALID_PARAM;
@@ -305,6 +305,102 @@ int enable_panel(uint32_t delay)
 
 	return result;
 }
+
+/**
+ * 配有检测开关的电池阵展开函数
+ *
+ * @param SafeTime_s 烧线的最长时间 （单位：秒）
+ * @return 返回E_NO_ERR（-1）为正常
+ */
+int Solar_Array_Unfold(uint8_t SafeTime_s)
+{
+    /*如果检测开关显示帆板已经展开，则返回正常*/
+    if( IN_SW_PAL_STATUS_1_PIN() && IN_SW_PAL_STATUS_2_PIN() )
+        return E_NO_ERR;
+
+    if( EpsOutSwitch(OUT_SOLAR_EN, ENABLE) != EPS_OK )
+        return E_NO_SS;
+
+    driver_debug(DEBUG_INFO, "INFO: Solar Burn Enable.\r\n");
+
+    do
+    {
+        if(!SafeTime_s)
+            break;
+        vTaskDelay(1000/portTICK_RATE_MS);
+        SafeTime_s--;
+    }   /*帆板两个中只要有其中一个没有展开都会继续烧线*/
+    while( IN_SW_PAL_STATUS_1_PIN() != SET || IN_SW_PAL_STATUS_2_PIN() != SET );
+
+    do
+    {
+        EpsOutSwitch(OUT_SOLAR_EN, DISABLE);
+        driver_debug(DEBUG_INFO, "INFO: Solar Burn Disable.\r\n");
+        vTaskDelay( 50 / portTICK_RATE_MS );
+
+    } while( SW_SOLAR_EN_PIN() );
+
+    return E_NO_ERR;
+}
+
+
+/**
+ * 离轨帆展开任务
+ */
+static void Sail_Unfold_task(void *para)
+{
+
+    uint8_t times = 20;
+
+    EpsOutSwitch(OUT_SAIL_7V, ENABLE);
+
+    vTaskDelay(10000);
+
+    EpsOutSwitch(OUT_SAIL_7V, DISABLE);
+
+    /*如果检测开关显示帆已经展开, 则删除任务*/
+    if( IN_SW_SAIL_STATUS_PIN() )
+        vTaskDelete(NULL);
+
+    while( EpsOutSwitch(OUT_SAIL_7V, ENABLE) == EPS_ERROR )
+        vTaskDelay(300);
+
+
+    driver_debug(DEBUG_INFO, "INFO: Sail Burn Enable.\r\n");
+
+    do
+    {
+        vTaskDelay(1000/portTICK_RATE_MS);
+        times--;
+    }
+    while( IN_SW_SAIL_STATUS_PIN() != SET || times);
+
+    do
+    {
+        EpsOutSwitch(OUT_SAIL_7V, DISABLE);
+        driver_debug(DEBUG_INFO, "INFO: Sail Burn Disable.\r\n");
+        vTaskDelay( 50 / portTICK_RATE_MS );
+
+    } while( OUT_SAIL_7V_PIN() );
+
+    vTaskDelete(NULL);
+}
+
+/**
+ * 离轨帆展开
+ *
+ * @return 返回E_NO_ERR（-1）为正常
+ */
+int Sail_Unfold(void)
+{
+    if( xTaskCreate(Sail_Unfold_task, "SAIL", 128, NULL, 4, NULL) != pdTRUE)
+        return E_NO_DEVICE;
+    else
+        return E_NO_ERR;
+}
+
+
+
 
 int disable_panel(uint32_t delay, uint32_t data __attribute__((unused)))
 {

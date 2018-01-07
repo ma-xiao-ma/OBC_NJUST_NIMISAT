@@ -72,82 +72,82 @@ DRESULT disk_read (
     BYTE count      /* Number of sectors to read (1..255) */
 )
 {
-    SD_Error Status = SD_OK;
-
-    if ((DWORD)buff & 3) {
-        DRESULT res = RES_OK;
-        DWORD scratch[BLOCK_SIZE / 4];
-
-        while (count--) {
-            res = disk_read(0, (void *)scratch, sector++, 1);
-
-            if (res != RES_OK) {
-                break;
-            }
-
-            memcpy(buff, scratch, BLOCK_SIZE);
-
-            buff += BLOCK_SIZE;
-        }
-
-        return res;
-    }
-
-    Status = SD_ReadMultiBlocks(buff, sector << 9, BLOCK_SIZE, count);
-
-    if (Status == SD_OK) {
-        SDTransferState State;
-
-        Status = SD_WaitReadOperation();
-
-        while ((State = SD_GetStatus()) == SD_TRANSFER_BUSY);
-
-        if ((State == SD_TRANSFER_ERROR) || (Status != SD_OK)) {
-            return RES_ERROR;
-        } else {
-            return RES_OK;
-        }
-    } else {
-        return RES_ERROR;
-    }
-
-//  unsigned int num = 20000;
+//    SD_Error Status = SD_OK;
 //
-//  if (count > 1)
-//  {
-//      SD_ReadMultiBlocks(buff, sector*BLOCK_SIZE, BLOCK_SIZE, count);
+//    if ((DWORD)buff & 3) {
+//        DRESULT res = RES_OK;
+//        DWORD scratch[BLOCK_SIZE / 4] __attribute__(( aligned(4) ));
 //
-//            /* Check if the Transfer is finished */
-//      SD_WaitReadOperation();  //ѭ����ѯdma�����Ƿ����
+//        while (count--) {
+//            res = disk_read(0, (void *)scratch, sector++, 1);
 //
-//      /* Wait until end of DMA transfer */
-//      while(SD_GetStatus() != SD_TRANSFER_OK && num != 0) {
-//          num--;
-//      }
-//      if(num == 0){
-//          return SD_TRANSFER_ERROR;
-//      }
+//            if (res != RES_OK) {
+//                break;
+//            }
 //
-//  }
-//  else
-//  {
+//            memcpy(buff, scratch, BLOCK_SIZE);
 //
-//      SD_ReadBlock(buff, sector*BLOCK_SIZE, BLOCK_SIZE);
+//            buff += BLOCK_SIZE;
+//        }
 //
-//            /* Check if the Transfer is finished */
-//      SD_WaitReadOperation();  //ѭ����ѯdma�����Ƿ����
+//        return res;
+//    }
 //
-//      /* Wait until end of DMA transfer */
-////        while(SD_GetStatus() != SD_TRANSFER_OK);
-//      while(SD_GetStatus() != SD_TRANSFER_OK && num != 0) {
-//          num--;
-//      }
-//      if(num == 0){
-//          return SD_TRANSFER_ERROR;
-//      }
+//    Status = SD_ReadMultiBlocks(buff, sector << 9, BLOCK_SIZE, count);
 //
-//  }
-//  return RES_OK;
+//    if (Status == SD_OK) {
+//        SDTransferState State;
+//
+//        Status = SD_WaitReadOperation();
+//
+//        while ((State = SD_GetStatus()) == SD_TRANSFER_BUSY);
+//
+//        if ((State == SD_TRANSFER_ERROR) || (Status != SD_OK)) {
+//            return RES_ERROR;
+//        } else {
+//            return RES_OK;
+//        }
+//    } else {
+//        return RES_ERROR;
+//    }
+
+  unsigned int num = 20000;
+
+  if (count > 1)
+  {
+      SD_ReadMultiBlocks(buff, sector*BLOCK_SIZE, BLOCK_SIZE, count);
+
+            /* Check if the Transfer is finished */
+      SD_WaitReadOperation();  //ѭ����ѯdma�����Ƿ����
+
+      /* Wait until end of DMA transfer */
+      while(SD_GetStatus() != SD_TRANSFER_OK && num != 0) {
+          num--;
+      }
+      if(num == 0){
+          return SD_TRANSFER_ERROR;
+      }
+
+  }
+  else
+  {
+
+      SD_ReadBlock(buff, sector*BLOCK_SIZE, BLOCK_SIZE);
+
+            /* Check if the Transfer is finished */
+      SD_WaitReadOperation();  //ѭ����ѯdma�����Ƿ����
+
+      /* Wait until end of DMA transfer */
+//        while(SD_GetStatus() != SD_TRANSFER_OK);
+      while(SD_GetStatus() != SD_TRANSFER_OK && num != 0) {
+          num--;
+      }
+      if(num == 0){
+          return SD_TRANSFER_ERROR;
+      }
+
+  }
+  return RES_OK;
 }
 
 
@@ -163,75 +163,75 @@ DRESULT disk_write (
     BYTE count          /* Number of sectors to write (1..255) */
 )
 {
-    SD_Error Status = SD_OK;
-
-    if ((DWORD)buff & 3) {
-        DRESULT res = RES_OK;
-        DWORD scratch[BLOCK_SIZE / 4];
-
-        while (count--) {
-            memcpy(scratch, buff, BLOCK_SIZE);
-            res = disk_write(0, (void *)scratch, sector++, 1);
-
-            if (res != RES_OK) {
-                break;
-            }
-
-            buff += BLOCK_SIZE;
-        }
-
-        return(res);
-    }
-
-    Status = SD_WriteMultiBlocks((uint8_t *)buff, sector << 9, BLOCK_SIZE, count); // 4GB Compliant
-
-    if (Status == SD_OK) {
-        SDTransferState State;
-
-        Status = SD_WaitWriteOperation(); // Check if the Transfer is finished
-
-        while ((State = SD_GetStatus()) == SD_TRANSFER_BUSY); // BUSY, OK (DONE), ERROR (FAIL)
-
-        if ((State == SD_TRANSFER_ERROR) || (Status != SD_OK)) {
-            return RES_ERROR;
-        } else {
-            return RES_OK;
-        }
-    } else {
-        return RES_ERROR;
-    }
-
-//  unsigned int num = 20000;
+//    SD_Error Status = SD_OK;
 //
-//  if (count > 1)
-//  {
-//      SD_WriteMultiBlocks((uint8_t *)buff, sector*BLOCK_SIZE, BLOCK_SIZE, count);
+//    if ((DWORD)buff & 3) {
+//        DRESULT res = RES_OK;
+//        DWORD scratch[BLOCK_SIZE / 4] __attribute__(( aligned(4) ));
 //
-//        /* Check if the Transfer is finished */
-//      SD_WaitWriteOperation();       //�ȴ�dma�������
-////        while(SD_GetStatus() != SD_TRANSFER_OK); //�ȴ�sdio��sd���������
-//      while(SD_GetStatus() != SD_TRANSFER_OK && num != 0) {
-//          num--;
-//      }
-//      if(num == 0){
-//          return SD_TRANSFER_ERROR;
-//      }
-//  }
-//  else
-//  {
-//      SD_WriteBlock((uint8_t *)buff,sector*BLOCK_SIZE, BLOCK_SIZE);
+//        while (count--) {
+//            memcpy(scratch, buff, BLOCK_SIZE);
+//            res = disk_write(0, (void *)scratch, sector++, 1);
 //
-//        /* Check if the Transfer is finished */
-//        SD_WaitWriteOperation();     //�ȴ�dma�������
-////        while(SD_GetStatus() != SD_TRANSFER_OK); //�ȴ�sdio��sd���������
-//      while(SD_GetStatus() != SD_TRANSFER_OK && num != 0) {
-//          num--;
-//      }
-//      if(num == 0){
-//          return SD_TRANSFER_ERROR;
-//      }
-//  }
-//  return RES_OK;
+//            if (res != RES_OK) {
+//                break;
+//            }
+//
+//            buff += BLOCK_SIZE;
+//        }
+//
+//        return(res);
+//    }
+//
+//    Status = SD_WriteMultiBlocks((uint8_t *)buff, sector << 9, BLOCK_SIZE, count); // 4GB Compliant
+//
+//    if (Status == SD_OK) {
+//        SDTransferState State;
+//
+//        Status = SD_WaitWriteOperation(); // Check if the Transfer is finished
+//
+//        while ((State = SD_GetStatus()) == SD_TRANSFER_BUSY); // BUSY, OK (DONE), ERROR (FAIL)
+//
+//        if ((State == SD_TRANSFER_ERROR) || (Status != SD_OK)) {
+//            return RES_ERROR;
+//        } else {
+//            return RES_OK;
+//        }
+//    } else {
+//        return RES_ERROR;
+//    }
+
+  unsigned int num = 20000;
+
+  if (count > 1)
+  {
+      SD_WriteMultiBlocks((uint8_t *)buff, sector*BLOCK_SIZE, BLOCK_SIZE, count);
+
+        /* Check if the Transfer is finished */
+      SD_WaitWriteOperation();       //�ȴ�dma�������
+//        while(SD_GetStatus() != SD_TRANSFER_OK); //�ȴ�sdio��sd���������
+      while(SD_GetStatus() != SD_TRANSFER_OK && num != 0) {
+          num--;
+      }
+      if(num == 0){
+          return SD_TRANSFER_ERROR;
+      }
+  }
+  else
+  {
+      SD_WriteBlock((uint8_t *)buff,sector*BLOCK_SIZE, BLOCK_SIZE);
+
+        /* Check if the Transfer is finished */
+        SD_WaitWriteOperation();     //�ȴ�dma�������
+//        while(SD_GetStatus() != SD_TRANSFER_OK); //�ȴ�sdio��sd���������
+      while(SD_GetStatus() != SD_TRANSFER_OK && num != 0) {
+          num--;
+      }
+      if(num == 0){
+          return SD_TRANSFER_ERROR;
+      }
+  }
+  return RES_OK;
 }
 #endif /* _READONLY */
 

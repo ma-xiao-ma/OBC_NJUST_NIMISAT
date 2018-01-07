@@ -296,7 +296,7 @@ extern uint8_t 			hk_sd_path[25];
 extern FIL 				hkfile;
 extern UINT				hkrbytes;
 extern uint32_t			hkleek;
-extern uint32_t         i2c_error_count;
+//extern uint32_t         i2c_error_count;
 
 extern uint16_t  hk_frame_index;
 extern HK_Fifo_t hk_main_fifo;

@@ -61,8 +61,8 @@ void task_initz(void)
     /** 给SD卡挂载FATFS文件系统 */
     f_mount(0,&fs);
 
-    /* 任务监视器初始化, 最大超时时间15s */
-    supervisor_init(15000);
+    /* 任务监视器初始化, 最大超时时间30s */
+    supervisor_init(30000);
 
     /*控制开关IO口初始化*/
     bsp_InitSwitch();
@@ -105,11 +105,11 @@ void task_initz(void)
 #if USE_ROUTE_PROTOCOL
 	/*设置路由地址为0x01, 路由队列深度为10*/
     router_init(1, 10);
-    /* 创建服务器任务, 任务堆栈大小512*4字节, 优先级为2 */
-    server_start_task(512, 2);
-    /*创建发送处理任务, 任务堆栈大小256*4字节, 优先级为2 */
+    /* 创建服务器任务, 任务堆栈大小1024 * 4字节, 优先级为2 */
+    server_start_task(1024, 2);
+    /*创建发送处理任务, 任务堆栈大小256 * 4字节, 优先级为2 */
     send_processing_start_task(256, 2);
-    /*创建路由任务, 任务堆栈大小256*4字节, 优先级为1 */
+    /*创建路由任务, 任务堆栈大小256 * 4字节, 优先级为1 */
     router_start_task(256, 1);
 #endif
 

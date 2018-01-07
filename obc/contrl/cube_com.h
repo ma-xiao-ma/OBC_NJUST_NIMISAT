@@ -7,9 +7,6 @@
 
 #include "hk.h"
 
-#define ADCS_FRAME_LENGTH 		180
-#define OBC_FRAME_LENGTH  		162
-
 /*GROUP0*/
 #define INS_HK_GET				0x01
 #define INS_OBC_STR_DOWN		0x02
@@ -96,10 +93,12 @@
 /*********************************************/
 /*恩来相机*/
 #define CAM_GET_PICTURE         0x3D/* 新增 */
-#define CAM_MEM_CLEAN           0x3E/* 新增 */
+#define CAM_GET_NUMBER          0x3F/* 新增 */
+
 
 /*恩来文件*/
-#define ENLAI_FILE_DOWN         0x3F/* 新增 */
+#define ENLAI_FILE_DOWN         0x40/* 新增 */
+#define SAIL_
 /*********************************************/
 
 
@@ -141,8 +140,8 @@
 #define INS_MagGyr_FIL_ON      0x92
 #define INS_MagGyr_FIL_OFF     0x93
 
-#define INS_LowPower_Mode_ON   0x94
-#define INS_LowPower_Mode_OFF  0x95
+//#define INS_LowPower_Mode_ON   0x94
+//#define INS_LowPower_Mode_OFF  0x95
 
 #define INS_Control_Mode       0x96
 #define INS_DAMP_COUNT         0x97
@@ -168,6 +167,9 @@
 #define INS_GET_CROSSING_FLAG  0xC1
 #define INS_GET_SAT_TIME       0xC2
 #define INS_GET_SAT_POSITION   0xC3   //获取GPS位置
+#define INS_SAT_TIME_SYSN      0xC4   //星务同步姿控时间
+#define INS_LowPower_Mode_ON   0xC5
+#define INS_LowPower_Mode_OFF  0xC6
 
 /*下行消息类型*/
 #define OBC_TELEMETRY          0xE1
@@ -176,6 +178,7 @@
 #define CAM_IMAGE              0xE4
 #define FILE_INFO			   0xE5
 #define FILE_DATA			   0xE6
+#define GET_SD_IMAGE_CNT       0xE7
 
 typedef struct __attribute__((packed))
 {

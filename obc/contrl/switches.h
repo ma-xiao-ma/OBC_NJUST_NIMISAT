@@ -153,6 +153,7 @@ typedef enum {
 #define OUT_PANEL_7V_PIN()		SW_SOLAR_EN_PIN()
 #define OUT_BACKUP_VU_PIN()     SW_USB_EN_PIN()
 #define OUT_SW_VU_5V_PIN()      SW_5_3_3V_3_PIN()
+#define OUT_SAIL_7V_PIN()       SW_7_4V_2_PIN()
 
 //#define DISABLE_GPS_5V			SW_5_3_3V_1_DISABLE
 //#define DISABLE_HEAT_7V			SW_7_4V_1_DISABLE
@@ -203,6 +204,21 @@ uint8_t get_panel_status(void);
  * @return 返回E_NO_ERR(-1)为成功
  */
 int enable_panel(uint32_t delay);
+
+/**
+ * 配有检测开关的电池阵展开函数
+ *
+ * @param SafeTime_s 烧线的最长时间 （单位：秒）
+ * @return 返回E_NO_ERR（-1）为正常
+ */
+int Solar_Array_Unfold(uint8_t SafeTime_s);
+
+/**
+ * 离轨帆展开
+ *
+ * @return 返回E_NO_ERR（-1）为正常
+ */
+int Sail_Unfold(void);
 
 int disable_panel(uint32_t delay, uint32_t data __attribute__((unused)));
 

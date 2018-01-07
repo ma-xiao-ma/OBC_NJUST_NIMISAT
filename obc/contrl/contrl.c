@@ -78,24 +78,20 @@ void chcontinuetimes(uint32_t *times) {
 
 void NormalWorkMode(void)
 {
-
-	if (mode == SLEEP_MODE)
+	if( mode == SLEEP_MODE )
 	{
+	    adcs_send_mode(mode);
 		mode = NORMAL_MODE;
 	}
-
-	adcs_send_mode(mode);
 }
 
 void SleepWorkMode(void)
 {
-
-	if (mode == NORMAL_MODE)
+	if( mode == NORMAL_MODE )
 	{
+	    adcs_send_mode(mode);
 		mode = SLEEP_MODE;
 	}
-
-	adcs_send_mode(mode);
 }
 
 typedef struct
@@ -108,9 +104,9 @@ typedef struct
 
 static control_para control_task;
 
-#define VU_IDLE_ON       (15 * 60) /*通信机空闲状态连续发射开 持续时间    单位：秒*/
-#define JLG_VU_SWITCH_ON (15 * 60) /*解理工通信机备份机切换     持续时间    单位：秒*/
-#define PASSIN_LAST      (15 * 60) /*过境时间*/
+#define VU_IDLE_ON       (10 * 60) /*通信机空闲状态连续发射开 持续时间    单位：秒*/
+#define JLG_VU_SWITCH_ON (10 * 60) /*解理工通信机备份机切换     持续时间    单位：秒*/
+#define PASSIN_LAST      (10 * 60) /*过境时间*/
 #define TIME_SYSN        ( 5 * 60) /*时间同步间隔*/
 
 #define CONTROL_CYCLE    5000      /*控制周期  单位：毫秒*/
@@ -125,6 +121,7 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 {
 	vu_isis_hk_t *vu_tm = (vu_isis_hk_t *)ObcMemMalloc(sizeof(vu_isis_hk_t));
 	obc_hk_t *obc_tm = (obc_hk_t *)ObcMemMalloc(sizeof(obc_hk_t));
+	eps_hk_t *eps_tm = (eps_hk_t *)ObcMemMalloc(sizeof(eps_hk_t));
 
 	if (vu_tm == NULL || obc_tm == NULL)
 	    cpu_reset();
@@ -139,6 +136,7 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 
 	    obc_hk_get_peek(obc_tm);
 	    ttc_hk_get_peek(vu_tm);
+	    eps_hk_get_peek(eps_tm);
 
 	    /**如果通信机空闲状态连续发射已经开启*/
 	    if (vu_tm->tx_state.IdleState == RemainOn)
@@ -160,7 +158,7 @@ void ControlTask(void * pvParameters __attribute__((unused)))
             control_task.passing = 0;
 
         /**若星上时间有效则每5分钟向姿控系统同步时间信息*/
-        if (obc_tm->utc_time > 1514764800 && obc_tm->utc_time < 1577836800)
+        if (obc_tm->utc_time > 1514856690 && obc_tm->utc_time < 1577836800)
             control_task.time_valid ++;
         else
             control_task.time_valid = 0;
@@ -194,19 +192,19 @@ void ControlTask(void * pvParameters __attribute__((unused)))
         }
 
         /**功耗控制函数*/
-//		switch (Battery_Task())
-//		{
-//            case 0:
-//                SleepWorkMode();
-//                break;
-//            case 1:
-//                NormalWorkMode();
-//                break;
-//            case 2:
-//                break;
-//            default:
-//                break;
-//		}
+		switch( Battery_Task(eps_tm) )
+		{
+            case 0:
+                SleepWorkMode();
+                break;
+            case 1:
+                NormalWorkMode();
+                break;
+            case 2:
+                break;
+            default:
+                break;
+		}
 
 	}
 }
@@ -248,11 +246,12 @@ void hk_collect_task(void *pvParameters __attribute__((unused)))
     }
 }
 
-void OpenAntenna_Task(void* param __attribute__((unused))) {
+void OpenAntenna_Task(void* param __attribute__((unused)))
+{
 
 	portTickType CurTime = xTaskGetTickCount();
 
-	if(obc_boot_count <= 5)
+	if(obc_boot_count < 5)
 	{
 		vTaskDelayUntil(&CurTime, OpenAntenna_Time * (1000 / portTICK_RATE_MS));
 	}
@@ -307,32 +306,36 @@ void OpenAntenna_Task(void* param __attribute__((unused))) {
 	}
 }
 
-/////////////////////////////////////////////
+/**
+ * 太阳能电池阵展开任务
+ *
+ * @param param
+ */
 void OpenPanel_Task(void* param __attribute__((unused)))
 {
-	if (obc_boot_count > 2)
-	{
-		vTaskDelete(NULL);
-	}
 
 	portTickType CurTime = xTaskGetTickCount();
 
-	if(obc_boot_count <= 2)
-	{
+	if(obc_boot_count < 5)
 		vTaskDelayUntil(&CurTime, OpenBattery_Time * (1000 / portTICK_RATE_MS));
-	}
 	else
-	{
-		vTaskDelayUntil(&CurTime, 180 * (1000 / portTICK_RATE_MS));
-	}
+	    vTaskDelete(NULL);
 
 	while (1)
 	{
-		enable_panel(3000);
+		enable_panel(6000);
+
+		Solar_Array_Unfold(10);
 
 		openpanel_times++;
 
-		if (openpanel_times >= 2)
+		if( IN_SW_PAL_STATUS_1_PIN() && IN_SW_PAL_STATUS_2_PIN() )
+		{
+		    disable_panel(0,0);
+            vTaskDelete(NULL);
+		}
+
+		if (openpanel_times >= 4)
 		{
 			disable_panel(0,0);
 			vTaskDelete(NULL);
@@ -342,12 +345,12 @@ void OpenPanel_Task(void* param __attribute__((unused)))
 	}
 }
 
-int Battery_Task(const EpsAdcValue_t *eps_hk)
+int Battery_Task(const eps_hk_t *eps_hk)
 {
 
 	float BatteryVoltage = 0.0;
 
-	BatteryVoltage = eps_hk->Out_BusV * 0.001;
+	BatteryVoltage = eps_hk->out_BusV * 0.001;
 
 	if (BatteryVoltage > Normal_Battery || BatteryVoltage < Abnormal_Battery)
 		return 1;

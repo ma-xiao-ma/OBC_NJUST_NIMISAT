@@ -110,6 +110,28 @@ typedef union __attribute__((packed))
 } cam_cmd_t;
 
 
+typedef struct __attribute__((packed)) {
+    uint8_t     store_period;
+    uint8_t     img_id;
+    uint8_t     source;
+} enlaiimgdata_down_para;
+
+typedef struct __attribute__((packed)) {
+    uint8_t     store_period;
+    uint8_t     img_id;
+    uint16_t    packet_id;
+    uint8_t     source;
+} enlaiimgpack_down_para;
+
+typedef union __attribute__((packed))
+{
+    uint8_t                 img_size;
+    uint16_t                img_store_period;
+    enlaiimgdata_down_para  info_data_down;
+    enlaiimgpack_down_para  pack_down;
+} enlaicam_cmd_t;
+
+
 
 typedef struct __attribute__((packed)) {
 	double upXwAdcsTLEBstar;

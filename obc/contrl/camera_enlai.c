@@ -13,10 +13,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <strings.h>
 #include "command.h"
 #include "bsp_cpu_flash.h"
 #include "if_downlink_vu.h"
 #include "bsp_nor_flash.h"
+#include "obc_mem.h"
+#include "bsp_ds1302.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -47,13 +50,13 @@ uint8_t  image_end_sector;       //记录当前相片末端擦除norflash中的�
 uint8_t  cmd_take_picture[7]={0x55,0x48,0x00,0x32,0x00,0x02,0x23};   /*拍照指令*/
 uint8_t  ack_take_picture[14]={0};                               /*存储拍照指令发送后接收到的14个字节的应答数据*/
 uint8_t  cmd_get_pack[6]={0x55,0x45,0x00,0x03,0x00,0x23};
-uint8_t  ack_get_pack[525]={0};
-uint8_t  pack_store_sd[512];
+uint8_t  ack_get_pack[525] __attribute__(( aligned(4) )) = {0};
+//uint8_t  pack_store_sd[512] __attribute__(( aligned(4) ));
 
 /*标志量*/
 uint8_t sendcom_flag=0;        //指令已经发送标志
 uint8_t getack_flag=0;         //指定数目的指令已经接收到标志
-uint8_t camera_result;         //记录拍照过程中的结果
+
 
 struct USART_TypeDefStruct Camera_Usart;
 xQueueHandle  camera_queue;
@@ -287,7 +290,7 @@ int take_store_picture(uint8_t picture_size)
 
 	vTaskDelay(5000);              /*延时5s，等待相机启动*/
 	if(SW_EPS_S2_PIN() != 1){
-		  camera_result = ERR_POWERUP;
+		  obc_cmd_ack(0x3D, ERR_POWERUP);
 		  return ERR_POWERUP;
 	}
 
@@ -329,7 +332,7 @@ int take_store_picture(uint8_t picture_size)
 			driver_debug(DEBUG_CAMERA, "haven't send the command of taking picture!\r\n");
 		}
 		close_camera();
-		camera_result = ERR_REC_TAKEPICTURE;
+		obc_cmd_ack(0x3D, ERR_REC_TAKEPICTURE);
 		return ERR_REC_TAKEPICTURE;
 	}
 	USART_DMACmd(USART1,USART_DMAReq_Rx,DISABLE);
@@ -358,10 +361,11 @@ int take_store_picture(uint8_t picture_size)
 		image_end_sector = (image_info_curr.ImageDddress + (image_info_curr.TotalPacket * image_info_curr.PacketSize)/2)/32768 + 7;
 		for ( int j = image_start_sector; j < image_end_sector + 1; j++ ){
 			if ( USER_NOR_SectorErase(j) != NOR_SUCCESS ){
-				camera_result = ERR_ERASE_NORFLASH;
+			    obc_cmd_ack(0x3D, ERR_ERASE_NORFLASH);
 				return ERR_ERASE_NORFLASH;
 			}
 		}
+		image_info_curr.erase_period = erase_times[0];
 		FSMC_NOR_WriteBuffer((uint16_t *)&image_info_curr, CAMERA_RECORD_ADDR, sizeof(image_info_curr)/2);
 		FSMC_NOR_WriteBuffer(image_times, CAMERA_TIME_ADDRESS, sizeof(image_times)/2);
 	}else{
@@ -379,17 +383,16 @@ int take_store_picture(uint8_t picture_size)
 
 			for ( int j = image_start_sector; j < image_end_sector + 1; j++ ){
 				if ( USER_NOR_SectorErase(j) != NOR_SUCCESS ){
-					camera_result = ERR_ERASE_NORFLASH;
+				    obc_cmd_ack(0x3D, ERR_ERASE_NORFLASH);
 					return ERR_ERASE_NORFLASH;
 				}
 			}
 			erase_times[0]++;
+			USER_NOR_SectorErase(5);
 			USER_NOR_SectorErase(6);
 			USER_NOR_SectorErase(4);
 			FSMC_NOR_WriteBuffer(erase_times, CAMERA_ERASE_PERRIOD, sizeof(erase_times)/2);
-		}
-		else
-		{//正常存储的情况
+		}else{//正常存储的情况
 			if(image_info_curr.ImageDddress%32768 == 0){
 				image_start_sector = image_info_curr.ImageDddress/32768 + 7;
 			}else{
@@ -399,11 +402,12 @@ int take_store_picture(uint8_t picture_size)
 			//擦除接下来相片存储可能要占据的空间
 			for ( int j = image_start_sector; j < image_end_sector + 1; j++ ){
 				if ( USER_NOR_SectorErase(j) != NOR_SUCCESS ){
-					camera_result = ERR_ERASE_NORFLASH;
+				    obc_cmd_ack(0x3D, ERR_ERASE_NORFLASH);
 					return ERR_ERASE_NORFLASH;
 				}
 			}
 		}
+		image_info_curr.erase_period = erase_times[0];
 		driver_debug(DEBUG_CAMERA, "image_times: %d\r\n",image_times[0]);
 		FSMC_NOR_WriteBuffer((uint16_t *)&image_info_curr, CAMERA_RECORD_ADDR+(image_times[0]-1)*sizeof(ImageInfo_el_t) / 2, sizeof(image_info_curr)/2);
 		FSMC_NOR_WriteBuffer(image_times, CAMERA_TIME_ADDRESS, sizeof(image_times)/2);
@@ -415,7 +419,7 @@ int take_store_picture(uint8_t picture_size)
 	{
 		driver_debug(DEBUG_CAMERA, "haven't take a picture!\r\n");
 		close_camera();
-		camera_result = ERR_REC_TAKEPICTURE;
+		obc_cmd_ack(0x3D, ERR_REC_TAKEPICTURE);
 		return ERR_REC_TAKEPICTURE;
 	}
 	/*如果前期检测正常，就获取最后一包数据的大小*/
@@ -462,7 +466,7 @@ int take_store_picture(uint8_t picture_size)
 				driver_debug(DEBUG_CAMERA, "CRC fail!\r\n");
 				close_camera();
 				memset(ack_get_pack,0,sizeof(ack_get_pack));
-				camera_result = ERR_CRC;
+				obc_cmd_ack(0x3D, ERR_CRC);
 				return ERR_CRC;
 			}
 			getack_flag=0;
@@ -482,17 +486,25 @@ int take_store_picture(uint8_t picture_size)
 			}
 			close_camera();
 			memset(ack_get_pack,0,sizeof(ack_get_pack));
-			camera_result = ERR_REC_TAKEPACK;
+			obc_cmd_ack(0x3D, ERR_REC_TAKEPACK);
 			return ERR_REC_TAKEPACK;
 		}
 
 		DMA_ClearFlag(DMA2_Stream7,DMA_FLAG_TCIF7);
 		USART_DMACmd(USART1,USART_DMAReq_Rx,DISABLE);
 		 /*write to cd*/
-		for(int i=11;i<sizeof(ack_get_pack)-2;i++){
-			pack_store_sd[i-11]=ack_get_pack[i];
+//		for(int i = 0; i < 512; i++){
+//			pack_store_sd[i] = ack_get_pack[i + 11];
+//		}
+		memmove(&ack_get_pack[0], &ack_get_pack[11], 512);
+//		f_write (&fil, &ack_get_pack[11], 512, &bww);
+		if( (f_write (&fil, ack_get_pack, 512, &bww) != FR_OK) || bww != 512)
+		{
+		    driver_debug(DEBUG_CAMERA, "ERROR: Write packet:%d fail!!\r\n", i);
+		    continue;
 		}
-		f_write (&fil, pack_store_sd, sizeof(pack_store_sd), &bww);
+
+		f_sync(&fil);
 	}
 	/*receive the last pack*/
 	CRC_pack=0;
@@ -526,7 +538,7 @@ int take_store_picture(uint8_t picture_size)
 			driver_debug(DEBUG_CAMERA, "CRC fail!\r\n");
 			close_camera();
 			memset(ack_get_pack,0,sizeof(ack_get_pack));
-			camera_result = ERR_CRC;
+			obc_cmd_ack(0x3D, ERR_CRC);
 			return ERR_CRC;
 		}
 		sendcom_flag=0;
@@ -546,16 +558,22 @@ int take_store_picture(uint8_t picture_size)
 		}
 		close_camera();
 		memset(ack_get_pack,0,sizeof(ack_get_pack));
-		camera_result = ERR_REC_TAKEPACK;
+		obc_cmd_ack(0x3D, ERR_REC_TAKEPACK);
 		return ERR_REC_TAKEPACK;
 	}
-	for(int i=11;i<last_size_of_pack+11;i++){
-		f_write (&fil, &ack_get_pack[i], 1, &bww);
-	}
+//	for(int i=11;i<last_size_of_pack+11;i++){
+//		f_write (&fil, &ack_get_pack[i], 1, &bww);
+//	}
+
+	memmove(&ack_get_pack[0], &ack_get_pack[11], last_size_of_pack);
+	if( (f_write(&fil, ack_get_pack, last_size_of_pack, &bww) != FR_OK) || bww != last_size_of_pack)
+	    driver_debug(DEBUG_CAMERA, "ERROR: Write last packet fail!!\r\n");
+
+//	f_write (&fil, &ack_get_pack[11], last_size_of_pack, &bww);
 	f_close (&fil);
 	close_camera();
 	memset(ack_get_pack,0,sizeof(ack_get_pack));
-	camera_result = TP_STORE_OK;
+	obc_cmd_ack(0x3D, TP_STORE_OK);
 	return TP_STORE_OK;
 }
 
@@ -579,13 +597,19 @@ static void enlai_take_pic_func(void *para)
  */
 int enlai_take_pic_task(uint8_t pic_size)
 {
-    uint8_t *Pic_Size = ObcMemMalloc(sizeof(uint8_t));
+    uint8_t *Pic_Size = (uint8_t *)ObcMemMalloc(sizeof(uint8_t));
     if (Pic_Size == NULL)
         return E_MALLOC_FAIL;
 
     *Pic_Size = pic_size;
 
-    return xTaskCreate(enlai_take_pic_func, "PIC", 512, Pic_Size, 3, NULL);
+    if( xTaskCreate(enlai_take_pic_func, "PIC", 512, Pic_Size, 3, NULL) != pdTRUE)
+    {
+        ObcMemFree(Pic_Size);
+        return E_NO_BUFFER;
+    }
+    else
+        return E_NO_ERR;
 }
 
 /**
@@ -601,8 +625,8 @@ int cam_flash_enlaiimg_info_down(uint8_t id)
 	        return E_NO_BUFFER;
 	FSMC_NOR_ReadBuffer((uint16_t *)img_info, CAMERA_RECORD_ADDR + (id - 1)*sizeof(ImageInfo_el_t)/2, sizeof(ImageInfo_el_t)/2);
     /* 调用传输层接口函数下行，创建下行图像任务  */
-	//int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_el_t));
-	int ret = vSerialSend(img_info,sizeof(ImageInfo_el_t));
+	int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_el_t));
+	//int ret = vSerialSend(img_info,sizeof(ImageInfo_el_t));
     ObcMemFree(img_info);
     return ret;
 }
@@ -634,8 +658,8 @@ int cam_sd_enlaiimg_info_down(uint8_t erase_period, uint8_t id)
     }
 
     /* 调用传输层接口函数下行  */
-    //int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_el_t));
-    int ret = vSerialSend(img_info,sizeof(ImageInfo_el_t));
+    int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_el_t));
+    //int ret = vSerialSend(img_info,sizeof(ImageInfo_el_t));
 
     ObcMemFree(img_info);
     return ret;
@@ -691,8 +715,8 @@ int cam_sd_enlaiimg_packet_down(uint8_t erase_period, uint8_t id, uint16_t packe
     }
 
     /* 调用传输层接口函数下行 */
-    //int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
-    int ret = vSerialSend(img_packet->ImageData,img_packet->PacketSize);
+    int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+    //int ret = vSerialSend(img_packet->ImageData,img_packet->PacketSize);
     ObcMemFree(img_info);
     ObcMemFree(img_packet);
     return E_NO_ERR;
@@ -743,9 +767,9 @@ int cam_sd_enlaiimg_all_down(uint8_t erase_period, uint8_t id)
             return E_NO_DEVICE;
         }
         /* 调用传输层接口函数下行 */
-        ret = vSerialSend(img_packet->ImageData,img_packet->PacketSize);
-        vTaskDelay(20);
-       //ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+        //ret = vSerialSend(img_packet->ImageData,img_packet->PacketSize);
+        //vTaskDelay(20);
+       ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
     }
     ObcMemFree(img_packet);
     ObcMemFree(img_info);
@@ -768,6 +792,8 @@ int cam_sd_enlaiimg_lll_down(uint8_t erase_period, uint8_t id, uint16_t packet)
     if (img_info == NULL)
         return E_NO_BUFFER;
 
+
+
     sprintf(path, "0:enlai_img/ImageInfo-%d-%d.dat", erase_period, id);
 
     if (file_read(path, img_info, (UINT)sizeof(ImageInfo_el_t), 0) != FR_OK)
@@ -777,14 +803,15 @@ int cam_sd_enlaiimg_lll_down(uint8_t erase_period, uint8_t id, uint16_t packet)
         return E_NO_DEVICE;
     }
 
+    ImagePacket_enlai_t * img_packet = (ImagePacket_enlai_t *)ObcMemMalloc(sizeof(ImagePacket_enlai_t));
+    if (img_packet == NULL)
+    {
+        ObcMemFree(img_info);
+        return E_NO_BUFFER;
+    }
+
     for(int i=packet; i < img_info->TotalPacket; i++)
     {
-        ImagePacket_enlai_t * img_packet = (ImagePacket_enlai_t *)ObcMemMalloc(sizeof(ImagePacket_enlai_t));
-        if (img_packet == NULL)
-        {
-            ObcMemFree(img_info);
-            return E_NO_BUFFER;
-        }
 
         img_packet->PacketID = i;
         img_packet->PacketSize = (i == img_info->TotalPacket-1) ?
@@ -799,12 +826,12 @@ int cam_sd_enlaiimg_lll_down(uint8_t erase_period, uint8_t id, uint16_t packet)
             return E_NO_DEVICE;
         }
         /* 调用传输层接口函数下行 */
-       //ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
-       ret = vSerialSend(img_packet->ImageData,img_packet->PacketSize);
-       vTaskDelay(20);
-       ObcMemFree(img_packet);
-    }
+       ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+       //ret = vSerialSend(img_packet->ImageData,img_packet->PacketSize);
+       //vTaskDelay(20);
 
+    }
+    ObcMemFree(img_packet);
     ObcMemFree(img_info);
 
     return ret;
@@ -845,8 +872,8 @@ int cam_flash_enlaiimg_packet_down(uint8_t id, uint16_t packet)
 
     FSMC_NOR_ReadBuffer((uint16_t *)img_packet->ImageData, img_info->ImageDddress + packet * IMAGE_PACK_MAX_SIZE / 2, 110);
     /* 调用传输层接口函数下行 */
-    //ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
-    ret = vSerialSend(img_packet->ImageData,img_packet->PacketSize);
+    ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+    //ret = vSerialSend(img_packet->ImageData,img_packet->PacketSize);
 
     ObcMemFree(img_info);
     ObcMemFree(img_packet);
@@ -876,14 +903,15 @@ int cam_flash_enlaiimg_all_down(uint8_t id)
 	FSMC_NOR_ReadBuffer((uint16_t*)img_info, CAMERA_RECORD_ADDR + (id - 1)*sizeof(ImageInfo_el_t)/2, sizeof(ImageInfo_el_t)/2);
 	for(int i=0; i < img_info->TotalPacket; i++)
 	{
+	    //img_packet->PacketNum = img_info->TotalPacket;
 	    img_packet->PacketID = i;
 	    img_packet->PacketSize = (i == img_info->TotalPacket -1) ?
 	            img_info->LastPacketSize : IMAGE_PACK_MAX_SIZE;
 	    FSMC_NOR_ReadBuffer((uint16_t *)img_packet->ImageData, img_info->ImageDddress + i * IMAGE_PACK_MAX_SIZE / 2, 110);
 	    /* 调用传输层接口函数下行 */
-	    //ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
-	    ret = vSerialSend(img_packet->ImageData,img_packet->PacketSize);
-	    vTaskDelay(20);
+	    ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+	    //ret = vSerialSend(img_packet->ImageData,img_packet->PacketSize);
+	    //vTaskDelay(20);
 	}
 	ObcMemFree(img_packet);
 	ObcMemFree(img_info);
@@ -910,17 +938,15 @@ int cam_flash_enlaiimg_lll_down(uint8_t id, uint16_t packet)
 		return E_INVALID_PARAM;
 	}
 
+    ImagePacket_enlai_t * img_packet = (ImagePacket_enlai_t * )ObcMemMalloc(sizeof(ImagePacket_enlai_t));
+
+    if (img_packet == NULL)
+    {
+        ObcMemFree(img_info);
+        return E_NO_BUFFER;
+    }
 	for(int i = packet; i < img_info->TotalPacket; i++)
 	{
-
-	    ImagePacket_enlai_t * img_packet = (ImagePacket_enlai_t * )ObcMemMalloc(sizeof(ImagePacket_enlai_t));
-
-	    if (img_packet == NULL)
-	    {
-	    	ObcMemFree(img_info);
-	        return E_NO_BUFFER;
-	    }
-
 	    img_packet->PacketID = i;
 	    img_packet->PacketSize = (i == img_info->TotalPacket - 1) ?
 	            img_info->LastPacketSize : IMAGE_PACK_MAX_SIZE;
@@ -928,11 +954,12 @@ int cam_flash_enlaiimg_lll_down(uint8_t id, uint16_t packet)
 	    //FSMC_NOR_ReadBuffer((uint16_t *)img_packet->ImageData, img_info->ImageDddress + (i-1) * IMAGE_PACK_MAX_SIZE, img_packet->PacketSize / 2);
 	    FSMC_NOR_ReadBuffer((uint16_t *)img_packet->ImageData, img_info->ImageDddress + i * IMAGE_PACK_MAX_SIZE / 2, 110);
 	    /* 调用传输层接口函数下行 */
-	    //ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
-	    ret = vSerialSend(img_packet->ImageData,img_packet->PacketSize);
-	    vTaskDelay(20);
-	    ObcMemFree(img_packet);
+	    ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+	    //ret = vSerialSend(img_packet->ImageData,img_packet->PacketSize);
+	    //vTaskDelay(20);
+
 	}
+	ObcMemFree(img_packet);
 	ObcMemFree(img_info);
 	return ret;
 }
@@ -976,6 +1003,42 @@ int cam_enlaiimg_data_down(uint8_t erase_period, uint8_t id, uint8_t source)
 }
 
 /**
+ * 下行整幅照片任务函数
+ *
+ * @param para
+ */
+static void enlai_pic_whole_down_task(void *para)
+{
+    cam_enlaiimg_data_down( ((enlaiimgdata_down_para *)para)->store_period,
+            ((enlaiimgdata_down_para *)para)->img_id, ((enlaiimgdata_down_para *)para)->source );
+    ObcMemFree(para);
+    vTaskDelete(NULL);
+}
+
+/**
+ * 下行整幅照片
+ *
+ * @param pic_size 照片大小
+ * @return E_NO_ERR(-1)为任务创建成功
+ */
+int enlai_pic_whole_down(enlaiimgdata_down_para *pic_size)
+{
+    enlaiimgdata_down_para *Pic_Size = (enlaiimgdata_down_para *)ObcMemMalloc(sizeof(enlaiimgdata_down_para));
+    if (Pic_Size == NULL)
+        return E_MALLOC_FAIL;
+
+    memcpy(Pic_Size, pic_size, sizeof(enlaiimgdata_down_para));
+
+    if( xTaskCreate(enlai_pic_whole_down_task, "PIC_D", 512, Pic_Size, 3, NULL) != pdTRUE )
+    {
+        ObcMemFree(Pic_Size);
+        return E_NO_BUFFER;
+    }
+    else
+        return E_NO_ERR;
+}
+
+/**
  * 下行ID编号图像的第packet图像数据
  * 先从flash中读取第packet包数据，如果出错，就从sd卡中读取
  *
@@ -1014,16 +1077,60 @@ int cam_enlaiimg_data_packet_down(uint8_t erase_period, uint8_t id, uint16_t sta
     return ret;
 }
 
+/**
+ * 下行指定起始包照片任务函数
+ *
+ * @param para
+ */
+static void enlai_pic_data_packet_down_task(void *para)
+{
+    cam_enlaiimg_data_packet_down( ((enlaiimgpack_down_para *)para)->store_period,
+                                    ((enlaiimgpack_down_para *)para)->img_id,
+                                    ((enlaiimgpack_down_para *)para)->packet_id,
+                                    ((enlaiimgpack_down_para *)para)->source
+                                  );
+    ObcMemFree(para);
+    vTaskDelete(NULL);
+}
+
+/**
+ * 下行指定起始包照片任务
+ *
+ * @param pic_size 照片大小
+ * @return E_NO_ERR(-1)为任务创建成功
+ */
+int enlai_pic_data_packet_down(enlaiimgpack_down_para *pic_size)
+{
+    enlaiimgpack_down_para *Pic_Size = (enlaiimgpack_down_para *)ObcMemMalloc(sizeof(enlaiimgpack_down_para));
+    if (Pic_Size == NULL)
+        return E_MALLOC_FAIL;
+
+    memcpy(Pic_Size, pic_size, sizeof(enlaiimgpack_down_para));
+
+    if( xTaskCreate(enlai_pic_data_packet_down_task, "PIC_P", 512, Pic_Size, 3, NULL) != pdTRUE )
+    {
+        ObcMemFree(Pic_Size);
+        return E_NO_BUFFER;
+    }
+    else
+        return E_NO_ERR;
+}
+
+
 int init_enlai_camera(uint16_t erase_period)
 {
     uint16_t take_times[1] = {0};
     USER_NOR_SectorErase(3);
+    USER_NOR_SectorErase(5);
     USER_NOR_SectorErase(6);
     USER_NOR_SectorErase(4);
     FSMC_NOR_WriteBuffer(take_times, CAMERA_TIME_ADDRESS, sizeof(take_times)/2);
     FSMC_NOR_WriteBuffer(&erase_period, CAMERA_ERASE_PERRIOD, sizeof(erase_period)/2);
     return E_NO_ERR;
 }
+
+
+
 
 /*****************************测试函数********************************/
 
@@ -1035,13 +1142,13 @@ int take_a_picture(struct command_context * context)
 
 	if (sscanf(args, "%X", &picture_size) != 1)
 	     return CMD_ERROR_SYNTAX;
-	if(take_store_picture(picture_size)!=0)
-	{
-		printf("take a picture failed!\r\n");
-		return 1;
-	}
-	printf("take a picture successful!\r\n");
-	return 0;
+
+	if( enlai_take_pic_task(picture_size) != E_NO_ERR )
+	    printf("ERROR: Take picture task create fail!\r\n");
+    else
+        printf("INFO: Take picture task create success.\r\n");
+
+	return CMD_ERROR_NONE;
 }
 
 
@@ -1051,7 +1158,10 @@ int init_camera_address(struct command_context * context)
 	uint16_t erase_period;  //接收所拍照片大小的数值
 	if (sscanf(args, "%X", &erase_period) != 1)
 		return CMD_ERROR_SYNTAX;
+
 	init_enlai_camera(erase_period);
+
+	return CMD_ERROR_NONE;
 }
 
 /**
@@ -1060,48 +1170,129 @@ int init_camera_address(struct command_context * context)
  *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int get_imagenumber_flash()
+int get_imagenumber_sd(uint8_t erase_period)
 {
     int ret;
+    FIL fil;
     char path[40] = {0};
-    uint16_t images_info[256] = {0};
-    uint8_t erase_period;
-    uint8_t id;
-    u16 image_times[1];
+    uint8_t images_exist[32];
+    uint8_t id, data_read;
 
-    ImageInfo_el_t *img_info = (ImageInfo_el_t *)ObcMemMalloc(sizeof(ImageInfo_el_t));
-    if (img_info == NULL)
-        return E_NO_BUFFER;
+//    FILINFO *finfo = (FILINFO *)ObcMemMalloc(sizeof(FILINFO));
+//    if( finfo == NULL )
+//        return E_MALLOC_FAIL;
 
-    for(erase_period = 1; erase_period < 256; erase_period++)
+
+//    ImageInfo_el_t *img_info = (ImageInfo_el_t *)ObcMemMalloc(sizeof(ImageInfo_el_t));
+//    if (img_info == NULL){
+//        ObcMemFree(finfo);
+//        return E_NO_BUFFER;
+//    }
+
+    memset(images_exist, 0, 32);
+    for(id = 0; id < 255; id++)
     {
-        for(id = 1; id < 256; id++)
-        {
-            sprintf(path, "0:enlai_img/ImageInfo-%d-%d.dat", erase_period, id);
+        sprintf(path, "0:enlai_img/ImageInfo-%d-%d.dat", erase_period, id + 1);
 
-            if (file_read(path, img_info, (UINT)sizeof(ImageInfo_el_t), 0) != FR_OK)
-            {
-                if(id == 1)
-                {
-                    id = 0;
-                    break;
-                }
-                images_info[erase_period] = (erase_period << 8) | (id - 1);
-                break;
-            }
+
+//        if( f_read(path, img_info, sizeof(ImageInfo_el_t), &data_read) != FR_OK ||
+//                data_read != sizeof(ImageInfo_el_t) ){
+//            //printf("sd file read fail!\r\n");
+//            continue;
+//        }
+        if (f_open(&fil, path,FA_READ) != FR_OK){
+            //printf("sd file read fail!\r\n");
+            continue;
         }
-        if(id == 0)
-        {
-            break;
-        }
+
+//        images_exist[id/8] |= (1 << (id % 8));
+
+//        if(finfo->fsize != 28)
+//            printf("sd store fail!\r\n");
+//        else
+        f_close (&fil);
+        images_exist[id/8] |= (1 << (id % 8));
+
     }
-    //image_times[0]= FSMC_NOR_ReadHalfWord(CAMERA_TIME_ADDRESS);
     /* 调用传输层接口函数下行，创建下行图像任务  */
-    //ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_NUMBER, images_info, sizeof(images_info));
-    ObcMemFree(img_info);
+    ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, GET_SD_IMAGE_CNT, images_exist, 32);
+    //ObcMemFree(img_info);
+//    ObcMemFree(finfo);
 	return ret;
 }
 
+int get_imagesnumber_sd(struct command_context * context)
+{
+    char * args = command_args(context);
+
+    uint8_t erase_period;
+
+    if (sscanf(args, "%u", &erase_period) != 1)
+         return CMD_ERROR_SYNTAX;
+
+    int ret = get_imagenumber_sd(erase_period);
+
+    if(ret == -1)
+    {
+        printf("successful!\r\n");
+        return 0;
+    }else{
+        printf("fail!\r\n");
+        return ret;
+    }
+
+}
+
+/**
+ * 删除sd卡中图片
+ * 测试函数
+ *
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+void unlink_images_sd(uint8_t erase_period)
+{
+    int ret;
+    FIL fil;
+    char path[40] = {0};
+    uint8_t images_exist[32];
+    uint8_t id, data_read;
+
+    memset(images_exist, 0, 32);
+    for(id = 0; id < 255; id++)
+    {
+        sprintf(path, "0:enlai_img/ImageInfo-%d-%d.dat", erase_period, id + 1);
+        if (f_open(&fil, path,FA_READ) != FR_OK)
+            continue;
+        f_close (&fil);
+        f_unlink(path);
+    }
+
+    for(id = 0; id < 255; id++)
+    {
+        sprintf(path, "0:enlai_img/ImageData-%d-%d.dat", erase_period, id + 1);
+        if (f_open(&fil, path,FA_READ) != FR_OK)
+            continue;
+        f_close (&fil);
+        f_unlink(path);
+    }
+}
+
+
+/*删除sd卡中图片*/
+
+int unlink_images_sd_usart(struct command_context * context)
+{
+    char * args = command_args(context);
+
+    uint8_t erase_period;
+
+    if (sscanf(args, "%u", &erase_period) != 1)
+         return CMD_ERROR_SYNTAX;
+
+    unlink_images_sd(erase_period);
+
+    return CMD_ERROR_NONE;
+}
 
 /**
  * 通过图像ID参数下行flash中图像信息
@@ -1121,7 +1312,7 @@ int get_imageinfo_usart(struct command_context * context)
     if (sscanf(args, "%u  %u  %u", &erase_period, &id, &source) != 3)
          return CMD_ERROR_SYNTAX;
 
-	vSerialInterfaceInit();
+	//vSerialInterfaceInit();
     if(source == 0){
         ret = cam_flash_enlaiimg_info_down(id);
     }
@@ -1130,10 +1321,10 @@ int get_imageinfo_usart(struct command_context * context)
     }
     if(ret == -1)
     {
-        printf("successful!");
+        printf("successful!\r\n");
         return 0;
     }else{
-        printf("fail!");
+        printf("fail!\r\n");
         return ret;
     }
 }
@@ -1157,7 +1348,7 @@ int get_a_pack_usart(struct command_context * context) {
     if (sscanf(args, "%u  %u  %u  %u", &erase_period, &id, &source, &packet) != 4)
          return CMD_ERROR_SYNTAX;
 
-	vSerialInterfaceInit();
+	//vSerialInterfaceInit();
     if(source == 0){
         ret = cam_flash_enlaiimg_packet_down(id, packet);
     }
@@ -1166,10 +1357,10 @@ int get_a_pack_usart(struct command_context * context) {
     }
     if(ret == -1)
     {
-        printf("successful!");
+        printf("successful!\r\n");
         return 0;
     }else{
-        printf("fail!");
+        printf("fail!\r\n");
         return ret;
     }
 }
@@ -1192,7 +1383,7 @@ int get_wholeimage_usart(struct command_context * context)
     if (sscanf(args, "%u  %u %u", &erase_period, &id, &source) != 3)
          return CMD_ERROR_SYNTAX;
 
-	vSerialInterfaceInit();
+	//vSerialInterfaceInit();
 
     if(source == 0){
         ret = cam_flash_enlaiimg_all_down(id);
@@ -1202,10 +1393,10 @@ int get_wholeimage_usart(struct command_context * context)
     }
     if(ret == -1)
     {
-        printf("successful!");
+        printf("successful!\r\n");
         return 0;
     }else{
-        printf("fail!");
+        printf("fail!\r\n");
         return ret;
     }
 }
@@ -1228,7 +1419,7 @@ int get_image_last_packs_usart(struct command_context * context) {
     if (sscanf(args, "%u  %u  %u  %u", &erase_period, &id, &source, &start_packet) != 4)
          return CMD_ERROR_SYNTAX;
 
-	vSerialInterfaceInit();
+	//vSerialInterfaceInit();
     if(source == 0){
         ret = cam_flash_enlaiimg_lll_down(id, start_packet);
     }
@@ -1237,10 +1428,10 @@ int get_image_last_packs_usart(struct command_context * context) {
     }
     if(ret == -1)
     {
-        printf("successful!");
+        printf("successful!\r\n");
         return 0;
     }else{
-        printf("fail!");
+        printf("fail!\r\n");
         return ret;
     }
 }
@@ -1274,7 +1465,11 @@ struct command camera_subcommands[] = {
 	},{
 		.name = "numberpicture",
 		.help = "get the numbers of the picture have taken",
-		.handler = get_imagenumber_flash,
+		.handler = get_imagesnumber_sd,
+	},{
+        .name = "unlink",
+        .help = "unlink the images of sd",
+        .handler =unlink_images_sd_usart
 	}
 };
 

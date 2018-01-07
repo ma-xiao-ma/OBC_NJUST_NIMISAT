@@ -182,7 +182,6 @@ int adcs_get_hk(void *hk, uint16_t timeout)
  */
 int adcs_send_mode(uint8_t eps_mode)
 {
-
     uint8_t type = (eps_mode == SLEEP_MODE)?INS_LowPower_Mode_ON:INS_LowPower_Mode_OFF;
 
     return adcs_transaction(type, NULL, 0, NULL, 0, 0);
@@ -196,5 +195,5 @@ int adcs_send_mode(uint8_t eps_mode)
  */
 int adcstimesync(uint32_t secs)
 {
-    return adcs_transaction(INS_ADCS_TIME_IN, &secs, sizeof(uint32_t), NULL, 0, 0);
+    return adcs_transaction(INS_SAT_TIME_SYSN, &secs, sizeof(uint32_t), NULL, 0, 0);
 }

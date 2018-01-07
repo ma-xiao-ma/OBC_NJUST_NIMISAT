@@ -58,31 +58,28 @@ int cmd_panel(struct command_context *ctx) {
 int cmd_unfold_panel(struct command_context *ctx) {
 
     char * args = command_args(ctx);
-    uint32_t opt;
-    uint32_t delay;
     uint16_t time;
 
-    if (sscanf(args," %u %u %u", &opt, &delay, &time) != 3)
+    if (sscanf(args,"%u", &time) != 1)
         return CMD_ERROR_SYNTAX;
 
-    if(opt == 0)    {
-        int res = disable_unfold_panel(delay);
-        if(res != -1)
-            printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
-        else
-            printf("unfold panel close\r\n");
-    }
+    printf("Burning safe time:%u.\r\n", time);
 
-    if(opt == 1)    {
-        int res = enable_unfold_panel(delay, time);
-        if(res != 1)
-            printf("SEND CMD FAILED\r\nRes: %d, \r\n", res);
-        else
-            printf("unfold panel open\r\n");
-    }
+    if (Solar_Array_Unfold(time) != -1)
+        printf("ERROR: Unfold error!!\r\n");
+    else
+        printf("INFO: Unfold OK.\r\n");
 
-    if(opt != 1 && opt != 0)
-        printf("No such option\r\n");
+    return CMD_ERROR_NONE;
+}
+
+int cmd_unfold_sail(struct command_context *ctx __attribute__((unused)))
+{
+
+    if( Sail_Unfold() != -1)
+        printf("ERROR: Unfold task error!!\r\n");
+    else
+        printf("INFO: Unfold task OK.\r\n");
 
     return CMD_ERROR_NONE;
 }
@@ -330,7 +327,11 @@ struct command switches_subcommands[] = {
         .name = "unfold_panel",
         .help = "unfold panel switches",
         .handler = cmd_unfold_panel,
-        .usage = "<opts> 0:close 1:open <delay>",
+        .usage = "<safty time _s_>",
+    },{
+        .name = "sail",
+        .help = "unfold sail switche",
+        .handler = cmd_unfold_sail,
     }
 };
 
