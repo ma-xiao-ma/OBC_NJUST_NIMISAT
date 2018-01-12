@@ -42,6 +42,7 @@
 
 
 FATFS fs; /* Work area (file system object) for logical drives */
+SemaphoreHandle_t take_pic_mutex;
 
 void task_initz(void)
 {
@@ -51,12 +52,6 @@ void task_initz(void)
 
     /*调试穿口初始化，波特率115200*/
     Console_Usart_init(115200);
-
-    /*OBC系统时间 与 RTC时间 同步*/
-    obc_timesync();
-
-    /*use cpu flash to store the info*/
-    obc_argvs_recover();
 
     /** 给SD卡挂载FATFS文件系统 */
     f_mount(0,&fs);
@@ -80,6 +75,7 @@ void task_initz(void)
 	/*恩来相机串口初始化*/
 	extern void Camera_Enlai_Usart_Init(uint32_t baudrate);
 	Camera_Enlai_Usart_Init(115200);
+	vSemaphoreCreateBinary( take_pic_mutex );
 
 	/*片内ADC初始化， 用于温度采集*/
 	int_adc_init();
@@ -88,14 +84,11 @@ void task_initz(void)
 //	spi_init_dev();
 //	AD7490_Init();
 
-	/*power related and switches*/
+	/* 电源板AD7490采集 */
 	bsp_InitSPI1();
 
-	/*片外 RTC初始化*/
+	/* 片外 RTC初始化 */
 	bsp_InitDS1302();
-
-	/*command initialize*/
-	command_init();
 
 	/*house-keeping store to SD card*/
 	hk_list_init(&hk_list);
@@ -103,6 +96,7 @@ void task_initz(void)
 //	vTelemetryFileManage(&hk_list);  /* 此函数会导致文件系统崩溃， 需查原因 */
 
 #if USE_ROUTE_PROTOCOL
+
 	/*设置路由地址为0x01, 路由队列深度为10*/
     router_init(1, 10);
     /* 创建服务器任务, 任务堆栈大小1024 * 4字节, 优先级为2 */
@@ -111,6 +105,7 @@ void task_initz(void)
     send_processing_start_task(256, 2);
     /*创建路由任务, 任务堆栈大小256 * 4字节, 优先级为1 */
     router_start_task(256, 1);
+
 #endif
 
     /*I2C(PCA9665) initialize*/
@@ -118,7 +113,11 @@ void task_initz(void)
     //driver_debug_switch[DEBUG_I2C] = 1;
     i2c_init(0, I2C_MASTER, 0x1A, 40, 10, 10, NULL); //frequency = 40Kbit/s
     i2c_init(1, I2C_MASTER, 0x08, 60, 10, 10, i2c_rx_callback);
+
     pca9665_isr_init();
+
+    /*command initialize*/
+    command_init();
 
 	/*采温芯片初始化*/
 	temp175_init();
@@ -155,6 +154,15 @@ void task_initz(void)
 	extern void cmd_camera_setup(void);
 	cmd_camera_setup();
 	cmd_ina_temp_setup();
+
+
+	/**
+	 * 此处需要同步两次时间
+	 */
+    obc_timesync();
+
+    /*OBC参数软复位恢复*/
+    obc_argvs_recover();
 
     /*OBC系统时间与RTC时间同步*/
     obc_timesync();

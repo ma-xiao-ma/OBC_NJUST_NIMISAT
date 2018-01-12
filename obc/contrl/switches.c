@@ -354,7 +354,7 @@ static void Sail_Unfold_task(void *para)
 
     EpsOutSwitch(OUT_SAIL_7V, ENABLE);
 
-    vTaskDelay(10000);
+    vTaskDelay(6000);
 
     EpsOutSwitch(OUT_SAIL_7V, DISABLE);
 

@@ -577,6 +577,7 @@ int take_store_picture(uint8_t picture_size)
 	return TP_STORE_OK;
 }
 
+extern SemaphoreHandle_t take_pic_mutex;
 /**
  * 恩来相机拍照任务函数
  *
@@ -586,6 +587,8 @@ static void enlai_take_pic_func(void *para)
 {
     take_store_picture( *(uint8_t *)para );
     ObcMemFree(para);
+
+    xSemaphoreGive( take_pic_mutex );
     vTaskDelete(NULL);
 }
 
@@ -597,14 +600,21 @@ static void enlai_take_pic_func(void *para)
  */
 int enlai_take_pic_task(uint8_t pic_size)
 {
+    if( xSemaphoreTake( take_pic_mutex, 0 ) != pdTRUE )
+        return E_TIMEOUT;
+
     uint8_t *Pic_Size = (uint8_t *)ObcMemMalloc(sizeof(uint8_t));
     if (Pic_Size == NULL)
+    {
+        xSemaphoreGive( take_pic_mutex );
         return E_MALLOC_FAIL;
+    }
 
     *Pic_Size = pic_size;
 
     if( xTaskCreate(enlai_take_pic_func, "PIC", 512, Pic_Size, 3, NULL) != pdTRUE)
     {
+        xSemaphoreGive( take_pic_mutex );
         ObcMemFree(Pic_Size);
         return E_NO_BUFFER;
     }
@@ -1174,50 +1184,27 @@ int get_imagenumber_sd(uint8_t erase_period)
 {
     int ret;
     FIL fil;
-    char path[40] = {0};
+    char path[40];
     uint8_t images_exist[32];
     uint8_t id, data_read;
 
-//    FILINFO *finfo = (FILINFO *)ObcMemMalloc(sizeof(FILINFO));
-//    if( finfo == NULL )
-//        return E_MALLOC_FAIL;
-
-
-//    ImageInfo_el_t *img_info = (ImageInfo_el_t *)ObcMemMalloc(sizeof(ImageInfo_el_t));
-//    if (img_info == NULL){
-//        ObcMemFree(finfo);
-//        return E_NO_BUFFER;
-//    }
-
     memset(images_exist, 0, 32);
+
     for(id = 0; id < 255; id++)
     {
+        memset(path, 0, 40);
         sprintf(path, "0:enlai_img/ImageInfo-%d-%d.dat", erase_period, id + 1);
 
+        if (f_open(&fil, path,FA_READ) != FR_OK)
+            break;
 
-//        if( f_read(path, img_info, sizeof(ImageInfo_el_t), &data_read) != FR_OK ||
-//                data_read != sizeof(ImageInfo_el_t) ){
-//            //printf("sd file read fail!\r\n");
-//            continue;
-//        }
-        if (f_open(&fil, path,FA_READ) != FR_OK){
-            //printf("sd file read fail!\r\n");
-            continue;
-        }
-
-//        images_exist[id/8] |= (1 << (id % 8));
-
-//        if(finfo->fsize != 28)
-//            printf("sd store fail!\r\n");
-//        else
         f_close (&fil);
         images_exist[id/8] |= (1 << (id % 8));
-
     }
+
     /* 调用传输层接口函数下行，创建下行图像任务  */
     ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, GET_SD_IMAGE_CNT, images_exist, 32);
-    //ObcMemFree(img_info);
-//    ObcMemFree(finfo);
+
 	return ret;
 }
 

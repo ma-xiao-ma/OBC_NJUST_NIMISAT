@@ -430,8 +430,7 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
     while(1)
     {
         task_report_alive(Isis);
-//        vTaskDelay(534);
-        vTaskDelay(1937);
+        vTaskDelay(1537);
 
         /**获取接收机缓冲区帧计数*/
         if (vu_receiver_get_frame_num(&frame_num) != E_NO_ERR)
@@ -457,21 +456,6 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
         /**通信机接收上行消息计数加1*/
         vu_isis_rx_count++;
 
-        /* 若收到的帧数据长度字段不匹配，则视为错帧 */
-        if (recv_frame->DateSize < ROUTE_HEAD_SIZE || recv_frame->DateSize > MAX_UPLINK_CONTENT_SIZE)
-        {
-            driver_debug(DEBUG_TTC, "WARNING: ISIS vu has received a incorrect frame!!\r\n");
-            ObcMemFree(recv_frame);
-
-            /* 移除错误帧 */
-            vu_receiver_remove_frame();
-            continue;
-        }
-
-        PassFlag = true; /*置过境标志 */
-
-        driver_debug(DEBUG_TTC, "INFO: ISIS rLen: %u bytes.\r\n", recv_frame->DateSize);
-
         /* 给多普勒和信号强度遥测变量赋值 */
         if(rx_tm_queue != NULL)
         {
@@ -483,6 +467,21 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
 
             xQueueOverwrite(rx_tm_queue, &rx_tm);
         }
+
+        /* 若收到的帧数据长度字段不匹配，则视为错帧 */
+        if (recv_frame->DateSize < ROUTE_HEAD_SIZE || recv_frame->DateSize > MAX_UPLINK_CONTENT_SIZE)
+        {
+            driver_debug(DEBUG_TTC, "WARNING: ISIS vu has received a incorrect frame!!\r\n");
+
+            ObcMemFree(recv_frame);
+            /* 移除错误帧 */
+            vu_receiver_remove_frame();
+            continue;
+        }
+
+        PassFlag = true; /*置过境标志 */
+
+        driver_debug(DEBUG_TTC, "INFO: ISIS rLen: %u bytes.\r\n", recv_frame->DateSize);
 
         frame_num = recv_frame->DateSize;
 
@@ -510,6 +509,8 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
             /*关闭ISIS连续发射*/
             vu_transmitter_set_idle_state(TurnOff);
         }
+
+        vTaskDelay(500);
 
         /**成功接收后移除此帧*/
         if (vu_receiver_remove_frame() != E_NO_ERR)

@@ -121,7 +121,7 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 {
 	vu_isis_hk_t *vu_tm = (vu_isis_hk_t *)ObcMemMalloc(sizeof(vu_isis_hk_t));
 	obc_hk_t *obc_tm = (obc_hk_t *)ObcMemMalloc(sizeof(obc_hk_t));
-	eps_hk_t *eps_tm = (eps_hk_t *)ObcMemMalloc(sizeof(eps_hk_t));
+//	eps_hk_t *eps_tm = (eps_hk_t *)ObcMemMalloc(sizeof(eps_hk_t));
 
 	if (vu_tm == NULL || obc_tm == NULL)
 	    cpu_reset();
@@ -136,7 +136,7 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 
 	    obc_hk_get_peek(obc_tm);
 	    ttc_hk_get_peek(vu_tm);
-	    eps_hk_get_peek(eps_tm);
+//	    eps_hk_get_peek(eps_tm);
 
 	    /**如果通信机空闲状态连续发射已经开启*/
 	    if (vu_tm->tx_state.IdleState == RemainOn)

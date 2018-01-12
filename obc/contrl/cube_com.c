@@ -57,7 +57,6 @@ void CubeUnPacket(const void *str)
 {
     route_packet_t * packet = (route_packet_t *)str;
 
-
     /*obc接收本地指令计数*/
     rec_cmd_cnt++;
 

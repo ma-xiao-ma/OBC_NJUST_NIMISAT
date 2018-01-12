@@ -19,7 +19,6 @@
 
 int main(void)
 {
-
     task_initz();
 
     enlai_take_pic_task(0x34);
