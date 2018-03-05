@@ -35,10 +35,9 @@ NOR_STATUS FSMC_NOR_GetStatus(u32 Timeout);
 */
 void bsp_InitNorFlash(void)
 {
-	FSMC_NORSRAMInitTypeDef  FSMC_NORSRAMInitStructure;
-	FSMC_NORSRAMTimingInitTypeDef  p;
-	GPIO_InitTypeDef GPIO_InitStructure;
-	uint32_t ChipID;	
+	FSMC_NORSRAMInitTypeDef  FSMC_NORSRAMInitStructure = {0};
+	FSMC_NORSRAMTimingInitTypeDef  p = {0};
+	GPIO_InitTypeDef GPIO_InitStructure = {0};
 	
 
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD | RCC_AHB1Periph_GPIOE |
@@ -258,9 +257,9 @@ NOR_STATUS FSMC_NOR_EraseChip(void)
 *******************************************************************************/
 NOR_STATUS FSMC_NOR_WriteHalfWord(u32 WriteAddr, u16 Data)
 {
-  NOR_WRITE(WORD_ADDR(0x05555), 0x00AA);
-  NOR_WRITE(WORD_ADDR(0x02AAA), 0x0055);
-  NOR_WRITE(WORD_ADDR(0x05555), 0x00A0);
+  NOR_WRITE(WORD_ADDR(0x555), 0xAA);
+  NOR_WRITE(WORD_ADDR(0x2AA), 0x55);
+  NOR_WRITE(WORD_ADDR(0x555), 0xA0);
 
   NOR_WRITE(WORD_ADDR(WriteAddr), Data);
 
@@ -424,18 +423,18 @@ NOR_STATUS FSMC_NOR_GetStatus(u32 Timeout)
   NOR_STATUS status = NOR_ONGOING;
   u32 timeout = Timeout;
 
-  /* Poll on NOR memory Ready/Busy signal ------------------------------------*/
-  while((GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_6) != RESET) && (timeout > 0))
-  {
-    timeout--;
-  }
-
-  timeout = Timeout;
-
-  while((GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_6) == RESET) && (timeout > 0))
-  {
-    timeout--;
-  }
+//  /* Poll on NOR memory Ready/Busy signal ------------------------------------*/
+//  while((GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_6) != RESET) && (timeout > 0))
+//  {
+//    timeout--;
+//  }
+//
+//  timeout = Timeout;
+//
+//  while((GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_6) == RESET) && (timeout > 0))
+//  {
+//    timeout--;
+//  }
 
   /* Get the NOR memory operation status -------------------------------------*/
   while((Timeout != 0x00) && (status != NOR_SUCCESS))

@@ -51,6 +51,8 @@
 uint8_t adcs_pwr_sta 	= 0;
 uint8_t up_cmd_adcs_pwr	= 1;
 
+SemaphoreHandle_t sysn_bin_sem;  //采集任务与下行任务同步信号量
+
 ///////////////////////////////////////local function////////////////////////////
 
 uint8_t IsJLGvuWorking = 0;     /*JLG通信机开启标志，开启为1， 关闭为0*/
@@ -109,7 +111,7 @@ static control_para control_task;
 #define PASSIN_LAST      (10 * 60) /*过境时间*/
 #define TIME_SYSN        ( 5 * 60) /*时间同步间隔*/
 
-#define CONTROL_CYCLE    5000      /*控制周期  单位：毫秒*/
+#define CONTROL_CYCLE    1200      /*控制周期  单位：毫秒*/
 
 /**
  * 将秒数转换成在控制任务中的控制次数
@@ -210,14 +212,17 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 
 void hk_collect_task(void *pvParameters __attribute__((unused)))
 {
+    if( sysn_bin_sem == NULL )
+        sysn_bin_sem = xSemaphoreCreateBinary();
 
     eps_start();
     hk_collect_task_init();
-    /* 等待个分系统启动 */
-    vTaskDelay(2000);
 
+    TickType_t xLastWakeTime = xTaskGetTickCount ();
     while (1)
     {
+        vTaskDelayUntil( &xLastWakeTime, 2000 / portTICK_RATE_MS );
+
         task_report_alive(Collect);
 
         obc_hk_task();
@@ -226,22 +231,22 @@ void hk_collect_task(void *pvParameters __attribute__((unused)))
 
         ttc_hk_task();
 
-//        /* 若数传上电，则获取遥测值 */
-//        if (OUT_SW_DTB_5V_PIN())
-//            dtb_hk_task();
+        /* 若数传上电，则获取遥测值 */
+        if( OUT_SW_DTB_5V_PIN() )
+            dtb_hk_task();
 
-        if (IsJLGvuWorking)
+        if( IsJLGvuWorking )
             jlg_hk_task();
 
         /* 若相机上电，则获取遥测值 */
-        if (OUT_SW_CAMERA_10W_PIN() && OUT_SW_CAMERA_5W_PIN())
+        if( OUT_SW_CAMERA_10W_PIN() && OUT_SW_CAMERA_5W_PIN() )
             cam_hk_task();
 
         /* 若姿控上电，则获取遥测值 */
-        if (SW_EPS_S0_PIN())
+        if( SW_EPS_S0_PIN() )
             adcs_hk_task();
 
-        vTaskDelay(2000);
+        xSemaphoreGive(sysn_bin_sem);
     }
 }
 
@@ -376,7 +381,7 @@ void down_save_task(void * pvParameters __attribute__((unused)))
 	HK_fifoInit(&hk_main_fifo);
 	HK_fifoInit(&hk_append_fifo);
 
-	uint16_t hk_down_counter = 0, hk_save_counter = 0, beacon_counter = 0;
+	uint16_t hk_down_counter = 0, hk_save_counter = 0;
 
 	/*等待系统稳定*/
 	vTaskDelay(2000);
@@ -423,7 +428,6 @@ void down_save_task(void * pvParameters __attribute__((unused)))
 			{
 				down_cnt = 0;
 				up_hk_down_cmd = 0;
-//				PassFlag = 0;
 
 				hk_data_save_task(); /*250分钟存满一个文件，一个文件1000调遥测*/
 			}
@@ -620,10 +624,7 @@ int Delay_Task_Mon_Start(delay_task_t *para)
     if ( para->execution_utc < clock_get_time_nopara() )
         return E_INVALID_PARAM;
 
-    /*片内FALSH 读、改、写*/
-//    if ( bsp_ReadCpuFlash( OBC_STORE_ADDR, (uint8_t*)&obc_save, sizeof(obc_save) ) != 0 )
-//        return E_FLASH_ERROR;
-
+    /*片外NOR_FALSH SECTOR_0 读、改、写*/
     FSMC_NOR_ReadBuffer( (uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t)/2 );
 
     /* 给任务恢复结构体赋值 */
@@ -631,6 +632,7 @@ int Delay_Task_Mon_Start(delay_task_t *para)
     strcpy(obc_save.delay_task_recover[0].task_name, "MON");
     memcpy( obc_save.delay_task_recover[0].task_para, para, 60);
 
+    /* 擦除NOR_FLASH系统变量存储区 */
     if (USER_NOR_SectorErase(0) != NOR_SUCCESS)
     {
         printf("ERROR: NorFalsh erase sector 0 fail!\r\n");
@@ -643,8 +645,7 @@ int Delay_Task_Mon_Start(delay_task_t *para)
         return E_FLASH_ERROR;
     }
 
-    int ret = xTaskCreate( Delay_Task_Mon, "MON", 256,
-            obc_save.delay_task_recover[0].task_para, 4, NULL );
+    int ret = xTaskCreate( Delay_Task_Mon, "MON", 256, obc_save.delay_task_recover[0].task_para, 4, NULL );
 
     if (ret != pdTRUE)
         return E_NO_BUFFER;

@@ -163,7 +163,11 @@ int vu_router_get_frame(void)
         return E_NO_BUFFER;
 
     /* Take the I2C lock */
-    xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
+    if( xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ) != pdTRUE )
+    {
+        ObcMemFree(frame);
+        return E_NO_QUEUE;
+    }
 
     frame->dest = JLG_VU_I2C_ADDR;
     frame->data[0] = GET_FRAME;

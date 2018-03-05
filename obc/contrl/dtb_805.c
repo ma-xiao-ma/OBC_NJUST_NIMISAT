@@ -9,6 +9,8 @@
 #include "error.h"
 #include "bsp_pca9665.h"
 #include "math.h"
+#include "bsp_switch.h"
+#include "hk.h"
 
 #include "dtb_805.h"
 
@@ -16,6 +18,38 @@
 #define DTB_I2C_HANDLE  1
 #define DTB_TM_FLAG     0x29
 #define DTB_TC_FLAG     0x09
+
+/**
+ * IO控制数传机上电
+ *
+ * @return 返回E_NO_ERR（-1）为正常
+ */
+int dtb_power_on(void)
+{
+    if( EpsOutSwitch(OUT_DTB_5V, ENABLE) != EPS_ERROR )
+    {
+        if( EpsOutSwitch(OUT_DTB_12V, ENABLE) != EPS_ERROR )
+            return E_NO_ERR;
+        else
+        {
+            EpsOutSwitch(OUT_DTB_5V, DISABLE);
+            return E_NO_DEVICE;
+        }
+
+    }
+    else
+        return E_NO_DEVICE;
+}
+
+/**
+ * IO控制数传机断电
+ *
+ */
+void dtb_power_off(void)
+{
+    EpsOutSwitch(OUT_DTB_5V, DISABLE);
+    EpsOutSwitch(OUT_DTB_12V, DISABLE);
+}
 
 /*遥测获取函数，返回遥测数据长度*/
 int xDTBTelemetryGet(uint8_t *pRxData, uint16_t Timeout)
@@ -54,7 +88,7 @@ int xDTBTelemetryGet(uint8_t *pRxData, uint16_t Timeout)
     if(pBuffer[RxDataLen+2] != sum_check((uint8_t *)&pBuffer[1], RxDataLen+1))
     {
         ObcMemFree(pBuffer);
-        return E_NO_SS;
+        return E_CRC_CHECK_ERROR;
     }
 
     memcpy(pRxData, (uint8_t *)&pBuffer[2], RxDataLen);
@@ -63,7 +97,7 @@ int xDTBTelemetryGet(uint8_t *pRxData, uint16_t Timeout)
     return RxDataLen;
 }
 
-/*数传板遥控指令发送函数，函数执行成功返回0*/
+/*数传板遥控指令发送函数，函数执行成功返回E_NO_ERR(-1)*/
 int xDTBTeleControlSend(uint8_t Cmd, uint16_t Timeout)
 {
     uint8_t RxDataLen;
@@ -106,7 +140,221 @@ int xDTBTeleControlSend(uint8_t Cmd, uint16_t Timeout)
     }
 
     ObcMemFree(pBuffer);
-    return 0;
+    return E_NO_ERR;
+}
+
+/**
+ * 数传机擦除加记录
+ *
+ * @param mem_num 即将向存储区几存储
+ * @return 返回E_NO_ERR（-1）为正常
+ */
+int cam_dtb_lvds(uint8_t mem_num)
+{
+    int ret;
+
+    /* 保证供电 */
+    if( EpsOutSwitch(OUT_DTB_5V, ENABLE) != EPS_ERROR &&
+            EpsOutSwitch(OUT_DTB_12V, ENABLE) != EPS_ERROR )
+    {
+        /*根据传入参数选择擦除和记录的存储区*/
+        switch( mem_num )
+        {
+            case 1:
+                if( xDTBTeleControlSend(Mem1Erase, 100) != E_NO_ERR )
+                    return E_NO_SS;
+
+                vTaskDelay(8000);
+
+                if( xDTBTeleControlSend(Mem1Record, 100) != E_NO_ERR )
+                    return E_NO_SS;
+
+                break;
+            case 2:
+                if( xDTBTeleControlSend(Mem2Erase, 100) != E_NO_ERR )
+                    return E_NO_SS;
+
+                vTaskDelay(8000);
+
+                if( xDTBTeleControlSend(Mem2Record, 100) != E_NO_ERR )
+                    return E_NO_SS;
+
+                break;
+            case 3:
+                if( xDTBTeleControlSend(Mem3Erase, 100) != E_NO_ERR )
+                    return E_NO_SS;
+
+                vTaskDelay(8000);
+
+                if( xDTBTeleControlSend(Mem3Record, 100) != E_NO_ERR )
+                    return E_NO_SS;
+
+                break;
+            case 4:
+                if( xDTBTeleControlSend(Mem4Erase, 100) != E_NO_ERR )
+                    return E_NO_SS;
+
+                vTaskDelay(8000);
+
+                if( xDTBTeleControlSend(Mem4Record, 100) != E_NO_ERR )
+                    return E_NO_SS;
+
+                break;
+            default:
+                return E_THREAD_FAIL;
+        }
+    }
+
+    return E_NO_ERR;
+}
+
+
+/**
+ * 数传机回放下行流程
+ *
+ * @param mem_num 存储区号 1、2、3、4
+ * @param data_rate 下行码速率1、2、4、8
+ * @return 返回E_NO_ERR（-1）为正确
+ */
+int dtb_back(uint8_t mem_num, uint8_t data_rate)
+{
+    int ret;
+
+    /* 保证电力供应 */
+    if( dtb_power_on() != E_NO_ERR )
+        return E_NO_DEVICE;
+
+    if( xDTBTeleControlSend(Boot, 100) != E_NO_ERR )
+    {
+        dtb_power_off();
+        return E_NO_SS;
+    }
+
+    switch( data_rate )
+    {
+        case 1:
+            ret = xDTBTeleControlSend(Rate1Mbps, 100);
+            break;
+        case 2:
+            ret = xDTBTeleControlSend(Rate2Mbps, 100);
+            break;
+        case 4:
+            ret = xDTBTeleControlSend(Rate4Mbps, 100);
+            break;
+        case 8:
+            ret = xDTBTeleControlSend(Rate8Mbps, 100);
+            break;
+        default:
+            ret = E_THREAD_FAIL;
+            break;
+    }
+
+    if( ret !=  E_NO_ERR)
+    {
+        dtb_power_off();
+        return E_NO_SS;
+    }
+
+    switch( mem_num )
+    {
+        case 1:
+            ret = xDTBTeleControlSend(Mem1Back, 100);
+            break;
+        case 2:
+            ret = xDTBTeleControlSend(Mem2Back, 100);
+            break;
+        case 3:
+            ret = xDTBTeleControlSend(Mem3Back, 100);
+            break;
+        case 4:
+            ret = xDTBTeleControlSend(Mem4Back, 100);
+            break;
+        default:
+            ret = E_THREAD_FAIL;
+            break;
+    }
+
+    if( ret !=  E_NO_ERR)
+    {
+        dtb_power_off();
+        return E_FLASH_ERROR;
+    }
+
+
+    dtb_805_hk_t *dtb = (dtb_805_hk_t *)ObcMemMalloc( sizeof(dtb_805_hk_t) );
+    if( dtb == NULL )
+    {
+        dtb_power_off();
+        return E_MALLOC_FAIL;
+    }
+
+    switch( mem_num )
+    {
+        case 1:
+            ret = xDTBTeleControlSend(Mem1Back, 100);
+            break;
+        case 2:
+            ret = xDTBTeleControlSend(Mem2Back, 100);
+            break;
+        case 3:
+            ret = xDTBTeleControlSend(Mem3Back, 100);
+            break;
+        case 4:
+            ret = xDTBTeleControlSend(Mem4Back, 100);
+            break;
+        default:
+            ret = E_THREAD_FAIL;
+            break;
+    }
+
+    int back_complete_flag = 0;
+
+    while( ( ret = dtb_hk_get_peek(dtb) ) != pdFALSE )
+    {
+        switch( mem_num )
+        {
+            case 1:
+                if( dtb->dtb_hk.MEM1_BACK_CNT == dtb->dtb_hk.MEM1_RECORD_CNT )
+                    back_complete_flag = 1;
+                break;
+            case 2:
+                if( dtb->dtb_hk.MEM2_BACK_CNT == dtb->dtb_hk.MEM2_RECORD_CNT )
+                    back_complete_flag = 1;
+                break;
+            case 3:
+                if( dtb->dtb_hk.MEM3_BACK_CNT == dtb->dtb_hk.MEM3_RECORD_CNT )
+                    back_complete_flag = 1;
+                break;
+            case 4:
+                if( dtb->dtb_hk.MEM4_BACK_CNT == dtb->dtb_hk.MEM4_RECORD_CNT )
+                    back_complete_flag = 1;
+                break;
+            default:
+                ret = E_THREAD_FAIL;
+                break;
+        }
+
+        if( back_complete_flag )
+            break;
+
+        vTaskDelay(1000);
+    }
+
+    if( xDTBTeleControlSend(MemStop, 100) != E_NO_ERR )
+    {
+        dtb_power_off();
+        return E_NO_SS;
+    }
+
+    if( xDTBTeleControlSend(ShutDown, 100) != E_NO_ERR )
+    {
+        dtb_power_off();
+        return E_NO_SS;
+    }
+
+    dtb_power_off();
+
+    return E_NO_ERR;
 }
 
 float dtb_temp_conversion(uint8_t temp_raw)

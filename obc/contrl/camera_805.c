@@ -29,12 +29,15 @@
 
 #include "camera_805.h"
 
+#define CAM_REP_TIMEOUT 100
 #define FLASH_IMG_NUM   15
 static int ImagStoreInFlash(void);
 static int ImagStoreInSD(void);
 
 /*相机数据传输信息*/
 static CamTrans_t Cam __attribute__((section(".bss.hk"), aligned(4)));
+
+static uint8_t image_test_arry[256 * 1024] __attribute__((section(".bss.hk"), aligned(4)));
 
 /*当前图像信息*/
 static ImageInfo_t CurrentImage __attribute__((section(".bss.hk"), aligned(4)));
@@ -58,7 +61,7 @@ void aligned_addr_test(void)
 }
 
 
-#define CamerarReceiveBufferSize  65535   //64 *1024 -1
+#define CamerarReceiveBufferSize  65535   //64 * 1024 -1
 
 void Camera_805_USART_DMA_Config(void)
 {
@@ -90,7 +93,7 @@ void Camera_805_USART_DMA_Config(void)
     DMA_Init(CAMERA_DMA_RX_STREAM, &DMA_InitStructure);                         //初始化dma2 stream2
 
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
-    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 8;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_InitStructure.NVIC_IRQChannel = DMA2_Stream2_IRQn;
@@ -100,9 +103,9 @@ void Camera_805_USART_DMA_Config(void)
     DMA_DeInit(CAMERA_DMA_TX_STREAM);
     DMA_InitStructure.DMA_Channel               = DMA_Channel_4;
     DMA_InitStructure.DMA_PeripheralBaseAddr    = (uint32_t)(&USART1->DR);      //外设地址
-    DMA_InitStructure.DMA_Memory0BaseAddr       = (uint32_t)Cam.SendBuffer;   //内存地址
+    DMA_InitStructure.DMA_Memory0BaseAddr       = (uint32_t)Cam.SendBuffer;     //内存地址
     DMA_InitStructure.DMA_DIR                   = DMA_DIR_MemoryToPeripheral;   //内存到外设
-    DMA_InitStructure.DMA_BufferSize            = TX_BUFFER_SIZE;         //缓冲大小
+    DMA_InitStructure.DMA_BufferSize            = TX_BUFFER_SIZE;               //缓冲大小
     DMA_InitStructure.DMA_PeripheralInc         = DMA_PeripheralInc_Disable;    //外设地址不增
     DMA_InitStructure.DMA_MemoryInc             = DMA_MemoryInc_Enable;         //内存地址增
     DMA_InitStructure.DMA_PeripheralDataSize    = DMA_PeripheralDataSize_Byte;  //外设数据大小1byte
@@ -192,43 +195,36 @@ void Camera_805_Init(void)
     EpsOutSwitch(OUT_CAMERA_HEAT_1, ENABLE);
 }
 
-//void CAMERA_TX_ISR_HANDLER(void)
-//{
-//    if(DMA_GetFlagStatus(CAMERA_DMA_TX_STREAM, DMA_FLAG_TCIF7) != RESET)
-//    {
-//        DMA_ClearFlag(CAMERA_DMA_TX_STREAM, DMA_FLAG_TCIF7);
-//    }
-//}
+void CAMERA_TX_ISR_HANDLER(void)
+{
+    if(DMA_GetFlagStatus(CAMERA_DMA_TX_STREAM, DMA_FLAG_TCIF7) != RESET)
+    {
+        DMA_ClearFlag(CAMERA_DMA_TX_STREAM, DMA_FLAG_TCIF7);
+    }
+}
 
 #define RESERVED_MASK   (uint32_t)0x0F7D0F7D
 static uint32_t DataOffset = 1; //用来表征发起了几次DMA传输，还有用来计算
                                 //需要设置的存储器地址，初始值为1
 
-///* DMA传输完成中断设置，因为DMA每次最大传输65535个字
-// * 节数据，为了实现连续串口接收超过65535字节数据 */
-//void DMA2_Stream2_IRQHandler(void)
-//{
-//    if ((DMA2_Stream2->CR & (uint32_t)DMA_SxCR_EN) != SET)
-//    {
-//        DMA2->LIFCR = (uint32_t)(DMA_FLAG_TCIF2 & RESERVED_MASK);  //清传输完成标志
-//
-//        if(!DataOffset)
-//            DMA2_Stream2->NDTR = 0;
-//
-//        DMA2_Stream2->M0AR = (uint32_t)&Cam.ReceiveBuffer[CamerarReceiveBufferSize*DataOffset -
-//                                        DMA2_Stream2->NDTR];  //设置存储器地址
-//        DMA2_Stream2->NDTR = (uint16_t)CamerarReceiveBufferSize;//编程DMA接收字节数
-//        DMA2_Stream2->CR |= DMA_SxCR_EN;    //使能 串口1 DMA接收
-//        DataOffset ++;
-//    }
-//}
+/* DMA传输完成中断设置，因为DMA每次最大传输65535个字
+ * 节数据，为了实现连续串口接收超过65535字节数据 */
+void DMA2_Stream2_IRQHandler(void)
+{
+    if ((DMA2_Stream2->CR & (uint32_t)DMA_SxCR_EN) != SET)
+    {
+        DMA2->LIFCR = (uint32_t)(DMA_FLAG_TCIF2 & RESERVED_MASK);  //清传输完成标志
 
-/* NorFlash相关定义 */
-//uint16_t DataToNor;
-//u32 CamReceiveCount = 0; //单位：字节
-//u8 HalfWordFlag = 0;
-//#define PhotoStorageBase 32768
-//#define PhotoOne(x)  ((uint32_t)(PhotoStorageBase + x))
+        if(!DataOffset)
+            DMA2_Stream2->NDTR = 0;
+
+        DMA2_Stream2->M0AR = (uint32_t)&Cam.ReceiveBuffer[CamerarReceiveBufferSize*DataOffset -
+                                        DMA2_Stream2->NDTR];  //设置存储器地址
+        DMA2_Stream2->NDTR = (uint16_t)CamerarReceiveBufferSize;//编程DMA接收字节数
+        DMA2_Stream2->CR |= DMA_SxCR_EN;    //使能 串口1 DMA接收
+        DataOffset ++;
+    }
+}
 
     /* 串口空闲中断 */
 void CAMERA_RX_ISR_HANDLER(void)
@@ -243,13 +239,14 @@ void CAMERA_RX_ISR_HANDLER(void)
         ReceivedData = USART_ReceiveData(CAMERA_PORT_NAME);
         printf("Receive overflow error!\n\r");
     }
-    if(USART_GetITStatus(CAMERA_PORT_NAME, USART_IT_IDLE) != RESET)
+
+    if( USART_GetITStatus( CAMERA_PORT_NAME, USART_IT_IDLE ) != RESET )
     {
         CleanUpRegist = USART1->SR;//必须读状态寄存器和数据寄存器 否则会一直进中断
         CleanUpRegist = USART1->DR;
 
-        USART_ClearFlag(CAMERA_PORT_NAME, USART_FLAG_IDLE);
-        USART_ClearITPendingBit(CAMERA_PORT_NAME, USART_IT_IDLE);
+        USART_ClearFlag( CAMERA_PORT_NAME, USART_FLAG_IDLE );
+        USART_ClearITPendingBit( CAMERA_PORT_NAME, USART_IT_IDLE );
 
         Cam.Rxlen = CamerarReceiveBufferSize * DataOffset -
         		DMA_GetCurrDataCounter(CAMERA_DMA_RX_STREAM);
@@ -260,6 +257,7 @@ void CAMERA_RX_ISR_HANDLER(void)
         DMA_Cmd(CAMERA_DMA_RX_STREAM, DISABLE);//关闭DMA会产生DMA传输完成中断
         xSemaphoreGiveFromISR(Cam.SynchBinSem, &TaskWoken);
     }
+
     portYIELD_FROM_ISR(TaskWoken);
 }
 
@@ -271,7 +269,11 @@ void CAMERA_RX_ISR_HANDLER(void)
 int Camera_805_reset(void)
 {
     /* 获取相机访问锁，申请访问相机 */
-    xSemaphoreTake(Cam.AccessMutexSem, 20 * configTICK_RATE_HZ);
+    if( xSemaphoreTake(Cam.AccessMutexSem, 10) != pdTRUE )
+    {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM take mutex sem fail!\r\n");
+        return E_NO_QUEUE;
+    }
 
     memset(Cam.SendBuffer, 0, TX_BUFFER_SIZE);
     Cam.SendBuffer[0] = 0xAA;
@@ -283,8 +285,9 @@ int Camera_805_reset(void)
     DMA_Cmd(CAMERA_DMA_TX_STREAM, ENABLE);
 
     /* 如果相机没有收到回复 */
-    if(xSemaphoreTake(Cam.SynchBinSem, 1000) != pdTRUE)
+    if(xSemaphoreTake(Cam.SynchBinSem, CAM_REP_TIMEOUT) != pdTRUE)
     {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM rsp receive timeout!!\r\n");
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
@@ -294,6 +297,7 @@ int Camera_805_reset(void)
 
     if (Cam.ReceiveBuffer[2] != 0x7E)
     {
+        driver_debug(DEBUG_CAMERA,"ERROR: CAM rsp error!!\r\n");
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
@@ -319,7 +323,11 @@ int Camera_805_reset(void)
 int Camera_Temp_Get(uint8_t Point, uint16_t *temp)
 {
     /* 获取相机访问锁，申请访问相机 */
-    xSemaphoreTake(Cam.AccessMutexSem, 1000);
+    if( xSemaphoreTake(Cam.AccessMutexSem, 10) != pdTRUE )
+    {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM take mutex sem fail!\r\n");
+        return E_NO_QUEUE;
+    }
 
     memset(Cam.SendBuffer, 0, TX_BUFFER_SIZE);
     Cam.SendBuffer[0] = 0xAA;
@@ -332,8 +340,9 @@ int Camera_Temp_Get(uint8_t Point, uint16_t *temp)
     DMA_Cmd(CAMERA_DMA_TX_STREAM,ENABLE);
 
     /* 如果相机没有收到回复 */
-    if(xSemaphoreTake(Cam.SynchBinSem, 1000) != pdTRUE)
+    if(xSemaphoreTake(Cam.SynchBinSem, CAM_REP_TIMEOUT) != pdTRUE)
     {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM rsp receive timeout!!\r\n");
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
@@ -344,6 +353,7 @@ int Camera_Temp_Get(uint8_t Point, uint16_t *temp)
     /* 安全检查，回复的温度是否为需采的温度点 */
     if( Cam.ReceiveBuffer[2] != 0x05 || Cam.ReceiveBuffer[3] != Point )
     {
+        driver_debug(DEBUG_CAMERA,"ERROR: CAM RSP error!\r\n");
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
@@ -371,7 +381,11 @@ int Camera_Temp_Get(uint8_t Point, uint16_t *temp)
 int Camera_Exposure_Time_Read(uint32_t *exp_time)
 {
     /* 获取相机访问锁，申请访问相机 */
-    xSemaphoreTake(Cam.AccessMutexSem, 1000);
+    if( xSemaphoreTake(Cam.AccessMutexSem, 10) != pdTRUE )
+    {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM take mutex sem fail!\r\n");
+        return E_NO_QUEUE;
+    }
 
     memset(Cam.SendBuffer, 0, TX_BUFFER_SIZE);
     Cam.SendBuffer[0] = 0xAA;
@@ -383,8 +397,9 @@ int Camera_Exposure_Time_Read(uint32_t *exp_time)
     DMA_Cmd(CAMERA_DMA_TX_STREAM,ENABLE);
 
     /* 如果相机没有收到回复 */
-    if(xSemaphoreTake(Cam.SynchBinSem, 1000) != pdTRUE)
+    if(xSemaphoreTake(Cam.SynchBinSem, CAM_REP_TIMEOUT) != pdTRUE)
     {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM rsp receive timeout!!\r\n");
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
@@ -395,6 +410,7 @@ int Camera_Exposure_Time_Read(uint32_t *exp_time)
     /* 安全检查 */
     if(Cam.ReceiveBuffer[2] != 0x06)
     {
+        driver_debug(DEBUG_CAMERA,"ERROR: CAM RSP error!\r\n");
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
@@ -423,9 +439,13 @@ int Camera_Exposure_Time_Read(uint32_t *exp_time)
 int Camera_Exposure_Time_Set(uint32_t exp_time)
 {
     /* 获取相机访问锁，申请访问相机 */
-    xSemaphoreTake(Cam.AccessMutexSem, 1000);
+    if( xSemaphoreTake(Cam.AccessMutexSem, 10) != pdTRUE )
+    {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM take mutex sem fail!\r\n");
+        return E_NO_QUEUE;
+    }
 
-    exp_time = (exp_time > 0x00FFFFFF) ? 0x00FFFFFF : exp_time;
+    exp_time &= 0x00FFFFFF;
 
     memset(Cam.SendBuffer, 0, TX_BUFFER_SIZE);
     Cam.SendBuffer[0] = 0xaa;
@@ -434,11 +454,16 @@ int Camera_Exposure_Time_Set(uint32_t exp_time)
     Cam.SendBuffer[3] = (uint8_t)(exp_time>>16);
     Cam.SendBuffer[4] = (uint8_t)(exp_time>>8);
     Cam.SendBuffer[5] = (uint8_t)exp_time;
+
+    /* 使能 USART */
+    USART_Cmd(CAMERA_PORT_NAME, ENABLE);
+    /* 使能DMA传输 */
     DMA_Cmd(CAMERA_DMA_TX_STREAM,ENABLE);
 
     /* 如果相机没有收到回复 */
-    if(xSemaphoreTake(Cam.SynchBinSem, 1000) != pdTRUE)
+    if(xSemaphoreTake(Cam.SynchBinSem, CAM_REP_TIMEOUT) != pdTRUE)
     {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM rsp receive timeout!!\r\n");
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
@@ -449,6 +474,7 @@ int Camera_Exposure_Time_Set(uint32_t exp_time)
     /* 安全检查 */
     if(Cam.ReceiveBuffer[2] != 0x06)
     {
+        driver_debug(DEBUG_CAMERA,"ERROR: CAM RSP error!\r\n");
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
@@ -484,7 +510,11 @@ int Camera_Exposure_Time_Set(uint32_t exp_time)
 int Camera_Gain_Get(uint8_t *gain)
 {
     /* 获取相机访问锁，申请访问相机 */
-    xSemaphoreTake(Cam.AccessMutexSem, 1000);
+    if( xSemaphoreTake(Cam.AccessMutexSem, 10) != pdTRUE )
+    {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM take mutex sem fail!\r\n");
+        return E_NO_QUEUE;
+    }
 
     memset(Cam.SendBuffer, 0, TX_BUFFER_SIZE);
     Cam.SendBuffer[0] = 0xAA;
@@ -496,8 +526,9 @@ int Camera_Gain_Get(uint8_t *gain)
     DMA_Cmd(CAMERA_DMA_TX_STREAM,ENABLE);
 
     /* 如果相机没有收到回复 */
-    if(xSemaphoreTake(Cam.SynchBinSem, 1000) != pdTRUE)
+    if(xSemaphoreTake(Cam.SynchBinSem, CAM_REP_TIMEOUT) != pdTRUE)
     {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM rsp receive timeout!!\r\n");
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
@@ -508,6 +539,7 @@ int Camera_Gain_Get(uint8_t *gain)
     /* 安全检查 */
     if(Cam.ReceiveBuffer[2] != 0x07)
     {
+        driver_debug(DEBUG_CAMERA,"ERROR: CAM RSP error!\r\n");
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
@@ -534,7 +566,11 @@ int Camera_Gain_Get(uint8_t *gain)
 int Camera_Gain_Set(uint8_t gain)
 {
     /* 获取相机访问锁，申请访问相机 */
-    xSemaphoreTake(Cam.AccessMutexSem, 1000);
+    if( xSemaphoreTake(Cam.AccessMutexSem, 10) != pdTRUE )
+    {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM take mutex sem fail!\r\n");
+        return E_NO_QUEUE;
+    }
 
     memset(Cam.SendBuffer, 0, TX_BUFFER_SIZE);
     Cam.SendBuffer[0] = 0xAA;
@@ -548,8 +584,9 @@ int Camera_Gain_Set(uint8_t gain)
     DMA_Cmd(CAMERA_DMA_TX_STREAM,ENABLE);
 
     /* 如果相机没有收到回复 */
-    if(xSemaphoreTake(Cam.SynchBinSem, 1000) != pdTRUE)
+    if(xSemaphoreTake(Cam.SynchBinSem, CAM_REP_TIMEOUT) != pdTRUE)
     {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM rsp receive timeout!!\r\n");
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
@@ -560,6 +597,7 @@ int Camera_Gain_Set(uint8_t gain)
     /* 安全检查 */
     if(Cam.ReceiveBuffer[2] != 0x07 || Cam.ReceiveBuffer[5] != gain)
     {
+        driver_debug(DEBUG_CAMERA,"ERROR: CAM RSP error!\r\n");
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
@@ -569,6 +607,7 @@ int Camera_Gain_Set(uint8_t gain)
 
     /* 除能 USART */
     USART_Cmd(CAMERA_PORT_NAME, DISABLE);
+
     /* 给出互斥锁 */
     xSemaphoreGive(Cam.AccessMutexSem);
 
@@ -584,7 +623,11 @@ int Camera_Gain_Set(uint8_t gain)
 int Camera_Work_Mode_Get(cam_ctl_t *cam_ctl_mode)
 {
     /* 获取相机访问锁，申请访问相机 */
-    xSemaphoreTake(Cam.AccessMutexSem, 1000);
+    if( xSemaphoreTake(Cam.AccessMutexSem, 10) != pdTRUE )
+    {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM take mutex sem fail!\r\n");
+        return E_NO_QUEUE;
+    }
 
     memset(Cam.SendBuffer, 0, TX_BUFFER_SIZE);
     Cam.SendBuffer[0] = 0xAA;
@@ -597,8 +640,9 @@ int Camera_Work_Mode_Get(cam_ctl_t *cam_ctl_mode)
 
 
     /* 如果相机没有收到回复 */
-    if(xSemaphoreTake(Cam.SynchBinSem, 1000) != pdTRUE)
+    if(xSemaphoreTake(Cam.SynchBinSem, CAM_REP_TIMEOUT) != pdTRUE)
     {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM rsp receive timeout!!\r\n");
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
@@ -609,6 +653,7 @@ int Camera_Work_Mode_Get(cam_ctl_t *cam_ctl_mode)
     /* 安全检查 */
     if(Cam.ReceiveBuffer[2] != 0x08)
     {
+        driver_debug(DEBUG_CAMERA,"ERROR: CAM RSP error!\r\n");
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
@@ -652,7 +697,11 @@ int Camera_Work_Mode_Get(cam_ctl_t *cam_ctl_mode)
 int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode)
 {
     /* 获取相机访问锁，申请访问相机 */
-    xSemaphoreTake(Cam.AccessMutexSem, 1000);
+    if( xSemaphoreTake(Cam.AccessMutexSem, 10) != pdTRUE )
+    {
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM take mutex sem fail!\r\n");
+        return E_NO_QUEUE;
+    }
 
     memset(Cam.SendBuffer, 0, TX_BUFFER_SIZE);
     Cam.SendBuffer[0] = 0xaa;
@@ -668,12 +717,14 @@ int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode)
     DMA_Cmd(CAMERA_DMA_TX_STREAM,ENABLE);
 
     /* 如果相机没有收到回复 */
-    if (xSemaphoreTake(Cam.SynchBinSem, 1000) != pdTRUE)
+    if (xSemaphoreTake(Cam.SynchBinSem, CAM_REP_TIMEOUT) != pdTRUE)
     {
         /* 除能 USART */
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
         xSemaphoreGive(Cam.AccessMutexSem);
+
+        driver_debug(DEBUG_CAMERA,"WARNING: CAM RSP receive timeout!\r\n");
         return E_TIMEOUT;
     }
 
@@ -684,8 +735,16 @@ int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode)
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
         xSemaphoreGive(Cam.AccessMutexSem);
+
+        driver_debug(DEBUG_CAMERA,"ERROR: CAM RSP error!\r\n");
         return E_INVALID_PARAM;
     }
+
+    for( uint32_t i = 0; i < Cam.Rxlen; i++ )
+    {
+        driver_debug(DEBUG_CAMERA,"%02x ", Cam.ReceiveBuffer[i]);
+    }
+    driver_debug(DEBUG_CAMERA,"\r\n");
 
     /*若返回的的数值与设置的值不同*/
     if ( (*(cam_ctl_t *)&Cam.ReceiveBuffer[3]).tran != cam_ctl_mode.tran ||
@@ -696,6 +755,8 @@ int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode)
         USART_Cmd(CAMERA_PORT_NAME, DISABLE);
         /* 给出互斥锁 */
         xSemaphoreGive(Cam.AccessMutexSem);
+
+        driver_debug(DEBUG_CAMERA,"ERROR: CAM RSP error!\r\n");
         return E_INVALID_PARAM;
     }
 
@@ -709,44 +770,59 @@ int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode)
         memcpy(CurrentImage.ImageLocation,
                 hk_frame.append_frame.adcs_hk.adcs805_hk_orbit.downAdcsOrbPos, sizeof(CurrentImage.ImageLocation));
 
+        /* 等待相机图像传输完成，超时时间40s */
+        if(xSemaphoreTake(Cam.SynchBinSem, 40000) != pdTRUE)
+        {
+            /* 除能 USART */
+            USART_Cmd(CAMERA_PORT_NAME, DISABLE);
+            /* 给出互斥锁 */
+            xSemaphoreGive(Cam.AccessMutexSem);
+
+            driver_debug(DEBUG_CAMERA,"WARNING: CAM data receive timeout!!\r\n");
+            return E_TIMEOUT;
+        }
+
+        driver_debug( DEBUG_CAMERA,"Check sum: %02x\r\n", sum_check(&Cam.ReceiveBuffer[0], Cam.Rxlen - 5) );
+
+        memmove( &Cam.ReceiveBuffer[6], &Cam.ReceiveBuffer[0], Cam.Rxlen );
+
+        driver_debug( DEBUG_CAMERA,"Check sum: %02x\r\n", sum_check(&Cam.ReceiveBuffer[6], Cam.Rxlen - 5) );
+
+        for( uint32_t i = 0; i < 12; i++ )
+        {
+            driver_debug(DEBUG_CAMERA,"%02x ", Cam.ReceiveBuffer[i]);
+        }
+        driver_debug(DEBUG_CAMERA,"\r\n");
+
+//        /* 和校验 */
+//        if( sum_check(&Cam.ReceiveBuffer[6], Cam.Rxlen - 5) != Cam.ReceiveBuffer[Cam.Rxlen + 1] )
+//        {
+//            /* 除能 USART */
+//            USART_Cmd(CAMERA_PORT_NAME, DISABLE);
+//            /* 给出互斥锁 */
+//            xSemaphoreGive(Cam.AccessMutexSem);
+//
+//            driver_debug(DEBUG_CAMERA,"WARNING: CAM data sum check fail!!\r\n");
+//            return E_CRC_CHECK_ERROR;
+//        }
+
         /* 给图像附ID号 */
         CurrentImage.ImageID ++;
 
         /* 常规图像包中图像数据的大小 */
         CurrentImage.PacketSize = IMAGE_PACK_MAX_SIZE;
 
-
-        /* 等待相机图像传输完成，超时时间10s */
-        if(xSemaphoreTake(Cam.SynchBinSem, 10000) != pdTRUE)
-        {
-            /* 除能 USART */
-            USART_Cmd(CAMERA_PORT_NAME, DISABLE);
-            /* 给出互斥锁 */
-            xSemaphoreGive(Cam.AccessMutexSem);
-            return E_TIMEOUT;
-        }
-
         /* 图像大小 */
-        CurrentImage.ImageSize = Cam.Rxlen - 11;
-        CurrentImage.ImageSize = (CurrentImage.ImageSize % 2) ? CurrentImage.ImageSize+1 : CurrentImage.ImageSize;
+        CurrentImage.ImageSize = Cam.Rxlen - 5;
+        CurrentImage.ImageSize = (CurrentImage.ImageSize % 2) ? CurrentImage.ImageSize + 1 : CurrentImage.ImageSize;
 
         /* 下行图像需要的总图像包数量 */
         CurrentImage.TotalPacket = (CurrentImage.ImageSize % IMAGE_PACK_MAX_SIZE) ?
-                CurrentImage.ImageSize/IMAGE_PACK_MAX_SIZE+1 : CurrentImage.ImageSize/IMAGE_PACK_MAX_SIZE;
+                CurrentImage.ImageSize / IMAGE_PACK_MAX_SIZE + 1 : CurrentImage.ImageSize / IMAGE_PACK_MAX_SIZE;
 
         /* 最后一个图像包中图像数据的大小 */
         CurrentImage.LastPacketSize = (CurrentImage.ImageSize % IMAGE_PACK_MAX_SIZE) ?
-        		CurrentImage.ImageSize % IMAGE_PACK_MAX_SIZE : IMAGE_PACK_MAX_SIZE;
-
-        /* 和校验 */
-        if(sum_check(Cam.ReceiveBuffer, Cam.Rxlen-1) != Cam.ReceiveBuffer[Cam.Rxlen-1])
-        {
-            /* 除能 USART */
-            USART_Cmd(CAMERA_PORT_NAME, DISABLE);
-            /* 给出互斥锁 */
-            xSemaphoreGive(Cam.AccessMutexSem);
-            return E_CRC_CHECK_ERROR;
-        }
+                CurrentImage.ImageSize % IMAGE_PACK_MAX_SIZE : IMAGE_PACK_MAX_SIZE;
 
         /* 图像数据片外NorFLASH存储，Flash中总是存最近的一包       */
         ImagStoreInFlash();
@@ -805,7 +881,7 @@ static uint32_t cam_find_flash_free_sector(void)
 {
     int i;
 
-    cam_flash store_loc = image_store_falsh[0];
+    cam_flash *store_loc = &image_store_falsh[0];
 
     /* 遍历存储表 */
     for (i = 0; i < FLASH_IMG_NUM; i++)
@@ -813,12 +889,12 @@ static uint32_t cam_find_flash_free_sector(void)
         /* 若有未使用的存储块，则返回未使用存储块的扇区号*/
         if ( image_store_falsh[i].image_id == 0 )
         {
-            store_loc = image_store_falsh[i];
+            store_loc = &image_store_falsh[i];
             break;
         } /* 图像id越小，图像越老  */
-        else if ( image_store_falsh[i].image_id < store_loc.image_id )
+        else if ( image_store_falsh[i].image_id < store_loc->image_id )
         {
-            store_loc = image_store_falsh[i];
+            store_loc = &image_store_falsh[i];
         }
     }
     /* 若没有未使用的存储块，则擦除最老的一幅图像的存储块 ，
@@ -826,27 +902,27 @@ static uint32_t cam_find_flash_free_sector(void)
      */
     if (i == FLASH_IMG_NUM)
     {
-        for ( int j = store_loc.falsh_sector; j < store_loc.falsh_sector+4; j++ )
+        for ( int j = store_loc->falsh_sector; j < store_loc->falsh_sector + 4; j++ )
         {
             if ( USER_NOR_SectorErase(j) != NOR_SUCCESS )
                 return 0;
         }
 
-        store_loc.image_id = 0;
+        store_loc->image_id = 0;
     }
 
     /* 确保整个存储块是擦除过的状态 */
-    int sector_start_addr = get_addr_via_sector_num(store_loc.falsh_sector);
-    for ( ; sector_start_addr < sector_start_addr + 4*32768; sector_start_addr++)
+    uint32_t sector_start_addr = get_addr_via_sector_num(store_loc->falsh_sector);
+    for ( uint32_t flash_addr = sector_start_addr; flash_addr < sector_start_addr + 4 * 32768; flash_addr++)
     {
-        if (0xFFFF != FSMC_NOR_ReadHalfWord(sector_start_addr))
+        if (0xFFFF != FSMC_NOR_ReadHalfWord(flash_addr))
         {
-            if (FSMC_NOR_EraseBlock(sector_start_addr) != NOR_SUCCESS)
+            if (FSMC_NOR_EraseBlock(flash_addr) != NOR_SUCCESS)
                 return 0;
         }
     }
 
-    return store_loc.falsh_sector;
+    return store_loc->falsh_sector;
 }
 
 /**
@@ -896,7 +972,10 @@ static int sector_bind_id(uint32_t sector, uint32_t id)
             if (image_store_falsh[i].image_id != 0)
                 return E_INVALID_PARAM;
             else
+            {
                 image_store_falsh[i].image_id = id;
+                break;
+            }
         }
     }
 
@@ -907,20 +986,28 @@ static int sector_bind_id(uint32_t sector, uint32_t id)
 }
 
 /**
- *图像存储映射表恢复
+ * 图像存储映射表恢复，照片ID恢复， 初始化时调用
  *
  */
 void img_store_block_recover(void)
 {
+    uint32_t max_image_id = 0;
     /* 遍历存储表 */
     for (int i = 0; i < FLASH_IMG_NUM; i++)
     {
-        FSMC_NOR_ReadBuffer((uint16_t *)&image_store_falsh[i].image_id, get_addr_via_sector_num(image_store_falsh[i].falsh_sector),
-                    sizeof(uint32_t) / 2);
+        FSMC_NOR_ReadBuffer((uint16_t *)&image_store_falsh[i].image_id,
+                get_addr_via_sector_num(image_store_falsh[i].falsh_sector), sizeof(uint32_t) / 2);
 
         if (image_store_falsh[i].image_id == 0xFFFFFFFF)
             image_store_falsh[i].image_id = 0;
+
+        /* 获取当前照片ID值 */
+        max_image_id = (image_store_falsh[i].image_id > max_image_id) ?
+                image_store_falsh[i].image_id : max_image_id;
     }
+
+    /* 恢复当前照片ID值 */
+    CurrentImage.ImageID = max_image_id;
 }
 
 /**
@@ -933,20 +1020,47 @@ static int ImagStoreInFlash(void)
     uint32_t free_block_sector = cam_find_flash_free_sector();
 
     if(free_block_sector == 0)
+    {
+        driver_debug(DEBUG_CAMERA, "ERROR: Store in flash find free sector fail!!\r\n");
         return E_FLASH_ERROR;
+    }
 
     uint32_t write_addr = get_addr_via_sector_num(free_block_sector);
 
-
     if (FSMC_NOR_WriteBuffer((uint16_t *)&CurrentImage, write_addr, sizeof(ImageInfo_t) / 2) != NOR_SUCCESS)
+    {
+        driver_debug(DEBUG_CAMERA, "ERROR: IMG FLASH STORE write image info fail!!\r\n");
         return E_FLASH_ERROR;
+    }
 
-    if (FSMC_NOR_WriteBuffer((uint16_t *)&Cam.ReceiveBuffer[6], write_addr + sizeof(ImageInfo_t) / 2,
-            CurrentImage.ImageSize / 2) != NOR_SUCCESS)
+    if (FSMC_NOR_WriteBuffer( (uint16_t *)&Cam.ReceiveBuffer[6], write_addr + sizeof(ImageInfo_t) / 2,
+            CurrentImage.ImageSize / 2) != NOR_SUCCESS )
+    {
+        driver_debug(DEBUG_CAMERA, "ERROR: IMG FLASH STORE write image data fail!!\r\n");
         return E_FLASH_ERROR;
+    }
+
+    ImageInfo_t image_info_test = {0};
+    FSMC_NOR_ReadBuffer( (uint16_t *)&image_info_test, write_addr, sizeof(ImageInfo_t) / 2 );
+
+    /* 测试FLASH存储正确性 */
+    memset(image_test_arry, 0, 256*1024);
+    FSMC_NOR_ReadBuffer( (uint16_t *)image_test_arry, write_addr + sizeof(ImageInfo_t) / 2, CurrentImage.ImageSize / 2 );
+
+    if( memcmp(image_test_arry, &Cam.ReceiveBuffer[6], CurrentImage.ImageSize ) == 0 )
+    {
+        driver_debug(DEBUG_CAMERA, "INFO: IMG flash store OK.\r\n");
+    }
+    else
+    {
+        driver_debug(DEBUG_CAMERA, "INFO: IMG flash store OK.\r\n");
+    }
 
     if(sector_bind_id(free_block_sector, CurrentImage.ImageID) != E_NO_ERR)
+    {
+        driver_debug(DEBUG_CAMERA, "ERROR: IMG FLASH STORE id bind sector fail!!\r\n");
         return E_FLASH_ERROR;
+    }
 
     return E_NO_ERR;
 }
@@ -960,7 +1074,7 @@ static int ImagStoreInSD(void)
 {
     static uint32_t img_dir_init = 0;
 
-    char path[20] = {0};
+    char path[30] = {0};
 
     /*若初始化标志位0，则创建img文件夹*/
     if(img_dir_init == 0)
@@ -972,6 +1086,7 @@ static int ImagStoreInSD(void)
     /**
      * 创建图像信息文件ImageInfo.dat
      */
+    memset(path, 0, 30);
     sprintf(path, "0:img/ImageInfo-%u.dat", CurrentImage.ImageID);
 
     if (file_write(path, &CurrentImage, (UINT)sizeof(ImageInfo_t)) != FR_OK)
@@ -981,9 +1096,10 @@ static int ImagStoreInSD(void)
     }
 
     /* 创建图像原始数据文件 */
+    memset(path, 0, 30);
     sprintf(path, "0:img/ImageData-%u.dat", CurrentImage.ImageID);
 
-    if (file_write(path, &Cam.ReceiveBuffer[6], (UINT)CurrentImage.ImageSize) != FR_OK)
+    if( file_write( path, &Cam.ReceiveBuffer[6], (UINT)CurrentImage.ImageSize ) != FR_OK )
     {
         driver_debug(DEBUG_CAMERA, "Camera Write ImageData.dat Failure!!\r\n");
         return E_NO_DEVICE;
@@ -1444,13 +1560,16 @@ int cmd_Camera_Temp_Get(struct command_context *ctx)
     char * args = command_args(ctx);
     uint16_t Temp;
     uint8_t point;
+
     if (sscanf(args, "%x", &point)!= 1)
-            return CMD_ERROR_SYNTAX;
+        return CMD_ERROR_SYNTAX;
+
     flag=Camera_Temp_Get(point,&Temp);
+
     if(flag==E_NO_ERR)
-        printf("Get temperature successful and point is:%x temperature is:%x",point ,Temp);
+        printf("Get temperature successful!!\r\nPoint:%x Temp:%x\r\n",point , Temp);
     else
-        printf("Get temperature failed");
+        printf("Get temperature failed\r\n");
 
     return CMD_ERROR_NONE;
 }
@@ -1459,12 +1578,14 @@ int cmd_Camera_Temp_Get(struct command_context *ctx)
 int cmd_Camera_Exposure_Time_Read(struct command_context * ctx __attribute__((unused)))
 {
     int flag=0;
-    uint32_t Exp_time;
-    flag=Camera_Exposure_Time_Read(&Exp_time);
-    if(flag==E_NO_ERR)
-        printf("Get exposure time successful the result is:%x",Exp_time);
+    uint32_t Exp_time = 0;
+
+    flag = Camera_Exposure_Time_Read(&Exp_time);
+
+    if(flag == E_NO_ERR)
+        printf("Get exposure time successful!!\r\nResult: %u\r\n", Exp_time);
     else
-        printf("Get exposure time failed");
+        printf("Get exposure time failed.\r\n");
 
     return CMD_ERROR_NONE;
 }
@@ -1474,13 +1595,17 @@ int cmd_Camera_Exposure_Time_Set(struct command_context *ctx)
     char * args = command_args(ctx);
     uint32_t Exp_time;
     int flag=0;
+
     if (sscanf(args, "%x", &Exp_time)!= 1)
-            return CMD_ERROR_SYNTAX;
+        return CMD_ERROR_SYNTAX;
+
     flag=Camera_Exposure_Time_Set(Exp_time);
+
     if(flag==E_NO_ERR)
-        printf("Set exposure time successful the value is:%x",Exp_time);
+        printf("Set exposure time successful the value is:%x\r\n",Exp_time);
     else
-        printf("Set exposure time failed");
+        printf("Set exposure time failed\r\n");
+
     return CMD_ERROR_NONE;
 }
 
@@ -1489,11 +1614,13 @@ int cmd_Camera_Gain_Get(struct command_context * ctx __attribute__((unused)))
 {
     int flag=0;
     uint8_t Gain;
+
     flag=Camera_Gain_Get(&Gain);
+
     if(flag==E_NO_ERR)
-        printf("Get gain  successful the result is:%x",Gain);
+        printf("Get gain  successful the result is:%x\r\n",Gain);
     else
-        printf("Get gain failed");
+        printf("Get gain failed\r\n");
 
     return CMD_ERROR_NONE;
 }
@@ -1503,13 +1630,17 @@ int cmd_Camera_Gain_Set(struct command_context *ctx)
     char * args = command_args(ctx);
     uint8_t Gain;
     int flag=0;
+
     if (sscanf(args, "%x", &Gain)!= 1)
-            return CMD_ERROR_SYNTAX;
+        return CMD_ERROR_SYNTAX;
+
     flag=Camera_Gain_Set(Gain);
+
     if(flag==E_NO_ERR)
-        printf("Set gain successful the value is:%x",Gain);
+        printf("Set gain successful the value is:%x\r\n",Gain);
     else
-        printf("Set gain failed");
+        printf("Set gain failed\r\n");
+
     return CMD_ERROR_NONE;
 }
 
@@ -1517,11 +1648,13 @@ int cmd_Camera_Work_Mode_Get(struct command_context * ctx __attribute__((unused)
 {
     cam_ctl_t Cam_mode;
     int flag=0;
+
     flag=Camera_Work_Mode_Get(&Cam_mode);
+
     if(flag==E_NO_ERR)
-        printf("trans_mode:%x work_mode:%x  expo_mode:%x" ,Cam_mode.tran,Cam_mode.mode,Cam_mode.expo);
+        printf("trans_mode:%x work_mode:%x expo_mode:%x\r\n" , Cam_mode.tran, Cam_mode.mode, Cam_mode.expo);
     else
-        printf("Get control mode failed");
+        printf("Get control mode failed\r\n");
 
     return CMD_ERROR_NONE;
 }
@@ -1529,21 +1662,25 @@ int cmd_Camera_Work_Mode_Get(struct command_context * ctx __attribute__((unused)
 int cmd_Camera_Work_Mode_Set(struct command_context *ctx)
 {
     char * args = command_args(ctx);
-    uint8_t Tran;
-    uint8_t Mode;
-    uint8_t Expo;
+    static uint8_t Tran, Mode, Expo;
     cam_ctl_t Cam_mode;
+
     int flag=0;
+
     if (sscanf(args, "%x %x %x", &Tran, &Mode, &Expo) != 3)
-            return CMD_ERROR_SYNTAX;
+        return CMD_ERROR_SYNTAX;
+
     Cam_mode.tran=Tran;
     Cam_mode.mode=Mode;
     Cam_mode.expo=Expo;
+
     flag=Camera_Work_Mode_Set(Cam_mode);
+
     if(flag==E_NO_ERR)
-        printf("Set successful trans_mode:%x work_mode:%x  expo_mode:%x" ,Cam_mode.tran,Cam_mode.mode,Cam_mode.expo);
+        printf("Set successful trans_mode:%x work_mode:%x  expo_mode:%x\r\n" ,Cam_mode.tran,Cam_mode.mode,Cam_mode.expo);
     else
-        printf("Set control mode failed");
+        printf("Set control mode failed.\r\n");
+
     return CMD_ERROR_NONE;
 }
 
@@ -1580,7 +1717,7 @@ command_t __sub_command camera805_subcommands[] = {
         .help = "Camera control mode",
         .handler = cmd_Camera_Work_Mode_Get,
     },{
-        .name = "get_mode",
+        .name = "set_mode",
         .help = "Camera control mode",
         .usage = "<tran> <mode> <expo>",
         .handler = cmd_Camera_Work_Mode_Set,

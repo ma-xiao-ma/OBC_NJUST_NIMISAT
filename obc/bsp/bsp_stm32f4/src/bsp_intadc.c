@@ -62,7 +62,7 @@ static u16 Get_Adc_Average(u8 ch,u8 times)
 {
     u32 temp_val=0;
     u8 t;
-    for(t=0; t<times; t++)
+    for(t=0; t < times; t++)
     {
         temp_val += Get_Adc1(ch);
         vTaskDelay(5);

@@ -990,8 +990,12 @@ int i2c_master_transaction(int handle, uint8_t addr, void * txbuf, size_t txlen,
 	if (frame == NULL)
 		return E_NO_BUFFER;
 
-	/* Take the I2C lock */
-	xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
+    /* Take the I2C lock */
+    if( xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ) != pdTRUE )
+    {
+        ObcMemFree(frame);
+        return E_NO_QUEUE;
+    }
 
 	/* Temporarily disable the RX callback, because we wish the received message to go into the I2C queue instead */
 	void * tmp_callback = device[handle].callback;

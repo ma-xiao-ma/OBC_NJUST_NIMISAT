@@ -33,7 +33,6 @@
 #include "route.h"
 #include "router_io.h"
 #include "if_downlink_vu.h"
-#include "camera_enlai.h"
 
 uint32_t rec_cmd_cnt = 0; //obc接收本地指令计数
 
@@ -160,7 +159,7 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
                     /*如果文件打开失败*/
                     if(f_result != FR_OK)
                     {
-                        IsRealTelemetry 	= 1;
+                        IsRealTelemetry = 1;
                         result 	= Fail;
                         driver_debug(DEBUG_HK,"the filename is not existing\r\n");
                         driver_debug(DEBUG_HK,"open file error ,result is :%u\r\n",f_result);
@@ -169,7 +168,7 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
                 }
                 else
                 {
-                    IsRealTelemetry 	= 1;
+                    IsRealTelemetry = 1;
                     result 	= Fail;
                 }
             }
@@ -335,7 +334,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
 
         case TR_BOOT:
 
-            if(xDTBTeleControlSend(Boot, 1000) != 0)
+            if(xDTBTeleControlSend(Boot, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -344,7 +343,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_SHUT_DOWN:
 
-            if(xDTBTeleControlSend(ShutDown, 1000) != 0)
+            if(xDTBTeleControlSend(ShutDown, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -353,7 +352,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_MEM_RESET:
 
-            if(xDTBTeleControlSend(MemReset, 1000) != 0)
+            if(xDTBTeleControlSend(MemReset, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -362,7 +361,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_MEM1_RECORD:
 
-            if(xDTBTeleControlSend(Mem1Record, 1000) != 0)
+            if(xDTBTeleControlSend(Mem1Record, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -371,7 +370,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
                 break;
         case TR_MEM2_RECORD:
 
-            if(xDTBTeleControlSend(Mem2Record, 1000) != 0)
+            if(xDTBTeleControlSend(Mem2Record, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -380,7 +379,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_MEM3_RECORD:
 
-            if(xDTBTeleControlSend(Mem3Record, 1000) != 0)
+            if(xDTBTeleControlSend(Mem3Record, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -389,7 +388,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_MEM4_RECORD:
 
-            if(xDTBTeleControlSend(Mem4Record, 1000) != 0)
+            if(xDTBTeleControlSend(Mem4Record, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -398,7 +397,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_MEM_STOP:
 
-            if(xDTBTeleControlSend(MemStop, 1000) != 0)
+            if(xDTBTeleControlSend(MemStop, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -407,7 +406,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_MEM1_BACK:
 
-            if(xDTBTeleControlSend(Mem1Back, 1000) != 0)
+            if(xDTBTeleControlSend(Mem1Back, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -416,7 +415,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_MEM2_BACK:
 
-            if(xDTBTeleControlSend(Mem2Back, 1000) != 0)
+            if(xDTBTeleControlSend(Mem2Back, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -425,7 +424,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_MEM3_BACK:
 
-            if(xDTBTeleControlSend(Mem3Back, 1000) != 0)
+            if(xDTBTeleControlSend(Mem3Back, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -434,7 +433,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_MEM4_BACK:
 
-            if(xDTBTeleControlSend(Mem4Back, 1000) != 0)
+            if(xDTBTeleControlSend(Mem4Back, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -443,7 +442,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_MEM1_ERA:
 
-            if(xDTBTeleControlSend(Mem1Erase, 1000) != 0)
+            if(xDTBTeleControlSend(Mem1Erase, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -452,7 +451,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_MEM2_ERA:
 
-            if(xDTBTeleControlSend(Mem2Erase, 1000) != 0)
+            if(xDTBTeleControlSend(Mem2Erase, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -461,7 +460,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_MEM3_ERA:
 
-            if(xDTBTeleControlSend(Mem3Erase, 1000) != 0)
+            if(xDTBTeleControlSend(Mem3Erase, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -470,7 +469,7 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_MEM4_ERA:
 
-            if(xDTBTeleControlSend(Mem4Erase, 1000) != 0)
+            if(xDTBTeleControlSend(Mem4Erase, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -490,7 +489,7 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
 
         case TR_PC_ON:
 
-            if(xDTBTeleControlSend(PseudoOn, 1000) != 0)
+            if(xDTBTeleControlSend(PseudoOn, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -499,7 +498,7 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_PC_OFF:
 
-            if(xDTBTeleControlSend(PseudoOff, 1000) != 0)
+            if(xDTBTeleControlSend(PseudoOff, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -508,7 +507,7 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_1M_RATE:
 
-            if(xDTBTeleControlSend(Rate1Mbps, 1000) != 0)
+            if(xDTBTeleControlSend(Rate1Mbps, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -517,7 +516,7 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_2M_RATE:
 
-            if(xDTBTeleControlSend(Rate2Mbps, 1000) != 0)
+            if(xDTBTeleControlSend(Rate2Mbps, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -526,7 +525,7 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
             break;
         case TR_4M_RATE:
 
-            if(xDTBTeleControlSend(Rate4Mbps, 1000) != 0)
+            if(xDTBTeleControlSend(Rate4Mbps, 1000) != E_NO_ERR)
                 result = Fail;
             else
                 result = Success;
@@ -662,10 +661,10 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
 
         case CAM_SOFTWARE_RESET:
 
-            if( init_enlai_camera(cam_cmd->img_store_period ) == E_NO_ERR)
-                result = Success;
-            else
-                result = Fail;
+//            if( init_enlai_camera(cam_cmd->img_store_period ) == E_NO_ERR)
+//                result = Success;
+//            else
+//                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
@@ -710,71 +709,71 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
 //            break;
         case DOWN_IMAGE_INFO:
 
-            if(cam_enlaiimg_info_down(cam_cmd->info_data_down.store_period,
-                    cam_cmd->info_data_down.img_id, cam_cmd->info_data_down.source) == E_NO_ERR)
-                result = Success;
-            else
-                result = Fail;
+//            if(cam_enlaiimg_info_down(cam_cmd->info_data_down.store_period,
+//                    cam_cmd->info_data_down.img_id, cam_cmd->info_data_down.source) == E_NO_ERR)
+//                result = Success;
+//            else
+//                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
         case DOWN_IMAGE_DATA_WHOLE:
 
-            if(enlai_pic_whole_down(&(cam_cmd->info_data_down)) != E_NO_ERR)
-                result = Fail;
-            else
-                result = Success;
+//            if(enlai_pic_whole_down(&(cam_cmd->info_data_down)) != E_NO_ERR)
+//                result = Fail;
+//            else
+//                result = Success;
 
             obc_cmd_ack(cmd_id, result);
             break;
         case DOWN_IMAGE_DATA_SINGLE:
 
-            if(cam_enlaiimg_packet_down(cam_cmd->pack_down.store_period,
-                    cam_cmd->pack_down.img_id, cam_cmd->pack_down.packet_id, cam_cmd->pack_down.source) != E_NO_ERR)
-                result = Fail;
-            else
-                result = Success;
+//            if(cam_enlaiimg_packet_down(cam_cmd->pack_down.store_period,
+//                    cam_cmd->pack_down.img_id, cam_cmd->pack_down.packet_id, cam_cmd->pack_down.source) != E_NO_ERR)
+//                result = Fail;
+//            else
+//                result = Success;
 
             obc_cmd_ack(cmd_id, result);
             break;
         case DOWN_IMAGE_DATA_PART:
 
-            if(enlai_pic_data_packet_down(&(cam_cmd->pack_down)) != E_NO_ERR)
-                result = Fail;
-            else
-                result = Success;
+//            if(enlai_pic_data_packet_down(&(cam_cmd->pack_down)) != E_NO_ERR)
+//                result = Fail;
+//            else
+//                result = Success;
 
             obc_cmd_ack(cmd_id, result);
             break;
-//        case CAM_POWER_ON:
-//
-//            if(EpsOutSwitch(OUT_CAMERA_10W, ENABLE) != EPS_ERROR
-//                    && EpsOutSwitch(OUT_CAMERA_5W, ENABLE) != EPS_ERROR)
-//            {
-//                result = Success;
-//            }
-//            else
-//            {
-//                result = Fail;
-//            }
-//
-//            obc_cmd_ack(cmd_id, result);
-//            break;
-//
-//        case CAM_POWER_OFF:
-//
-//            if(EpsOutSwitch(OUT_CAMERA_10W, DISABLE) != EPS_ERROR
-//                    && EpsOutSwitch(OUT_CAMERA_5W, DISABLE) != EPS_ERROR)
-//            {
-//                result = Success;
-//            }
-//            else
-//            {
-//                result = Fail;
-//            }
-//
-//            obc_cmd_ack(cmd_id, result);
-//            break;
+        case CAM_POWER_ON:
+
+            if(EpsOutSwitch(OUT_CAMERA_10W, ENABLE) != EPS_ERROR
+                    && EpsOutSwitch(OUT_CAMERA_5W, ENABLE) != EPS_ERROR)
+            {
+                result = Success;
+            }
+            else
+            {
+                result = Fail;
+            }
+
+            obc_cmd_ack(cmd_id, result);
+            break;
+
+        case CAM_POWER_OFF:
+
+            if(EpsOutSwitch(OUT_CAMERA_10W, DISABLE) != EPS_ERROR
+                    && EpsOutSwitch(OUT_CAMERA_5W, DISABLE) != EPS_ERROR)
+            {
+                result = Success;
+            }
+            else
+            {
+                result = Fail;
+            }
+
+            obc_cmd_ack(cmd_id, result);
+            break;
 //
 //        case CAM_HEAT2_ON:
 //
@@ -805,19 +804,19 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
 //            break;
         case CAM_GET_PICTURE:
 
-            if(enlai_take_pic_task(cam_cmd->img_size) == E_NO_ERR)
-                result = Success;
-            else
-                result = Fail;
+//            if(enlai_take_pic_task(cam_cmd->img_size) == E_NO_ERR)
+//                result = Success;
+//            else
+//                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;
         case CAM_GET_NUMBER:
 
-            if(get_imagenumber_sd((uint8_t)cam_cmd->img_store_period) == E_NO_ERR)
-                result = Success;
-            else
-                result = Fail;
+//            if(get_imagenumber_sd((uint8_t)cam_cmd->img_store_period) == E_NO_ERR)
+//                result = Success;
+//            else
+//                result = Fail;
 
             obc_cmd_ack(cmd_id, result);
             break;

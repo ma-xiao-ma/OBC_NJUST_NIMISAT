@@ -163,10 +163,10 @@ int dtb_tc(struct command_context *ctx )
     if(sscanf(args, "%u", &cmd) != 1)
         return CMD_ERROR_SYNTAX;
 
-    if(!xDTBTeleControlSend(cmd, 1000))
-    {
-        printf("DTB tc send success!\r\n");
-    }
+    if( xDTBTeleControlSend(cmd, 100) == E_NO_ERR)
+        printf("DTB tc send success!!\r\n");
+    else
+        printf("DTB tc send fail!!\r\n");
 
     return CMD_ERROR_NONE;
 }

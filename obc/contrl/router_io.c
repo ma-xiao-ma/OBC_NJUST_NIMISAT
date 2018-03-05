@@ -93,7 +93,11 @@ static int route_i2c0_tx(route_packet_t * packet, uint32_t timeout)
     }
 
     /* Take the I2C lock */
-    xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
+    if( xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ) != pdTRUE )
+    {
+        ObcMemFree(frame);
+        return E_NO_QUEUE;
+    }
 
     /*添加路由头到I2C帧的长度字段 */
     frame->len += 3;
@@ -138,7 +142,11 @@ static int route_i2c1_tx(route_packet_t * packet, uint32_t timeout)
     frame->len_rx = 0;
 
     /* Take the I2C lock */
-    xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
+    if( xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ) != pdTRUE )
+    {
+        ObcMemFree(frame);
+        return E_NO_QUEUE;
+    }
 
     /*添加I2C帧到发送队列*/
     if (i2c_send(1, frame, timeout) != E_NO_ERR)

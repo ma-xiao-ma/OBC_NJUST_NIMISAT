@@ -108,7 +108,11 @@ int adcs_transaction(uint8_t type, void * txbuf, size_t txlen, void * rxbuf, siz
         return E_NO_BUFFER;
 
     /* Take the I2C lock */
-    xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
+    if( xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ) != pdTRUE )
+    {
+        ObcMemFree(frame);
+        return E_NO_QUEUE;
+    }
 
     frame->dest = ADCS_I2C_ADDR;
     frame->len = txlen + ROUTE_HEAD_SIZE;

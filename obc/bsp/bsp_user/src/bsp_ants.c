@@ -20,7 +20,7 @@
 #include "semphr.h"
 
 #define ANTS_I2C_HANDLE			0
-#define ISIS_I2C_TIME_OUT       200
+#define ISIS_I2C_TIME_OUT       100
 
 extern xSemaphoreHandle i2c_lock;
 extern pca9665_device_object_t device[2];
@@ -52,7 +52,11 @@ static int isis_ants_delay_cmd(uint8_t addr, void * txbuf, size_t txlen, void * 
         return E_NO_BUFFER;
 
     /* Take the I2C lock */
-    xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ);
+    if( xSemaphoreTake(i2c_lock, 10 * configTICK_RATE_HZ) != pdTRUE )
+    {
+        ObcMemFree(t_frame);
+        return E_NO_QUEUE;
+    }
 
     /* Temporarily disable the RX callback, because we wish the received message to go into the I2C queue instead */
     void * tmp_callback = device[ANTS_I2C_HANDLE].callback;
@@ -83,7 +87,11 @@ static int isis_ants_delay_cmd(uint8_t addr, void * txbuf, size_t txlen, void * 
      */
     t_frame = (i2c_frame_t *) ObcMemMalloc(sizeof(i2c_frame_t));
     if (t_frame == NULL)
+    {
+        device[ANTS_I2C_HANDLE].callback = tmp_callback;
+        xSemaphoreGive(i2c_lock);
         return E_NO_BUFFER;
+    }
 
     t_frame->dest = addr;
     t_frame->len = 0;

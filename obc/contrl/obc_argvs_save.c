@@ -71,33 +71,15 @@ uint8_t obc_argvs_recover(void)
 {
 	uint8_t res = 1;
 
-//	/*若读内部flash失败*/
-//	if(bsp_ReadCpuFlash(OBC_STORE_FLASH_ADDR, (uint8_t*)&obc_save, sizeof(obc_save)) != 0)
-//	{
-//		obc_boot_count = 0;
-//		obc_reset_time = 0;
-//		antenna_status = 0;
-//
-//		return 1;
-//	}
-//	else
-//	{
-
 	FSMC_NOR_ReadBuffer( (uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t)/2 );
 
     if(obc_save.obc_boot_count == 0xFFFFFFFF || obc_save.obc_boot_count == 0)
-    {
         obc_save.obc_boot_count = 1;
-    }
     else
-    {
         obc_save.obc_boot_count = obc_save.obc_boot_count + 1;
-    }
 
     if (USER_NOR_SectorErase(0) == NOR_SUCCESS)
-    {
         res = FSMC_NOR_WriteBuffer((uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t)/2);
-    }
 
 //		res = bsp_WriteCpuFlash(OBC_STORE_FLASH_ADDR, (uint8_t*)&obc_save, sizeof(obc_save));
 
@@ -136,11 +118,17 @@ uint8_t obc_argvs_recover(void)
 	{
 	    delay_task_t *task_para = (delay_task_t *)obc_save.delay_task_recover[i].task_para;
 
+	    /* 延时任务执行时间参数是否有效 */
 	    if (task_para->execution_utc > clock_get_time_nopara() &&
 	            task_para->execution_utc != 0xFFFFFFFF && task_para->execution_utc != 0)
 	    {
-	        xTaskCreate(obc_save.delay_task_recover[i].task_function,
-	                obc_save.delay_task_recover[i].task_name, 256, task_para, 4, NULL);
+	        /* 判断是否为有效的函数指针 */
+	        if( obc_save.delay_task_recover[i].task_function > 0x20000000 &&
+	                obc_save.delay_task_recover[i].task_function < 0x20000000 + 128 * 1024 )
+	        {
+                xTaskCreate(obc_save.delay_task_recover[i].task_function,
+                        obc_save.delay_task_recover[i].task_name, 256, task_para, 4, NULL);
+	        }
 	    }
 	}
 

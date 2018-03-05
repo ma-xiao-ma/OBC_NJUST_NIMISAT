@@ -42,7 +42,6 @@
 
 
 FATFS fs; /* Work area (file system object) for logical drives */
-SemaphoreHandle_t take_pic_mutex;
 
 void task_initz(void)
 {
@@ -70,12 +69,7 @@ void task_initz(void)
 	vSerialInterfaceInit();
 #endif
 
-//	Camera_805_Init();
-
-	/*恩来相机串口初始化*/
-	extern void Camera_Enlai_Usart_Init(uint32_t baudrate);
-	Camera_Enlai_Usart_Init(115200);
-	vSemaphoreCreateBinary( take_pic_mutex );
+	Camera_805_Init();
 
 	/*片内ADC初始化， 用于温度采集*/
 	int_adc_init();
@@ -151,8 +145,8 @@ void task_initz(void)
 	cmd_vu_setup();
 	extern void cmd_norflash_setup(void);
 	cmd_norflash_setup();
-	extern void cmd_camera_setup(void);
-	cmd_camera_setup();
+	extern void cmd_cam_setup(void);
+	cmd_cam_setup();
 	cmd_ina_temp_setup();
 
 
