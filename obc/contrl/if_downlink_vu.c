@@ -78,9 +78,17 @@ void obc_cmd_ack(uint8_t type, uint8_t result)
     ProtocolSerialSend( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
 #else
     if(IsJLGvuWorking)
+    {
         vu_jlg_send( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
+        vu_jlg_send( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
+        vu_jlg_send( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
+    }
     else
+    {
         vu_isis_send( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
+        vu_isis_send( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
+        vu_isis_send( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, type, &result, 1 );
+    }
 #endif
 
 }
@@ -499,15 +507,16 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
             /* 送入路由队列 */
             route_queue_wirte((route_packet_t *)recv_frame, NULL);
 
-            /*开启连续发射*/
-            vu_transmitter_set_idle_state(RemainOn);
+//            /*开启连续发射*/
+//            vu_transmitter_set_idle_state(RemainOn);
         }
         else/* 若开启备份通信机 */
         {
             /* 释放申请的内存 */
             ObcMemFree(recv_frame);
-            /*关闭ISIS连续发射*/
-            vu_transmitter_set_idle_state(TurnOff);
+
+//            /*关闭ISIS连续发射*/
+//            vu_transmitter_set_idle_state(TurnOff);
         }
 
         vTaskDelay(500);
@@ -844,8 +853,8 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
         /* 送入路由队列 */
         route_queue_wirte((route_packet_t *)recv_frame, NULL);
 
-        /*开启连续发射*/
-        vu_set_idle_state(RemainOn);
+//        /*开启连续发射*/
+//        vu_set_idle_state(RemainOn);
 
         /**成功接收后移除此帧*/
         if (vu_remove_frame() != E_NO_ERR)

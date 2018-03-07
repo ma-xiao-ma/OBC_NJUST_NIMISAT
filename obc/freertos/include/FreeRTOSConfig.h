@@ -157,12 +157,12 @@
 /******************************************************************************/
 /*                   FreeRTOS与运行时间和任务状态收集有关的配置选项                                                   */
 /******************************************************************************/
-#define configGENERATE_RUN_TIME_STATS	            0   //为1时启用时间统计功能
+#define configGENERATE_RUN_TIME_STATS	            1   //为1时启用时间统计功能
 #define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()    ConfigureTimeForRunTimeStats()
 #define portGET_RUN_TIME_COUNTER_VALUE()            FreeRTOSRunTimeTicks
 
-#define configUSE_TRACE_FACILITY                    0   //为1启用可视化跟踪调试
-#define configUSE_STATS_FORMATTING_FUNCTIONS        0   //与宏configUSE_TRACE_FACILITY
+#define configUSE_TRACE_FACILITY                    1   //为1启用可视化跟踪调试
+#define configUSE_STATS_FORMATTING_FUNCTIONS        1   //与宏configUSE_TRACE_FACILITY
                                                         //同时为1时会编译下面三个函数
                                                         //prvWriteNameToBuffer(),
                                                         //vTaskList(),

@@ -40,8 +40,9 @@
 #define VU_JLG_TASK_BIT     ( 1 << 7 )
 
 
-#define MONITOR_ALL_BIT     ( EventBits_t )( COLLECT_TASK_BIT | DOWN_SAVE_TASK_BIT | ROUTE_TASK_BIT | SERVER_TASK_BIT | \
+#define MONITOR_ALL_BIT     ( EventBits_t )( COLLECT_TASK_BIT | ROUTE_TASK_BIT | SERVER_TASK_BIT | \
                                     SEND_TASK_BIT | CONTROL_TASK_BIT | VU_UPLINK_TASK_BIT | VU_JLG_TASK_BIT )
+
 
 
 EventGroupHandle_t task_status;
@@ -104,8 +105,8 @@ void supervisor_task(void *para)
             if ( (EventValue & (EventBits_t)COLLECT_TASK_BIT) == 0)
                 printf("Collect Task Already Exploded!!!\n");
 
-            if ( (EventValue & (EventBits_t)DOWN_SAVE_TASK_BIT) == 0)
-                printf("Down_Save Task Already Exploded!!!\n");
+//            if ( (EventValue & (EventBits_t)DOWN_SAVE_TASK_BIT) == 0)
+//                printf("Down_Save Task Already Exploded!!!\n");
 
             if ( (EventValue & (EventBits_t)ROUTE_TASK_BIT) == 0)
                 printf("Router Task Already Exploded!!!\n");

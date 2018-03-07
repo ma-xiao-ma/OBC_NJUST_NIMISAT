@@ -37,9 +37,6 @@ int main(void)
     //创建上行解理工通信板解包任务
     xTaskCreate( vu_jlg_uplink_task, "JLG", 512, NULL, 3, NULL );
 
-    //遥测下行和保存任务
-    xTaskCreate( down_save_task, "DOWN", 512, NULL, 2, NULL);
-
 //    //展天线任务
 //    xTaskCreate( OpenAntenna_Task, "ANTS", 256, NULL, 4, NULL);
 

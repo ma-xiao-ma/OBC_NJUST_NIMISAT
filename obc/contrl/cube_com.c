@@ -188,7 +188,7 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
 
         case INS_OBC_STR_DOWN:
 
-            up_hk_down_cmd = 1;
+            down_cmd_enable = true;
             result = Success;
             obc_cmd_ack(cmd_id, result);
             break;

@@ -151,11 +151,8 @@ int xDTBTeleControlSend(uint8_t Cmd, uint16_t Timeout)
  */
 int cam_dtb_lvds(uint8_t mem_num)
 {
-    int ret;
-
-    /* 保证供电 */
-    if( EpsOutSwitch(OUT_DTB_5V, ENABLE) != EPS_ERROR &&
-            EpsOutSwitch(OUT_DTB_12V, ENABLE) != EPS_ERROR )
+    /* 保证数传控制板供电 */
+    if( EpsOutSwitch(OUT_DTB_5V, ENABLE) != EPS_ERROR )
     {
         /*根据传入参数选择擦除和记录的存储区*/
         switch( mem_num )

@@ -51,8 +51,6 @@
 uint8_t adcs_pwr_sta 	= 0;
 uint8_t up_cmd_adcs_pwr	= 1;
 
-SemaphoreHandle_t sysn_bin_sem;  //采集任务与下行任务同步信号量
-
 ///////////////////////////////////////local function////////////////////////////
 
 uint8_t IsJLGvuWorking = 0;     /*JLG通信机开启标志，开启为1， 关闭为0*/
@@ -62,7 +60,7 @@ uint8_t IsRealTelemetry = 1;	//1为实时遥测   0为延时遥测
 ///work mode variable
 uint8_t mode = SLEEP_MODE;
 static uint16_t down_cnt = 0; //遥测下行时间控制变量
-static uint8_t down_cmd_enable = 0;
+bool down_cmd_enable = false;  //遥测下行使能标志
 /////////////////////////////////////////////////////////////////////////////////
 
 
@@ -180,10 +178,11 @@ void ControlTask(void * pvParameters __attribute__((unused)))
             vu_backup_switch_off();
         }
 
-        /* 每次过境不会超过15分钟，因此超过15分钟清除过境标志*/
+        /* 每次过境不会超过10分钟，因此超过10分钟清除过境标志*/
         if ( control_task.passing > JUDGMENT(PASSIN_LAST) )
         {
             PassFlag = false;
+            down_cmd_enable = false;
         }
 
         /* 星上时间每5min跟姿控同步一次 */
@@ -210,18 +209,34 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 	}
 }
 
+#define COLLECT_CYCLE 2000
+/**
+ * 将存储时间间隔转换成下行任务中的计数器判断次数
+ * @param pvParameters 秒数
+ */
+#define DOWN_JUDGMENT(x)    ( x / (COLLECT_CYCLE / configTICK_RATE_HZ) )
+
+#define HK_SAVE_INTERVAL    12 //存储间隔12秒  须为COLLECT_CYCLE的倍数
+
+
 void hk_collect_task(void *pvParameters __attribute__((unused)))
 {
-    if( sysn_bin_sem == NULL )
-        sysn_bin_sem = xSemaphoreCreateBinary();
+    uint32_t hk_save_counter = 0;
 
     eps_start();
     hk_collect_task_init();
 
+    /*初始化主帧FIFO和辅帧FIFO*/
+    HK_fifoInit(&hk_main_fifo);
+    HK_fifoInit(&hk_append_fifo);
+
+    /* 创建遥测文件文件 */
+    hk_store_init();
+
     TickType_t xLastWakeTime = xTaskGetTickCount ();
     while (1)
     {
-        vTaskDelayUntil( &xLastWakeTime, 2000 / portTICK_RATE_MS );
+        vTaskDelayUntil( &xLastWakeTime, COLLECT_CYCLE / portTICK_RATE_MS );
 
         task_report_alive(Collect);
 
@@ -246,7 +261,16 @@ void hk_collect_task(void *pvParameters __attribute__((unused)))
         if( SW_EPS_S0_PIN() )
             adcs_hk_task();
 
-        xSemaphoreGive(sysn_bin_sem);
+        /* 如果开始下行标志置1，则下行遥测 */
+        if( down_cmd_enable == true )
+            hk_down_proc_task();
+
+        /* 否则保存遥测 */
+        if( ++hk_save_counter >= DOWN_JUDGMENT(HK_SAVE_INTERVAL) )  //存储间隔12秒
+        {
+            hk_save_counter = 0;
+            hk_data_save_task(); /*250分钟存满一个文件，一个文件1000调遥测*/
+        }
     }
 }
 
@@ -366,76 +390,10 @@ int Battery_Task(const eps_hk_t *eps_hk)
 
 void vContrlStopDownload(void)
 {
-    up_hk_down_cmd = 0;
-
-    vTaskDelay(100);
-
-    down_cnt = 0;
-    down_cmd_enable = 0;
+    down_cmd_enable = false;
     IsRealTelemetry = 1;
 }
 
-void down_save_task(void * pvParameters __attribute__((unused)))
-{
-    /*初始化主帧FIFO和辅帧FIFO*/
-	HK_fifoInit(&hk_main_fifo);
-	HK_fifoInit(&hk_append_fifo);
-
-	uint16_t hk_down_counter = 0, hk_save_counter = 0;
-
-	/*等待系统稳定*/
-	vTaskDelay(2000);
-
-	hk_store_init();
-
-	/*存储时间间隔15秒*/
-	StorageIntervalCount = (HK_STORAGE_INTERVAL * 1000)/downtimeset;
-
-	/*下行时间间隔downtimeset毫秒， 一共下行10分钟，也就是600000毫秒*/
-	Stop_Down_Time = (10 * 60 * 1000)/downtimeset;
-
-	TickType_t xLastWakeTime = xTaskGetTickCount ();
-
-	while (1)
-	{
-	    vTaskDelayUntil( &xLastWakeTime, downtimeset / portTICK_RATE_MS );
-
-	    task_report_alive(DownSave);
-
-		//if ((up_hk_down_cmd == 1 || PassFlag == 1) && down_cnt <= 60) {
-		if ((up_hk_down_cmd == 1 ) && down_cnt <= 60)
-		{
-			up_hk_down_cmd = 0;
-			down_cmd_enable = 1;
-//			PassFlag = 0;
-		}
-		/* 如果开始下行标志置1，则下行遥测 */
-		if (down_cmd_enable == 1)
-		{
-			hk_down_proc_task();
-
-			if (++down_cnt >= Stop_Down_Time)  //下行次数 = 600000/downtimeset 默认下载200次
-			{
-				down_cnt = 0;
-				down_cmd_enable = 0;
-				IsRealTelemetry = 1;
-			}
-		}
-		/* 否则保存遥测 */
-		else
-		{
-			if (++down_cnt >= StorageIntervalCount)  //存储间隔15秒
-			{
-				down_cnt = 0;
-				up_hk_down_cmd = 0;
-
-				hk_data_save_task(); /*250分钟存满一个文件，一个文件1000调遥测*/
-			}
-		}
-
-//		vTaskDelay( downtimeset / portTICK_RATE_MS );
-	}
-}
 
 void hk_down_proc_task(void)
 {
@@ -444,6 +402,10 @@ void hk_down_proc_task(void)
 	{
 	    /* 遥测收集 */
         hk_collect_no_store();
+
+        /* 解决首帧丢失问题 */
+        ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
+                &hk_frame.main_frame, sizeof(HK_Main_t) );
 
         ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
                 &hk_frame.main_frame, sizeof(HK_Main_t) );
@@ -497,6 +459,10 @@ void hk_down_proc_task(void)
             }
             vPortExitCritical();
 
+            /* 解决首帧丢失问题 */
+            ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
+                    &hk_old_frame.main_frame, sizeof(HK_Main_t) );
+
             ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
                     &hk_old_frame.main_frame, sizeof(HK_Main_t) );
 
@@ -510,6 +476,9 @@ void hk_down_proc_task(void)
         if(hk_select == HK_SRAM)
         {
             memcpy(&hk_old_frame.main_frame, hk_main_fifo.frame[hk_sram_index], sizeof(HK_Main_t));
+
+            ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
+                    &hk_old_frame.main_frame, sizeof(HK_Main_t) );
 
             ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
                     &hk_old_frame.main_frame, sizeof(HK_Main_t) );
@@ -553,6 +522,10 @@ void hk_data_save_task(void)
         /**
          * 遥测值信标
          */
+	    /* 解决首帧丢失问题  */
+        ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
+                &hk_frame.main_frame, sizeof(HK_Main_t) );
+
         ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
                 &hk_frame.main_frame, sizeof(HK_Main_t) );
 

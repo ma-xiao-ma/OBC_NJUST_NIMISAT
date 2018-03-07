@@ -9,6 +9,7 @@
 #define CONTRL_HK_ARG_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "bsp_adc.h"
 #include "sensor/flash_sd.h"
@@ -30,7 +31,7 @@ extern uint16_t ad7490_data[16];
 extern unsigned int obc_boot_count;
 extern uint32_t     obc_reset_time;
 
-extern uint8_t up_hk_down_cmd;
+extern bool down_cmd_enable;  //遥测下行使能标志
 
 extern uint32_t hk_down_cnt;
 extern uint32_t hk_store_cnt;
