@@ -134,6 +134,22 @@ typedef struct __attribute__((__packed__))
 } ImagePacket_t;
 
 /***********************相机控制相关函数*************************/
+
+/**
+ * 相机两路5V加电
+ * @return E_NO_ERR（-1）为正常
+ */
+int Camera_Power_On(void);
+
+/**
+ * 相机两路5V断电
+ *
+ */
+void Camera_Power_Off(void);
+
+/**
+ * 相机初始化
+ */
 void Camera_805_Init(void);
 
 /**

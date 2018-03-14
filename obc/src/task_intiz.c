@@ -97,8 +97,8 @@ void task_initz(void)
     server_start_task(1024, 2);
     /*创建发送处理任务, 任务堆栈大小256 * 4字节, 优先级为2 */
     send_processing_start_task(256, 2);
-    /*创建路由任务, 任务堆栈大小256 * 4字节, 优先级为1 */
-    router_start_task(256, 1);
+    /*创建路由任务, 任务堆栈大小256 * 4字节, 优先级为2 */
+    router_start_task(256, 2);
 
 #endif
 

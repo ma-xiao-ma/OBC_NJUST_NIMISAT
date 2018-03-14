@@ -11,6 +11,8 @@
 #include "math.h"
 #include "bsp_switch.h"
 #include "hk.h"
+#include "string.h"
+
 
 #include "dtb_805.h"
 
@@ -44,11 +46,28 @@ int dtb_power_on(void)
 /**
  * IO控制数传机断电
  *
+ *@return 返回E_NO_ERR（-1）为正常
  */
-void dtb_power_off(void)
+int dtb_power_off(void)
 {
-    EpsOutSwitch(OUT_DTB_5V, DISABLE);
-    EpsOutSwitch(OUT_DTB_12V, DISABLE);
+    if( EpsOutSwitch(OUT_DTB_5V, DISABLE) != EPS_ERROR &&
+            EpsOutSwitch(OUT_DTB_12V, DISABLE) != EPS_ERROR )
+        return E_NO_ERR;
+    else
+        return E_NO_DEVICE;
+}
+
+/**
+ * 数传板供电控制函数
+ *
+ * @return 返回E_NO_ERR（-1）为正常
+ */
+int dtb_power_switch( tr_sw_status power_sw )
+{
+    if( power_sw == tr_sw_on )
+        return dtb_power_on();
+    else
+        return dtb_power_off();
 }
 
 /*遥测获取函数，返回遥测数据长度*/
@@ -144,65 +163,171 @@ int xDTBTeleControlSend(uint8_t Cmd, uint16_t Timeout)
 }
 
 /**
+ * 数传固存擦除
+ *
+ * @param mem_num 固存编号
+ * @return 返回E_NO_ERR（-1）为正常
+ */
+int mem_erase( mem_region mem_num )
+{
+    int ret = E_OUT_OF_MEM;
+
+    /* 保证数传控制板供电 */
+    if( OUT_SW_DTB_5V_PIN() != SET )
+        return E_NO_SS;
+
+    switch( mem_num )
+    {
+        case MemOne:
+            ret = xDTBTeleControlSend(Mem1Erase, 100);
+            break;
+        case MemTwo:
+            ret = xDTBTeleControlSend(Mem2Erase, 100);
+            break;
+        case MemThree:
+            ret = xDTBTeleControlSend(Mem3Erase, 100);
+            break;
+        case MemFour:
+            ret = xDTBTeleControlSend(Mem4Erase, 100);
+            break;
+        default:
+            break;
+    }
+
+    return ret;
+}
+
+/**
+ * 数传固存记录
+ *
+ * @param mem_num 固存编号
+ * @return 返回E_NO_ERR（-1）为正常
+ */
+int mem_record( mem_region mem_num )
+{
+    int ret = E_OUT_OF_MEM;
+
+     /* 保证数传控制板供电 */
+     if( OUT_SW_DTB_5V_PIN() != SET )
+         return E_NO_SS;
+
+     switch( mem_num )
+     {
+         case MemOne:
+             ret = xDTBTeleControlSend(Mem1Record, 100);
+             break;
+         case MemTwo:
+             ret = xDTBTeleControlSend(Mem2Record, 100);
+             break;
+         case MemThree:
+             ret = xDTBTeleControlSend(Mem3Record, 100);
+             break;
+         case MemFour:
+             ret = xDTBTeleControlSend(Mem4Record, 100);
+             break;
+         default:
+             break;
+     }
+
+     return ret;
+}
+
+/**
+ * 数传固存回放
+ *
+ * @param mem_num 固存编号
+ * @return 返回E_NO_ERR（-1）为正常
+ */
+int mem_back( mem_region mem_num )
+{
+    int ret = E_OUT_OF_MEM;
+
+     /* 保证数传控制板供电 */
+     if( OUT_SW_DTB_5V_PIN() != SET )
+         return E_NO_SS;
+
+     switch( mem_num )
+     {
+         case MemOne:
+             ret = xDTBTeleControlSend(Mem1Back, 100);
+             break;
+         case MemTwo:
+             ret = xDTBTeleControlSend(Mem2Back, 100);
+             break;
+         case MemThree:
+             ret = xDTBTeleControlSend(Mem3Back, 100);
+             break;
+         case MemFour:
+             ret = xDTBTeleControlSend(Mem4Back, 100);
+             break;
+         default:
+             break;
+     }
+
+     return ret;
+}
+
+/**
+ * 下行码速率选择
+ *
+ * @param down_rate 下行码速率选择 1--1Mbps 2--2Mbps 3--4Mbps 4--8Mbps
+ * @return 返回E_NO_ERR（-1）为正常
+ */
+int rf_rate_select( data_rate down_rate )
+{
+    int ret = E_OUT_OF_MEM;
+
+     /* 保证数传控制板供电 */
+     if( OUT_SW_DTB_5V_PIN() != SET )
+         return E_NO_SS;
+
+     switch( down_rate )
+     {
+         case MemOne:
+             ret = xDTBTeleControlSend(Mem1Back, 100);
+             break;
+         case MemTwo:
+             ret = xDTBTeleControlSend(Mem2Back, 100);
+             break;
+         case MemThree:
+             ret = xDTBTeleControlSend(Mem3Back, 100);
+             break;
+         case MemFour:
+             ret = xDTBTeleControlSend(Mem4Back, 100);
+             break;
+         default:
+             break;
+     }
+
+     return ret;
+}
+
+/**
  * 数传机擦除加记录
  *
  * @param mem_num 即将向存储区几存储
+ * @param need_erase 是否需要擦除固存（0为不擦除  非0为擦除）
+ *
  * @return 返回E_NO_ERR（-1）为正常
  */
-int cam_dtb_lvds(uint8_t mem_num)
+int dtb_mem_record(uint8_t mem_num, uint8_t need_erase)
 {
+    int ret = E_OUT_OF_MEM;
     /* 保证数传控制板供电 */
-    if( EpsOutSwitch(OUT_DTB_5V, ENABLE) != EPS_ERROR )
+    if( dtb_power_on() != E_NO_ERR )
+        return E_NO_SS;
+
+    if( need_erase )
     {
-        /*根据传入参数选择擦除和记录的存储区*/
-        switch( mem_num )
-        {
-            case 1:
-                if( xDTBTeleControlSend(Mem1Erase, 100) != E_NO_ERR )
-                    return E_NO_SS;
+        if( ( ret = mem_erase( mem_num ) ) != E_NO_ERR )
+            return ret;
 
-                vTaskDelay(8000);
-
-                if( xDTBTeleControlSend(Mem1Record, 100) != E_NO_ERR )
-                    return E_NO_SS;
-
-                break;
-            case 2:
-                if( xDTBTeleControlSend(Mem2Erase, 100) != E_NO_ERR )
-                    return E_NO_SS;
-
-                vTaskDelay(8000);
-
-                if( xDTBTeleControlSend(Mem2Record, 100) != E_NO_ERR )
-                    return E_NO_SS;
-
-                break;
-            case 3:
-                if( xDTBTeleControlSend(Mem3Erase, 100) != E_NO_ERR )
-                    return E_NO_SS;
-
-                vTaskDelay(8000);
-
-                if( xDTBTeleControlSend(Mem3Record, 100) != E_NO_ERR )
-                    return E_NO_SS;
-
-                break;
-            case 4:
-                if( xDTBTeleControlSend(Mem4Erase, 100) != E_NO_ERR )
-                    return E_NO_SS;
-
-                vTaskDelay(8000);
-
-                if( xDTBTeleControlSend(Mem4Record, 100) != E_NO_ERR )
-                    return E_NO_SS;
-
-                break;
-            default:
-                return E_THREAD_FAIL;
-        }
+        vTaskDelay( 8000 / portTICK_RATE_MS ); //擦除等待
     }
 
-    return E_NO_ERR;
+    ret = mem_record( mem_num );
+
+    return ret;
 }
 
 
@@ -210,148 +335,64 @@ int cam_dtb_lvds(uint8_t mem_num)
  * 数传机回放下行流程
  *
  * @param mem_num 存储区号 1、2、3、4
- * @param data_rate 下行码速率1、2、4、8
+ * @param data_rate 下行码速率1--1Mbps、2--2Mbps、3--4Mbps、4--8Mbps
  * @return 返回E_NO_ERR（-1）为正确
  */
-int dtb_back(uint8_t mem_num, uint8_t data_rate)
+int dtb_mem_back(uint8_t mem_num, uint8_t data_rate)
 {
-    int ret;
-
     /* 保证电力供应 */
     if( dtb_power_on() != E_NO_ERR )
         return E_NO_DEVICE;
 
+    /* 发射机开机 */
     if( xDTBTeleControlSend(Boot, 100) != E_NO_ERR )
     {
         dtb_power_off();
         return E_NO_SS;
     }
 
-    switch( data_rate )
-    {
-        case 1:
-            ret = xDTBTeleControlSend(Rate1Mbps, 100);
-            break;
-        case 2:
-            ret = xDTBTeleControlSend(Rate2Mbps, 100);
-            break;
-        case 4:
-            ret = xDTBTeleControlSend(Rate4Mbps, 100);
-            break;
-        case 8:
-            ret = xDTBTeleControlSend(Rate8Mbps, 100);
-            break;
-        default:
-            ret = E_THREAD_FAIL;
-            break;
-    }
-
-    if( ret !=  E_NO_ERR)
+    /* 选择下行码速率  1--1Mbps、2--2Mbps、3--4Mbps、4--8Mbps */
+    if( rf_rate_select( data_rate ) != E_NO_ERR)
     {
         dtb_power_off();
         return E_NO_SS;
     }
 
-    switch( mem_num )
-    {
-        case 1:
-            ret = xDTBTeleControlSend(Mem1Back, 100);
-            break;
-        case 2:
-            ret = xDTBTeleControlSend(Mem2Back, 100);
-            break;
-        case 3:
-            ret = xDTBTeleControlSend(Mem3Back, 100);
-            break;
-        case 4:
-            ret = xDTBTeleControlSend(Mem4Back, 100);
-            break;
-        default:
-            ret = E_THREAD_FAIL;
-            break;
-    }
-
-    if( ret !=  E_NO_ERR)
-    {
-        dtb_power_off();
-        return E_FLASH_ERROR;
-    }
-
-
-    dtb_805_hk_t *dtb = (dtb_805_hk_t *)ObcMemMalloc( sizeof(dtb_805_hk_t) );
-    if( dtb == NULL )
-    {
-        dtb_power_off();
-        return E_MALLOC_FAIL;
-    }
-
-    switch( mem_num )
-    {
-        case 1:
-            ret = xDTBTeleControlSend(Mem1Back, 100);
-            break;
-        case 2:
-            ret = xDTBTeleControlSend(Mem2Back, 100);
-            break;
-        case 3:
-            ret = xDTBTeleControlSend(Mem3Back, 100);
-            break;
-        case 4:
-            ret = xDTBTeleControlSend(Mem4Back, 100);
-            break;
-        default:
-            ret = E_THREAD_FAIL;
-            break;
-    }
-
-    int back_complete_flag = 0;
-
-    while( ( ret = dtb_hk_get_peek(dtb) ) != pdFALSE )
-    {
-        switch( mem_num )
-        {
-            case 1:
-                if( dtb->dtb_hk.MEM1_BACK_CNT == dtb->dtb_hk.MEM1_RECORD_CNT )
-                    back_complete_flag = 1;
-                break;
-            case 2:
-                if( dtb->dtb_hk.MEM2_BACK_CNT == dtb->dtb_hk.MEM2_RECORD_CNT )
-                    back_complete_flag = 1;
-                break;
-            case 3:
-                if( dtb->dtb_hk.MEM3_BACK_CNT == dtb->dtb_hk.MEM3_RECORD_CNT )
-                    back_complete_flag = 1;
-                break;
-            case 4:
-                if( dtb->dtb_hk.MEM4_BACK_CNT == dtb->dtb_hk.MEM4_RECORD_CNT )
-                    back_complete_flag = 1;
-                break;
-            default:
-                ret = E_THREAD_FAIL;
-                break;
-        }
-
-        if( back_complete_flag )
-            break;
-
-        vTaskDelay(1000);
-    }
-
-    if( xDTBTeleControlSend(MemStop, 100) != E_NO_ERR )
+    if( mem_back( mem_num ) != E_NO_ERR )
     {
         dtb_power_off();
         return E_NO_SS;
     }
-
-    if( xDTBTeleControlSend(ShutDown, 100) != E_NO_ERR )
-    {
-        dtb_power_off();
-        return E_NO_SS;
-    }
-
-    dtb_power_off();
 
     return E_NO_ERR;
+}
+
+/**
+ * 数传机射频端开关函数
+ *
+ * @param select 开为1，关为0
+ * @return 函数执行成功返回E_NO_ERR(-1)
+ */
+int dtb_rf_switch( tr_sw_status select )
+{
+    if( select == tr_sw_on )
+        return xDTBTeleControlSend(Boot, 100);
+    else
+        return xDTBTeleControlSend(ShutDown, 100);
+}
+
+/**
+ * 数传伪码开关函数
+ *
+ * @param select 开为1，关为0
+ * @return 函数执行成功返回E_NO_ERR(-1)
+ */
+int dtb_pseudo_switch( tr_sw_status select )
+{
+    if( select == tr_sw_on )
+        return xDTBTeleControlSend(PseudoOn, 100);
+    else
+        return xDTBTeleControlSend(PseudoOff, 100);
 }
 
 float dtb_temp_conversion(uint8_t temp_raw)

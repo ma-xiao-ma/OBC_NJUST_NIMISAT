@@ -592,9 +592,9 @@ void vTelemetryFileManage(void * paragram)
  */
 static void obc_get_hk(obc_hk_t * obc)
 {
-    obc->sat_id = 0x05;
+    obc->sat_id = 0x06;
 
-    obc->soft_id = 0x05;
+    obc->soft_id = 0x06;
 
     obc->reboot_count = obc_boot_count;
 

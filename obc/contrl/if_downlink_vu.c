@@ -519,8 +519,6 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
 //            vu_transmitter_set_idle_state(TurnOff);
         }
 
-        vTaskDelay(500);
-
         /**成功接收后移除此帧*/
         if (vu_receiver_remove_frame() != E_NO_ERR)
         {

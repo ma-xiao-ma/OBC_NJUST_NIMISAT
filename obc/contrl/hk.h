@@ -212,22 +212,22 @@ typedef struct __attribute__((packed))
     uint32_t        utc_time;
     uint16_t        cpu_temp;
     uint8_t         adcs_ctrl_mode;
-    uint16_t        downAdcsMagDotDmpCnt;
-    uint16_t        downAdcsPitFltComCnt;
-    uint16_t        downAdcsAttStaCnt;
+    uint32_t        downAdcsMagDotDmpCnt;
+    uint32_t        downAdcsPitFltComCnt;
+    uint32_t        downAdcsAttStaCnt;
     uint8_t         error;
-} adcs805_hk_workmode_t;
+}adcs805_hk_workmode_t;
 
 typedef struct __attribute__((packed))
 {
     uint16_t        sw_status;
     int16_t         downAdcsMagnetometer[3];
     int16_t         downAdcsGyro_Meas[3];
-    uint16_t        downAdcsSun1_Meas[4];
-    uint16_t        downAdcsSun2_Meas[4];
-    uint16_t        downAdcsSun3_Meas[4];
-    uint8_t         downAdcsSunSensorFlag;
-    float           downAdcsSun_Meas[3];  //上面是两个字节
+    uint16_t        downAdcsSun1_Meas[4];     //add*
+    uint16_t        downAdcsSun2_Meas[4];     //add*
+    uint16_t        downAdcsSun3_Meas[4];     //add*
+    uint8_t         downAdcsSunSensorFlag;    //add*
+    float           downAdcsSun_Meas[3];      //add*  //上面是两个字节
     uint16_t        downAdcsWheelSpeed_Meas;
     int16_t         downAdcsMTQOut[3];
     int16_t         downAdcsMagInO[3];
@@ -253,11 +253,11 @@ typedef struct __attribute__((packed))
 
 typedef struct __attribute__((packed))
 {
-    float           downAdcsOrbPos[3];
-    int16_t         downAdcsOrbVel[3];
-    uint8_t         GPS_status;
-    uint8_t         GPS_numV;
-    uint16_t        GPS_pdop;
+        float           downAdcsOrbPos[3];
+        int16_t         downAdcsOrbVel[3];
+        uint8_t         GPS_status;
+        uint8_t         GPS_numV;
+        uint16_t        GPS_pdop;
 } adcs805_hk_orbit_t;
 
 typedef struct __attribute__((packed))

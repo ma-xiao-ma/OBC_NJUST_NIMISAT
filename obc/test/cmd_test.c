@@ -24,6 +24,7 @@
 #include "bsp_pca9665.h"
 #include "error.h"
 #include "task_monitor.h"
+#include "bsp_ds1302.h"
 
 #include "FreeRTOS.h"
 #include "task.h"

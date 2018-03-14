@@ -48,7 +48,8 @@ void reset_cause_print(int cause){
 	}
 }
 
-void cpu_reset(void) {
+void cpu_reset(void)
+{
 
 	if(xTaskGetCurrentTaskName(TaskName))
 		xTaskGetCurrentTaskName(TaskName);

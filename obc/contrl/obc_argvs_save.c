@@ -123,8 +123,8 @@ uint8_t obc_argvs_recover(void)
 	            task_para->execution_utc != 0xFFFFFFFF && task_para->execution_utc != 0)
 	    {
 	        /* 判断是否为有效的函数指针 */
-	        if( obc_save.delay_task_recover[i].task_function > 0x20000000 &&
-	                obc_save.delay_task_recover[i].task_function < 0x20000000 + 128 * 1024 )
+	        if( (int)obc_save.delay_task_recover[i].task_function > 0x20000000 &&
+	                (int)obc_save.delay_task_recover[i].task_function < 0x20000000 + 128 * 1024 )
 	        {
                 xTaskCreate(obc_save.delay_task_recover[i].task_function,
                         obc_save.delay_task_recover[i].task_name, 256, task_para, 4, NULL);

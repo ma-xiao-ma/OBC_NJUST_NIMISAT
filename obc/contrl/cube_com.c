@@ -204,6 +204,10 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
 
             result = Success;
             obc_cmd_ack(cmd_id, result);
+
+            vu_receiver_hardware_reset(); //星务复位时会立即复位接收机
+            vu_transmitter_hardware_reset(); //星务复位时会立即复位发射机
+
             delay_ms(10);
             cpu_reset();
             break;
@@ -327,156 +331,117 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
 
 static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube_buf)
 {
-	int result = Fail;
+    obc_ack result = Fail;
+
+    /* OBC解包结构体 */
+    unpacket_t *obc_unpacket = (unpacket_t *)cube_buf;
 
 	switch (cmd_id)
 	{
 
-        case TR_BOOT:
+        case TR_RF_SWITCH:
 
-            if(xDTBTeleControlSend(Boot, 1000) != E_NO_ERR)
+            if( dtb_rf_switch( obc_unpacket->sw_status ) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
-        case TR_SHUT_DOWN:
 
-            if(xDTBTeleControlSend(ShutDown, 1000) != E_NO_ERR)
+        case TR_MEM_ERASE:
+
+            if( mem_erase( obc_unpacket->tr_mem_select ) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
-        case TR_MEM_RESET:
 
-            if(xDTBTeleControlSend(MemReset, 1000) != E_NO_ERR)
+        case TR_MEM_RECORD:
+
+            if( mem_record( obc_unpacket->tr_mem_select ) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
-        case TR_MEM1_RECORD:
 
-            if(xDTBTeleControlSend(Mem1Record, 1000) != E_NO_ERR)
+        case TR_RATES_SELECT:
+
+            if( rf_rate_select( obc_unpacket->tr_rate_select ) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;
 
                 obc_cmd_ack(cmd_id, result);
                 break;
-        case TR_MEM2_RECORD:
 
-            if(xDTBTeleControlSend(Mem2Record, 1000) != E_NO_ERR)
+        case TR_MEM_BACK:
+
+            if( mem_back( obc_unpacket->tr_mem_select ) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
-        case TR_MEM3_RECORD:
 
-            if(xDTBTeleControlSend(Mem3Record, 1000) != E_NO_ERR)
-                result = Fail;
-            else
-                result = Success;
-
-                obc_cmd_ack(cmd_id, result);
-            break;
-        case TR_MEM4_RECORD:
-
-            if(xDTBTeleControlSend(Mem4Record, 1000) != E_NO_ERR)
-                result = Fail;
-            else
-                result = Success;
-
-                obc_cmd_ack(cmd_id, result);
-            break;
         case TR_MEM_STOP:
 
-            if(xDTBTeleControlSend(MemStop, 1000) != E_NO_ERR)
+            if( xDTBTeleControlSend(MemStop, 100) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
-        case TR_MEM1_BACK:
 
-            if(xDTBTeleControlSend(Mem1Back, 1000) != E_NO_ERR)
+        case TR_MEM_RESET:
+
+            if( xDTBTeleControlSend(MemReset, 100) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
-        case TR_MEM2_BACK:
 
-            if(xDTBTeleControlSend(Mem2Back, 1000) != E_NO_ERR)
+        case TR_PC_SWITCH:
+
+            if( dtb_pseudo_switch( obc_unpacket->sw_status ) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
-        case TR_MEM3_BACK:
 
-            if(xDTBTeleControlSend(Mem3Back, 1000) != E_NO_ERR)
+        case TR_POWER_SWITCH:
+
+            if( dtb_power_switch( obc_unpacket->sw_status ) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
-        case TR_MEM4_BACK:
 
-            if(xDTBTeleControlSend(Mem4Back, 1000) != E_NO_ERR)
+        case TR_MEM_BACK_BASH:
+
+            if( dtb_mem_back( obc_unpacket->tr_mem_back_bash.mem_num,
+                    obc_unpacket->tr_mem_back_bash.data_rate ) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;
 
                 obc_cmd_ack(cmd_id, result);
             break;
-        case TR_MEM1_ERA:
 
-            if(xDTBTeleControlSend(Mem1Erase, 1000) != E_NO_ERR)
-                result = Fail;
-            else
-                result = Success;
-
-                obc_cmd_ack(cmd_id, result);
-            break;
-        case TR_MEM2_ERA:
-
-            if(xDTBTeleControlSend(Mem2Erase, 1000) != E_NO_ERR)
-                result = Fail;
-            else
-                result = Success;
-
-                obc_cmd_ack(cmd_id, result);
-            break;
-        case TR_MEM3_ERA:
-
-            if(xDTBTeleControlSend(Mem3Erase, 1000) != E_NO_ERR)
-                result = Fail;
-            else
-                result = Success;
-
-                obc_cmd_ack(cmd_id, result);
-            break;
-        case TR_MEM4_ERA:
-
-            if(xDTBTeleControlSend(Mem4Erase, 1000) != E_NO_ERR)
-                result = Fail;
-            else
-                result = Success;
-
-                obc_cmd_ack(cmd_id, result);
-            break;
         default:
+
             break;
 	}
 }
@@ -485,92 +450,8 @@ static void up_group_two_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
 {
 	int result = Fail;
 
-	switch (cmd_id) {
-
-        case TR_PC_ON:
-
-            if(xDTBTeleControlSend(PseudoOn, 1000) != E_NO_ERR)
-                result = Fail;
-            else
-                result = Success;
-
-                obc_cmd_ack(cmd_id, result);
-            break;
-        case TR_PC_OFF:
-
-            if(xDTBTeleControlSend(PseudoOff, 1000) != E_NO_ERR)
-                result = Fail;
-            else
-                result = Success;
-
-                obc_cmd_ack(cmd_id, result);
-            break;
-        case TR_1M_RATE:
-
-            if(xDTBTeleControlSend(Rate1Mbps, 1000) != E_NO_ERR)
-                result = Fail;
-            else
-                result = Success;
-
-                obc_cmd_ack(cmd_id, result);
-            break;
-        case TR_2M_RATE:
-
-            if(xDTBTeleControlSend(Rate2Mbps, 1000) != E_NO_ERR)
-                result = Fail;
-            else
-                result = Success;
-
-                obc_cmd_ack(cmd_id, result);
-            break;
-        case TR_4M_RATE:
-
-            if(xDTBTeleControlSend(Rate4Mbps, 1000) != E_NO_ERR)
-                result = Fail;
-            else
-                result = Success;
-
-                obc_cmd_ack(cmd_id, result);
-            break;
-        case TR_5V_ON:
-
-            if(EpsOutSwitch(OUT_DTB_5V, ENABLE) != EPS_ERROR)
-                result = Success;
-            else
-                result = Fail;
-
-            obc_cmd_ack(cmd_id, result);
-            break;
-
-        case TR_5V_OFF:
-
-            if(EpsOutSwitch(OUT_DTB_5V, DISABLE) != EPS_ERROR)
-                result = Success;
-            else
-                result = Fail;
-
-            obc_cmd_ack(cmd_id, result);
-            break;
-
-        case TR_12V_ON:
-
-            if(EpsOutSwitch(OUT_DTB_12V, ENABLE) != EPS_ERROR)
-                result = Success;
-            else
-                result = Fail;
-
-            obc_cmd_ack(cmd_id, result);
-            break;
-
-        case TR_12V_OFF:
-
-            if(EpsOutSwitch(OUT_DTB_12V, DISABLE) != EPS_ERROR)
-                result = Success;
-            else
-                result = Fail;
-
-            obc_cmd_ack(cmd_id, result);
-            break;
+	switch (cmd_id)
+	{
 
         case VU_INS_HARDWARE_RESET:
 

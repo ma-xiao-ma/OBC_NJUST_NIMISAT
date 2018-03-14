@@ -25,33 +25,19 @@
 #define INS_SD_MOUNT            0x0F
 
 /*GROUP1*/
-#define TR_BOOT			        0x10
-#define TR_SHUT_DOWN			0x11
-#define TR_MEM_RESET			0x12
-#define TR_MEM1_RECORD			0x13
-#define TR_MEM2_RECORD			0x14
-#define TR_MEM3_RECORD			0x15
-#define TR_MEM4_RECORD			0x16
-#define TR_MEM_STOP				0x17
-#define TR_MEM1_BACK			0x18
-#define TR_MEM2_BACK			0x19
-#define TR_MEM3_BACK			0x1A
-#define TR_MEM4_BACK			0x1B
-#define TR_MEM1_ERA				0x1C
-#define TR_MEM2_ERA				0x1D
-#define TR_MEM3_ERA				0x1E
-#define TR_MEM4_ERA				0x1F
+#define TR_RF_SWITCH			0x10
+#define TR_MEM_ERASE			0x11
+#define TR_MEM_RECORD			0x12
+#define TR_RATES_SELECT			0x13
+#define TR_MEM_BACK 			0x14
+#define TR_MEM_STOP 			0x15
+#define TR_MEM_RESET			0x16
+#define TR_PC_SWITCH		    0x17
+#define TR_POWER_SWITCH			0x18
+#define TR_MEM_BACK_BASH		0x19
+
 
 /*GROUP2*/
-#define TR_PC_ON				0x20
-#define TR_PC_OFF				0x21
-#define TR_1M_RATE				0x22
-#define TR_2M_RATE				0x23
-#define TR_4M_RATE				0x24
-#define TR_5V_ON                0x25
-#define TR_5V_OFF               0x26
-#define TR_12V_ON               0x27
-#define TR_12V_OFF              0x28
 
 /*vu通信机指令*/
 #define VU_INS_HARDWARE_RESET   0x2A/* 新增 */
@@ -60,6 +46,7 @@
 #define VU_INS_BACKUP_ON        0x2D/* 新增 */
 #define VU_INS_BACKUP_OFF       0x2E/* 新增 */
 #define VU_INS_BACKUP_FM        0x2F/* 新增 */
+
 /*GROUP3*/
 /*********************************************/
 /*805 Camera*/

@@ -262,6 +262,36 @@ void CAMERA_RX_ISR_HANDLER(void)
 }
 
 /**
+ * 相机两路5V加电
+ * @return E_NO_ERR（-1）为正常
+ */
+int Camera_Power_On(void)
+{
+    if( EpsOutSwitch(OUT_CAMERA_10W, ENABLE) != EPS_ERROR )
+    {
+        if( EpsOutSwitch(OUT_CAMERA_5W, ENABLE) != EPS_ERROR )
+            return E_NO_ERR;
+        else
+        {
+            EpsOutSwitch(OUT_CAMERA_10W, DISABLE);
+            return E_NO_DEVICE;
+        }
+    }
+    else
+        return E_NO_DEVICE;
+}
+
+/**
+ * 相机两路5V断电
+ *
+ */
+void Camera_Power_Off(void)
+{
+    EpsOutSwitch(OUT_CAMERA_10W, DISABLE);
+    EpsOutSwitch(OUT_CAMERA_5W, DISABLE);
+}
+
+/**
  * 相机复位指令
  *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h

@@ -20,6 +20,7 @@
 #include "switches.h"
 #include "if_adcs.h"
 #include "obc_mem.h"
+#include "camera_805.h"
 #include "hk.h"
 #include "crc.h"
 #include "command.h"
@@ -32,6 +33,7 @@
 #include "bsp_pca9665.h"
 #include "bsp_cis.h"
 #include "bsp_cpu_flash.h"
+#include "bsp_watchdog.h"
 #include "router_io.h"
 #include "task_monitor.h"
 
@@ -98,6 +100,8 @@ typedef struct
 {
     uint32_t vu_idle_state;
     uint32_t vu_jlg_switch_on;
+    uint32_t cam_power_on_counter;
+    uint32_t dtb_power_on_counter;
     uint32_t passing;
     uint32_t time_valid;
 } control_para;
@@ -106,8 +110,10 @@ static control_para control_task;
 
 #define VU_IDLE_ON       (10 * 60) /*通信机空闲状态连续发射开 持续时间    单位：秒*/
 #define JLG_VU_SWITCH_ON (10 * 60) /*解理工通信机备份机切换     持续时间    单位：秒*/
-#define PASSIN_LAST      (10 * 60) /*过境时间*/
-#define TIME_SYSN        ( 5 * 60) /*时间同步间隔*/
+#define CAM_WORK_TIME    (10 * 60) /*相机工作时间控制  单位：秒*/
+#define DTB_WORK_TIME    (11 * 60) /*数传回放时间控制  单位：秒*/
+#define PASSIN_LAST      (10 * 60) /*过境时间  单位：秒*/
+#define TIME_SYSN        ( 5 * 60) /*时间同步间隔  单位：秒*/
 
 #define CONTROL_CYCLE    1200      /*控制周期  单位：毫秒*/
 
@@ -151,6 +157,20 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 	    else
 	        control_task.vu_jlg_switch_on = 0;
 
+        /**如果相机是开机状态，则计数器累加*/
+        if ( ((obc_switch_t *)&obc_tm->on_off_status)->cam_5w_5v_pwr == true ||
+                ((obc_switch_t *)&obc_tm->on_off_status)->cam_10w_5v_pwr == true)
+            control_task.cam_power_on_counter++;
+        else
+            control_task.cam_power_on_counter = 0;
+
+        /**如果数传机是开机状态，则计数器累加*/
+        if ( ((obc_switch_t *)&obc_tm->on_off_status)->dtb_5v_pwr == true ||
+                ((obc_switch_t *)&obc_tm->on_off_status)->dtb_12v_pwr == true)
+            control_task.dtb_power_on_counter++;
+        else
+            control_task.dtb_power_on_counter = 0;
+
         /**如果过境标志已经置位*/
         if (PassFlag == true)
             control_task.passing++;
@@ -163,7 +183,7 @@ void ControlTask(void * pvParameters __attribute__((unused)))
         else
             control_task.time_valid = 0;
 
-	    /* 如果通信机空闲状态连续发射连续开启超过15分钟，或者备份通信机启动时，则自动关闭连续发射 */
+	    /* 如果通信机空闲状态连续发射连续开启超过10分钟，或者备份通信机启动时，则自动关闭连续发射 */
 	    if ( control_task.vu_idle_state > JUDGMENT(VU_IDLE_ON) || IsJLGvuWorking )
 	    {
 	        /* 若连续发射已经关闭，则不再执行 */
@@ -171,12 +191,29 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 	            vu_transmitter_set_idle_state(TurnOff);
 	    }
 
-        /* 如果备份通信机开启超过15分钟，则自动切换为主份 */
+        /* 如果备份通信机开启超过10分钟，则自动切换为主份 */
         if ( control_task.vu_jlg_switch_on > JUDGMENT(JLG_VU_SWITCH_ON) )
         {
             /***此处应将通信机切换回ISIS通信机, 除能备份通信机加电, 并将信道控制板断电*/
             vu_backup_switch_off();
         }
+
+        /* 如果相机开启超过10分钟，则切断相机电源 */
+        if ( control_task.cam_power_on_counter > JUDGMENT(CAM_WORK_TIME) )
+        {
+            cam_ctl_t cam_ctl_mode = {0, 0, 0};
+            Camera_Work_Mode_Set(cam_ctl_mode);
+            Camera_Power_Off();
+        }
+
+        /* 如果数传开启超过10分钟，则切断数传电源 */
+        if ( control_task.dtb_power_on_counter > JUDGMENT(DTB_WORK_TIME) )
+        {
+            xDTBTeleControlSend(MemStop, 100);
+            xDTBTeleControlSend(ShutDown, 100);
+            dtb_power_off();
+        }
+
 
         /* 每次过境不会超过10分钟，因此超过10分钟清除过境标志*/
         if ( control_task.passing > JUDGMENT(PASSIN_LAST) )
@@ -624,6 +661,95 @@ int Delay_Task_Mon_Start(delay_task_t *para)
         return E_NO_BUFFER;
 
     return E_NO_ERR;
+}
+
+
+/**
+ * 图像模式1fps相机 数传机工作流程
+ *
+ * @param exp_time 相机曝光时间设置
+ * @param gain 相机增益设置
+ * @param need_erase 数传机固存是否需要擦除 （非0为需要擦除，0为不需要擦除）
+ */
+void Image_1fps_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
+{
+    cam_ctl_t cam_ctl_mode = { LVDS, Image1fps, AutoExpoOn };
+
+    dtb_power_on();
+
+    dtb_mem_record(MemOne , need_erase);
+
+    Camera_Power_On();
+
+    if( exp_time != 0 || gain != 0 )
+    {
+        Camera_Exposure_Time_Set(exp_time);
+
+        Camera_Gain_Set(gain);
+
+        cam_ctl_mode.expo = AutoExpoOff;
+    }
+
+    Camera_Work_Mode_Set(cam_ctl_mode);
+}
+
+/**
+ * 视频模式  相机数传机工作流程
+ *
+ * @param exp_time 相机曝光时间设置
+ * @param gain 相机增益设置
+ * @param need_erase 数传机固存是否需要擦除 （非0为需要擦除，0为不需要擦除）
+ */
+void Video_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
+{
+
+    cam_ctl_t cam_ctl_mode = { LVDS, Video, AutoExpoOn }; //视频模式 自动曝光开
+
+    dtb_power_on();
+
+    dtb_mem_record( MemTwo, need_erase );
+
+    Camera_Power_On();
+
+    if( exp_time != 0 || gain != 0 )
+    {
+        Camera_Exposure_Time_Set(exp_time);
+
+        Camera_Gain_Set(gain);
+
+        cam_ctl_mode.expo = AutoExpoOff;
+    }
+
+    Camera_Work_Mode_Set(cam_ctl_mode);
+}
+
+/**
+ * 图像模式RAW 相机数传机工作流程
+ *
+ * @param exp_time 相机曝光时间设置
+ * @param gain 相机增益设置
+ * @param need_erase 数传机固存是否需要擦除 （非0为需要擦除，0为不需要擦除）
+ */
+void Image_Raw_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
+{
+    cam_ctl_t cam_ctl_mode = { LVDS, ImageRaw, AutoExpoOn }; //图像模式RAW
+
+    dtb_power_on();
+
+    dtb_mem_record( MemTwo, need_erase );
+
+    Camera_Power_On();
+
+    if( exp_time != 0 || gain != 0 )
+    {
+        Camera_Exposure_Time_Set(exp_time);
+
+        Camera_Gain_Set(gain);
+
+        cam_ctl_mode.expo = AutoExpoOff;
+    }
+
+    Camera_Work_Mode_Set(cam_ctl_mode);
 }
 
 
