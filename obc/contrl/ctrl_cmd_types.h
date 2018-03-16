@@ -200,6 +200,42 @@ typedef struct __attribute__((packed))
     uint8_t data_rate;
 }mem_back_bash;
 
+typedef struct __attribute__((packed))
+{
+    uint32_t    exp_time;
+    uint8_t     gain;
+    uint8_t     need_erase;
+}cam_mode_bash;
+
+typedef struct __attribute__((packed))
+{
+    uint32_t    id;
+    uint8_t     mem_region;
+    uint8_t     down_cnt;
+}img_down_bash_1;
+
+
+typedef struct __attribute__((packed))
+{
+    uint32_t    id;
+    uint8_t     mem_region;
+}img_down_bash_2;
+
+typedef struct __attribute__((packed))
+{
+    uint32_t    id;
+    uint16_t    start_packet;
+    uint8_t     mem_region;
+}img_down_bash_3;
+
+typedef struct __attribute__((packed))
+{
+    uint32_t    id;
+    uint16_t    packet;
+    uint8_t     mem_region;
+    uint8_t     down_cnt;
+}img_down_bash_4;
+
 typedef union __attribute__((packed))
 {
     ctrl_delayhk_t  earlier_hk;
@@ -211,6 +247,14 @@ typedef union __attribute__((packed))
     mem_region      tr_mem_select;
     data_rate       tr_rate_select;
     mem_back_bash   tr_mem_back_bash;
+
+    uint8_t         cam_gain;
+    uint32_t        cam_exp_time;
+    cam_mode_bash   cam_mode_set;
+    img_down_bash_1 img_info_down;
+    img_down_bash_2 img_data_down;
+    img_down_bash_3 img_data_part;
+    img_down_bash_4 img_pack_down;
 } unpacket_t;
 
 #endif /* CONTRL_CTRL_TYPES_H_ */

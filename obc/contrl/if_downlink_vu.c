@@ -218,8 +218,8 @@ int vu_isis_send( uint8_t dst, uint8_t src, uint8_t type, void *pdata, uint32_t 
         else
             ErrorCounter++;
 
-        if (RemainSize != 0)
-            vTaskDelay(PACK_DOWN_INTERVAL);
+
+        vTaskDelay(PACK_DOWN_INTERVAL);
 
      /**若发送完成或者错误次数超过5次，则跳出循环 */
     }while (RemainSize > 0 && ErrorCounter < 5);

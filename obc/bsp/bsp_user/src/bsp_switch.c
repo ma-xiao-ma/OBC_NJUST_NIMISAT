@@ -84,8 +84,8 @@ void bsp_InitSwitch(void) {
 	GPIO_InitStructure.GPIO_Pin = GPIO_CAMERA_HEAT_1_PIN;
 	GPIO_Init(GPIO_CAMERA_HEAT_1_PORT, &GPIO_InitStructure);
 
-//	GPIO_InitStructure.GPIO_Pin = GPIO_CAMERA_HEAT_2_PIN;
-//	GPIO_Init(GPIO_CAMERA_HEAT_2_PORT, &GPIO_InitStructure);
+	GPIO_InitStructure.GPIO_Pin = GPIO_CAMERA_HEAT_2_PIN;
+	GPIO_Init(GPIO_CAMERA_HEAT_2_PORT, &GPIO_InitStructure);
 
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
@@ -97,8 +97,8 @@ void bsp_InitSwitch(void) {
     GPIO_InitStructure.GPIO_Pin = GPIO_PAL_STATUS_2_PIN;
     GPIO_Init(GPIO_PAL_STATUS_2_PORT, &GPIO_InitStructure);
 
-    GPIO_InitStructure.GPIO_Pin = GPIO_SAIL_STATUS_PIN;
-    GPIO_Init(GPIO_SAIL_STATUS_PORT, &GPIO_InitStructure);
+//    GPIO_InitStructure.GPIO_Pin = GPIO_SAIL_STATUS_PIN;
+//    GPIO_Init(GPIO_SAIL_STATUS_PORT, &GPIO_InitStructure);
 
 	EpsOutSwitch(OUT_ALL, DISABLE);
 }

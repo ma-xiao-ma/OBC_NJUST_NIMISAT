@@ -23,6 +23,7 @@
 #include "if_downlink_vu.h"
 #include "cube_com.h"
 #include "router_io.h"
+#include "dtb_805.h"
 
 #include "command.h"
 #include "console.h"
@@ -285,10 +286,42 @@ int Camera_Power_On(void)
  * 相机两路5V断电
  *
  */
-void Camera_Power_Off(void)
+int Camera_Power_Off(void)
 {
-    EpsOutSwitch(OUT_CAMERA_10W, DISABLE);
-    EpsOutSwitch(OUT_CAMERA_5W, DISABLE);
+    if( EpsOutSwitch(OUT_CAMERA_10W, DISABLE) != EPS_ERROR &&
+            EpsOutSwitch(OUT_CAMERA_5W, DISABLE) != EPS_ERROR )
+        return E_NO_ERR;
+    else
+        return E_NO_DEVICE;
+}
+
+
+
+/**
+ * 数传板供电控制函数
+ *
+ * @return 返回E_NO_ERR（-1）为正常
+ */
+int cam_power_switch( cam_sw_status power_sw )
+{
+    if( power_sw == cam_sw_off )
+        return Camera_Power_Off();
+    else
+        return Camera_Power_On();
+}
+
+/**
+ * 相机加热控制开关
+ *
+ * @param heat_sw 0为关， 非0为开
+ * @return EPS_OK（0）为执行成功
+ */
+int cam_heat2_switch( cam_sw_status heat_sw )
+{
+    if( heat_sw == cam_sw_off )
+        return EpsOutSwitch(OUT_CAMERA_HEAT_2, DISABLE);
+    else
+        return EpsOutSwitch(OUT_CAMERA_HEAT_2, ENABLE);
 }
 
 /**
@@ -800,8 +833,8 @@ int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode)
         memcpy(CurrentImage.ImageLocation,
                 hk_frame.append_frame.adcs_hk.adcs805_hk_orbit.downAdcsOrbPos, sizeof(CurrentImage.ImageLocation));
 
-        /* 等待相机图像传输完成，超时时间40s */
-        if(xSemaphoreTake(Cam.SynchBinSem, 40000) != pdTRUE)
+        /* 等待相机图像传输完成，超时时间20s */
+        if(xSemaphoreTake(Cam.SynchBinSem, 20000) != pdTRUE)
         {
             /* 除能 USART */
             USART_Cmd(CAMERA_PORT_NAME, DISABLE);
@@ -867,6 +900,166 @@ int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode)
     xSemaphoreGive(Cam.AccessMutexSem);
 
     return E_NO_ERR;
+}
+
+/**
+ * 图像模式1fps相机 数传机工作流程
+ *
+ * @param exp_time 相机曝光时间设置
+ * @param gain 相机增益设置
+ * @param need_erase 数传机固存是否需要擦除 （非0为需要擦除，0为不需要擦除）
+ */
+int Image_1fps_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
+{
+    int ret;
+
+    cam_ctl_t cam_ctl_mode = { LVDS, Image1fps, AutoExpoOn };
+
+    if( ( ret = dtb_power_on() ) != E_NO_ERR )  //数传机上电
+        return ret;
+
+    if( ( ret = dtb_mem_record( MemOne ,need_erase ) ) != E_NO_ERR )  //数传开启记录模式
+        return ret;
+
+    if( ( ret = Camera_Power_On() ) != E_NO_ERR ) //相机上电
+    {
+        dtb_power_off();
+        return ret;
+    }
+
+    if( exp_time != 0 )
+    {
+        if( ( ret = Camera_Exposure_Time_Set(exp_time) ) != E_NO_ERR )
+        {
+            dtb_power_off();
+            Camera_Power_Off();
+            return ret;
+        }
+
+        cam_ctl_mode.expo = AutoExpoOff;
+    }
+
+    if( gain != 0 )
+    {
+
+        if( ( ret = Camera_Gain_Set(gain) ) != E_NO_ERR )
+        {
+            dtb_power_off();
+            Camera_Power_Off();
+            return ret;
+        }
+
+        cam_ctl_mode.expo = AutoExpoOff;
+    }
+
+    return Camera_Work_Mode_Set(cam_ctl_mode);
+}
+
+
+/**
+ * 视频模式  相机数传机工作流程
+ *
+ * @param exp_time 相机曝光时间设置
+ * @param gain 相机增益设置
+ * @param need_erase 数传机固存是否需要擦除 （非0为需要擦除，0为不需要擦除）
+ */
+int Video_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
+{
+    int ret;
+
+    cam_ctl_t cam_ctl_mode = { LVDS, Video, AutoExpoOn }; //视频模式 自动曝光开
+
+    if( ( ret = dtb_power_on() ) != E_NO_ERR )  //数传机上电
+        return ret;
+
+    if( ( ret = dtb_mem_record( MemTwo , need_erase ) ) != E_NO_ERR )  //数传固存二区 开启记录模式
+        return ret;
+
+    if( ( ret = Camera_Power_On() ) != E_NO_ERR ) //相机上电
+    {
+        dtb_power_off();
+        return ret;
+    }
+
+    if( exp_time != 0 )
+    {
+        if( ( ret = Camera_Exposure_Time_Set(exp_time) ) != E_NO_ERR )
+        {
+            dtb_power_off();
+            Camera_Power_Off();
+            return ret;
+        }
+
+        cam_ctl_mode.expo = AutoExpoOff;
+    }
+
+    if( gain != 0 )
+    {
+
+        if( ( ret = Camera_Gain_Set(gain) ) != E_NO_ERR )
+        {
+            dtb_power_off();
+            Camera_Power_Off();
+            return ret;
+        }
+
+        cam_ctl_mode.expo = AutoExpoOff;
+    }
+
+    return Camera_Work_Mode_Set(cam_ctl_mode);
+}
+
+/**
+ * 图像模式RAW 相机数传机工作流程
+ *
+ * @param exp_time 相机曝光时间设置
+ * @param gain 相机增益设置
+ * @param need_erase 数传机固存是否需要擦除 （非0为需要擦除，0为不需要擦除）
+ */
+int Image_Raw_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
+{
+    int ret;
+
+    cam_ctl_t cam_ctl_mode = { LVDS, Video, AutoExpoOn }; //视频模式 自动曝光开
+
+    if( ( ret = dtb_power_on() ) != E_NO_ERR )  //数传机上电
+        return ret;
+
+    if( ( ret = dtb_mem_record( MemTwo , need_erase ) ) != E_NO_ERR )  //数传固存二区 开启记录模式
+        return ret;
+
+    if( ( ret = Camera_Power_On() ) != E_NO_ERR ) //相机上电
+    {
+        dtb_power_off();
+        return ret;
+    }
+
+    if( exp_time != 0 )
+    {
+        if( ( ret = Camera_Exposure_Time_Set(exp_time) ) != E_NO_ERR )
+        {
+            dtb_power_off();
+            Camera_Power_Off();
+            return ret;
+        }
+
+        cam_ctl_mode.expo = AutoExpoOff;
+    }
+
+    if( gain != 0 )
+    {
+
+        if( ( ret = Camera_Gain_Set(gain) ) != E_NO_ERR )
+        {
+            dtb_power_off();
+            Camera_Power_Off();
+            return ret;
+        }
+
+        cam_ctl_mode.expo = AutoExpoOff;
+    }
+
+    return Camera_Work_Mode_Set(cam_ctl_mode);
 }
 
 
@@ -1141,11 +1334,20 @@ static int ImagStoreInSD(void)
 /**
  * 下行外部SRAM中图像信息缓冲区中的数据
  *
+ * @param down_cnt 下行包次数
+ *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int cam_sram_img_info_down(void)
+int cam_sram_img_info_down(uint8_t down_cnt)
 {
-    return ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, &CurrentImage, sizeof(ImageInfo_t));
+    int ret = 0;
+
+    down_cnt = down_cnt > 10 ? 10 : down_cnt;
+
+    while( down_cnt-- )
+        ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, &CurrentImage, sizeof(ImageInfo_t));
+
+    return ret;
 }
 
 /**
@@ -1177,9 +1379,10 @@ int cam_sram_img_packet_data_down(uint16_t start_packet)
  * 下行外部SRAM中图像数据缓冲区中某包图像的数据
  *
  * @param packet_id 下行图像包的ID
+ * @param down_cnt 下行图像包次数
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int cam_sram_img_packet_down(uint16_t packet_id)
+int cam_sram_img_packet_down(uint16_t packet_id, uint8_t down_cnt)
 {
     if (packet_id >= CurrentImage.TotalPacket)
         return E_INVALID_PARAM;
@@ -1193,7 +1396,13 @@ int cam_sram_img_packet_down(uint16_t packet_id)
             CurrentImage.LastPacketSize : IMAGE_PACK_MAX_SIZE;
 
     memcpy(img_packet->ImageData, &Cam.ReceiveBuffer[6 + packet_id*IMAGE_PACK_MAX_SIZE], img_packet->PacketSize);
-    int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, &img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+
+    int ret = 0;
+
+    down_cnt = down_cnt > 10 ? 10 : down_cnt;
+
+    while( down_cnt-- )
+        ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, &img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
     ObcMemFree(img_packet);
     return ret;
@@ -1203,9 +1412,11 @@ int cam_sram_img_packet_down(uint16_t packet_id)
  * 通过图像ID参数下行SD卡中图像信息
  *
  * @param id 图像ID
+ * @param down_cnt 下行次数
+ *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int cam_sd_img_info_down(uint32_t id)
+int cam_sd_img_info_down(uint32_t id, uint8_t down_cnt)
 {
     char path[40] = {0};
 
@@ -1222,8 +1433,12 @@ int cam_sd_img_info_down(uint32_t id)
         return E_NO_DEVICE;
     }
 
-    /* 调用传输层接口函数下行  */
-    int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
+    int ret = 0;
+
+    down_cnt = down_cnt > 10 ? 10 : down_cnt;
+
+    while( down_cnt-- )
+        ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
 
     ObcMemFree(img_info);
     return ret;
@@ -1264,9 +1479,11 @@ int cam_sd_img_to_sram(uint32_t id)
  * 下行SD卡中单包图像
  *
  * @param id 图像ID
+ * @param down_cnt 下行次数
+ *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int cam_sd_img_packet_down(uint32_t id, uint16_t packet)
+int cam_sd_img_packet_down(uint32_t id, uint16_t packet, uint8_t down_cnt)
 {
     char path[40] = {0};
 
@@ -1310,12 +1527,17 @@ int cam_sd_img_packet_down(uint32_t id, uint16_t packet)
         return E_NO_DEVICE;
     }
 
-    /* 调用传输层接口函数下行 */
-    int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+    int ret = 0;
+
+    down_cnt = down_cnt > 10 ? 10 : down_cnt;
+
+    while( down_cnt-- )
+        ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
     ObcMemFree(img_info);
     ObcMemFree(img_packet);
-    return E_NO_ERR;
+
+    return ret;
 }
 
 
@@ -1323,9 +1545,11 @@ int cam_sd_img_packet_down(uint32_t id, uint16_t packet)
  * 通过图像ID参数下行flash中图像信息
  *
  * @param id 图像ID
+ * @param down_cnt 下行次数
+ *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int cam_flash_img_info_down(uint32_t id)
+int cam_flash_img_info_down(uint32_t id, uint8_t down_cnt)
 {
     uint32_t sector_num = image_find_flash_store_sector(id);
 
@@ -1340,8 +1564,12 @@ int cam_flash_img_info_down(uint32_t id)
     FSMC_NOR_ReadBuffer((uint16_t *)img_info, get_addr_via_sector_num(sector_num),
             sizeof(ImageInfo_t));
 
-    /* 调用传输层接口函数下行，创建下行图像任务  */
-    int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
+    int ret = 0;
+
+    down_cnt = down_cnt > 10 ? 10 : down_cnt;
+
+    while( down_cnt-- )
+        ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, img_info, sizeof(ImageInfo_t));
 
     ObcMemFree(img_info);
     return ret;
@@ -1353,7 +1581,7 @@ int cam_flash_img_info_down(uint32_t id)
  * @param id 图像ID
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int cam_flash_img_packet_down(uint32_t id, uint16_t packet)
+int cam_flash_img_packet_down(uint32_t id, uint16_t packet, uint8_t down_cnt)
 {
     uint32_t sector_num = image_find_flash_store_sector(id);
 
@@ -1388,8 +1616,12 @@ int cam_flash_img_packet_down(uint32_t id, uint16_t packet)
     FSMC_NOR_ReadBuffer((uint16_t *)img_packet->ImageData, get_addr_via_sector_num(sector_num) + sizeof(ImageInfo_t) / 2
             + packet * IMAGE_PACK_MAX_SIZE, img_packet->PacketSize);
 
-    /* 调用传输层接口函数下行 */
-    int ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
+    int ret = 0;
+
+    down_cnt = down_cnt > 10 ? 10 : down_cnt;
+
+    while( down_cnt-- )
+        ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE, img_packet, img_packet->PacketSize + IMAGE_PACK_HEAD_SIZE);
 
     ObcMemFree(img_info);
     ObcMemFree(img_packet);
@@ -1425,7 +1657,7 @@ int cam_flash_img_to_sram(uint32_t id)
  *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int cam_newest_img_info_down(void)
+int cam_newest_img_info_down(uint8_t mem_region, uint8_t down_cnt)
 {
     int ret;
     uint32_t sector_num = cam_find_newest_img();
@@ -1444,16 +1676,14 @@ int cam_newest_img_info_down(void)
 
     if (newest_img->ImageID == CurrentImage.ImageID)
     {
-        ret = cam_sram_img_info_down();
+        ret = cam_sram_img_info_down( down_cnt );
     }
     else
     {
-        ret = ProtocolSendDownCmd(GND_ROUTE_ADDR, CAM_ROUTE_ADDR, CAM_IMAGE_INFO, newest_img, sizeof(ImageInfo_t));
-
-        if (ret != E_NO_ERR)
-        {
-            ret = cam_sd_img_info_down(newest_img->ImageID);
-        }
+        if( mem_region == mem_sd )
+            ret = cam_sd_img_info_down( newest_img->ImageID, down_cnt );
+        else
+            ret = cam_flash_img_info_down( newest_img->ImageID, down_cnt );
     }
 
     ObcMemFree(newest_img);
@@ -1466,47 +1696,63 @@ int cam_newest_img_info_down(void)
  * @param id 图像ID
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int cam_img_info_down(uint32_t id)
+int cam_img_info_down( uint8_t mem_region, uint32_t id, uint8_t down_cnt )
 {
     int ret;
 
-    if (id == CurrentImage.ImageID)
+    if( id == CurrentImage.ImageID )
     {
-        ret = cam_sram_img_info_down();
+        ret = cam_sram_img_info_down( down_cnt );
     }
     else
     {
-        if (cam_flash_img_info_down(id) != E_NO_ERR)
-        {
-            ret = cam_sd_img_info_down(id);
-        }
-
+        if( mem_region == mem_sd )
+            ret = cam_sd_img_info_down( id, down_cnt );
+        else
+            ret = cam_flash_img_info_down( id, down_cnt );
     }
 
     return ret;
 }
 
 /**
+ * 图像信息下行
+ *
+ * @param id 图像编号 若图像ID参数为0xFFFF则下行最新照片的照片信息，否则下行指定ID照片信息
+ * @param mem_region 存储区域选择 0xAA--SD卡  0xCC--FLASH
+ * @param down_cnt 单包下行次数，不超过10次
+ *
+ * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
+ */
+int Image_Info_Down( uint32_t id, uint8_t mem_region, uint8_t down_cnt )
+{
+    if( id == 0xFFFF )
+        return cam_newest_img_info_down( mem_region, down_cnt );
+    else
+        return cam_img_info_down( mem_region, id, down_cnt );
+}
+
+
+/**
  * 相机下行指定ID照片
  *
  * @param id 照片ID
+ * @param mem_region 存储区域选择 0xAA--SD卡  0xCC--FLASH
+ *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int cam_img_data_down(uint32_t id)
+int cam_img_data_down( uint32_t id, uint8_t mem_region)
 {
     int ret;
 
     if (id == CurrentImage.ImageID)
-    {
         ret = cam_sram_img_data_down();
-
-    }
     else
     {
-        ret = cam_flash_img_to_sram(id);
-
-        if (ret != E_NO_ERR)
+        if( mem_region == mem_sd )
             ret = cam_sd_img_to_sram(id);
+        else
+            ret = cam_flash_img_to_sram(id);
 
         if (ret == E_NO_ERR)
             ret = cam_sram_img_data_down();
@@ -1520,23 +1766,23 @@ int cam_img_data_down(uint32_t id)
  *
  * @param id 图像ID
  * @param packet 图像包号
+ * @param mem_region 存储区域选择 0xAA--SD卡  0xCC--FLASH
+ * @param down_cnt 单包下行次数     不超过10次
+ *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int cam_img_packet_down(uint32_t id, uint16_t packet)
+int cam_img_packet_down(uint32_t id, uint16_t packet, uint8_t mem_region, uint8_t down_cnt)
 {
     int ret;
 
     if (id == CurrentImage.ImageID)
-    {
-        ret = cam_sram_img_packet_down(packet);
-
-    }
+        ret = cam_sram_img_packet_down( packet, down_cnt );
     else
     {
-        ret = cam_flash_img_packet_down(id, packet);
-
-        if (ret != E_NO_ERR)
-            ret = cam_sd_img_packet_down(id, packet);
+        if( mem_region == mem_sd )
+            ret = cam_sd_img_packet_down( id, packet, down_cnt );
+        else
+            ret = cam_flash_img_packet_down( id, packet, down_cnt );
     }
 
     return ret;
@@ -1547,23 +1793,22 @@ int cam_img_packet_down(uint32_t id, uint16_t packet)
  *
  * @param id 图像ID号
  * @param start_packet 起始包号
+ * @param mem_region 存储区域选择 0xAA--SD卡  0xCC--FLASH
+ *
  * @return E_NO_ERR（-1）说明传输成功，其他错误类型参见error.h
  */
-int cam_img_data_packet_down(uint32_t id, uint16_t start_packet)
+int cam_img_data_packet_down( uint32_t id, uint16_t start_packet, uint8_t mem_region )
 {
     int ret;
 
     if (id == CurrentImage.ImageID)
-    {
         ret = cam_sram_img_packet_data_down(start_packet);
-
-    }
     else
     {
-        ret = cam_flash_img_to_sram(id);
-
-        if (ret != E_NO_ERR)
+        if( mem_region == mem_sd )
             ret = cam_sd_img_to_sram(id);
+        else
+            ret = cam_flash_img_to_sram(id);
 
         if (ret == E_NO_ERR)
             ret = cam_sram_img_packet_data_down(start_packet);

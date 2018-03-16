@@ -396,13 +396,13 @@ int cmd_obc_hk(struct command_context *ctx __attribute__((unused)))
 
 int image_download_test(struct command_context *ctx)
 {
-    uint8_t image_id;
+    static uint8_t image_id, mem_region, down_cnt;
 
     char * args = command_args(ctx);
-    if(sscanf(args, "%u", &image_id) != 1)
+    if(sscanf(args, "%u %u %u", &image_id, mem_region, down_cnt) != 3)
         return CMD_ERROR_SYNTAX;
 
-    if( cam_img_info_down(image_id) != E_NO_ERR)
+    if( cam_img_info_down(mem_region, image_id, down_cnt) != E_NO_ERR)
     {
     	printf("ERROR: Image info download fial!\r\n");
     	return CMD_ERROR_FAIL;
@@ -410,7 +410,7 @@ int image_download_test(struct command_context *ctx)
 
     printf("Image info download success!\n");
 
-    if( cam_img_data_down(image_id) != E_NO_ERR)
+    if( cam_img_data_down(image_id, mem_region) != E_NO_ERR)
     {
     	printf("ERROR: Image download task fial to create!\r\n");
     	return CMD_ERROR_FAIL;

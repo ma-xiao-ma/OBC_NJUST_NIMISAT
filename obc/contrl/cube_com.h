@@ -53,28 +53,28 @@
 #define CAM_SOFTWARE_RESET      0x30
 #define CAM_EXPOSURE_TIME_SET   0x31
 #define CAM_GAIN_SET            0x32
-#define CAM_WORK_MODE_SET       0x33
+#define CAM_WORK_MODE_1FPS      0x33
+#define CAM_WORK_MODE_VIDEO     0x34
+#define CAM_WORK_MODE_RAW       0x35
+#define CAM_WORK_MODE_BACKUP    0x36
 /**********************************************/
 
 /**********************************************/
 /*照片下行，通用*/
-#define DOWN_NEWEST_IMAGE_INFO  0x34
-#define DOWN_IMAGE_INFO         0x35
-#define DOWN_IMAGE_DATA_WHOLE   0x36
-#define DOWN_IMAGE_DATA_SINGLE  0x37
-#define DOWN_IMAGE_DATA_PART    0x38
+#define DOWN_IMAGE_INFO         0x37
+#define DOWN_IMAGE_DATA_WHOLE   0x38
+#define DOWN_IMAGE_DATA_PART    0x39
+#define DOWN_IMAGE_DATA_SINGLE  0x3A
 /**********************************************/
 
 /**********************************************/
 /*805 相机供电*/
-#define CAM_POWER_ON            0x39
-#define CAM_POWER_OFF           0x3A
+#define CAM_POWER_ON_OFF        0x3B
 /**********************************************/
 
 /*********************************************/
 /*805 Camera heat*/
-#define CAM_HEAT2_ON            0x3B
-#define CAM_HEAT2_OFF           0x3C
+#define CAM_HEAT2_ON_OFF        0x3C
 /**********************************************/
 
 /*********************************************/
@@ -85,7 +85,6 @@
 
 /*恩来文件*/
 #define ENLAI_FILE_DOWN         0x40/* 新增 */
-#define SAIL_
 /*********************************************/
 
 

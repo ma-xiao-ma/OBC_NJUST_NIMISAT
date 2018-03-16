@@ -328,11 +328,12 @@ struct command switches_subcommands[] = {
         .help = "unfold panel switches",
         .handler = cmd_unfold_panel,
         .usage = "<safty time _s_>",
-    },{
-        .name = "sail",
-        .help = "unfold sail switche",
-        .handler = cmd_unfold_sail,
     }
+//    ,{
+//        .name = "sail",
+//        .help = "unfold sail switche",
+//        .handler = cmd_unfold_sail,
+//    }
 };
 
 struct command __root_command switches_commands_master[] =

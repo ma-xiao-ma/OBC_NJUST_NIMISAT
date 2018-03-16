@@ -105,7 +105,7 @@ typedef enum
     bps_8_M
 } data_rate;
 
-/** 数传机下行码速率选择*/
+/** 数传机开关控制*/
 typedef enum
 {
     tr_sw_off = 0,

@@ -119,11 +119,11 @@ int get_switch_status(uint8_t * pstatus)
     else
         pstatus[1] &= ~CAMERA_HEAT1_EN;
 
-//    /*相机加热2开关*/
-//    if(OUT_SW_CAMERA_HEAT_2_PIN())
-//        pstatus[1] |= CAMERA_HEAT2_EN;
-//    else
-//        pstatus[1] &= ~CAMERA_HEAT2_EN;
+    /*相机加热2开关*/
+    if(OUT_SW_CAMERA_HEAT_2_PIN())
+        pstatus[1] |= CAMERA_HEAT2_EN;
+    else
+        pstatus[1] &= ~CAMERA_HEAT2_EN;
 
     /*W2*/
 
@@ -139,13 +139,11 @@ int get_switch_status(uint8_t * pstatus)
     else
         pstatus[2] &= ~SW_VU_5V_EN;
 
-    /*可展开帆展开状态*/
-    if (IN_SW_SAIL_STATUS_PIN())
-        pstatus[2] |= EXPANDABLE_SAIL;
-    else
-        pstatus[2] &= ~EXPANDABLE_SAIL;
-
-
+//    /*可展开帆展开状态*/
+//    if (IN_SW_SAIL_STATUS_PIN())
+//        pstatus[2] |= EXPANDABLE_SAIL;
+//    else
+//        pstatus[2] &= ~EXPANDABLE_SAIL;
 
 	return result;
 }
