@@ -147,6 +147,16 @@ typedef struct __attribute__((__packed__))
     uint8_t ImageData[IMAGE_PACK_MAX_SIZE];
 } ImagePacket_t;
 
+
+typedef struct __attribute__((__packed__))
+{
+    uint32_t    exp_time;
+    uint8_t     gain;
+    uint8_t     need_erase;
+    work_mode   mode;
+    uint16_t    record_last;
+} CamModeSet_t;
+
 /***********************相机控制相关函数*************************/
 
 /**
@@ -251,8 +261,11 @@ int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode);
  * @param exp_time 相机曝光时间设置
  * @param gain 相机增益设置
  * @param need_erase 数传机固存是否需要擦除 （非0为需要擦除，0为不需要擦除）
+ * @param record_last 数传记录模式持续时间， 单位：秒
+ *
+ * @return 返回E_NO_ERR（-1）为正确
  */
-int Image_1fps_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase);
+int Image_1fps_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase, uint16_t record_last);
 
 /**
  * 视频模式  相机数传机工作流程
@@ -260,8 +273,11 @@ int Image_1fps_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
  * @param exp_time 相机曝光时间设置
  * @param gain 相机增益设置
  * @param need_erase 数传机固存是否需要擦除 （非0为需要擦除，0为不需要擦除）
+ * @param record_last 数传记录模式持续时间， 单位：秒
+ *
+ * @return 返回E_NO_ERR（-1）为正确
  */
-int Video_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase);
+int Video_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase, uint16_t record_last);
 
 /**
  * 图像模式RAW 相机数传机工作流程
@@ -269,8 +285,24 @@ int Video_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase);
  * @param exp_time 相机曝光时间设置
  * @param gain 相机增益设置
  * @param need_erase 数传机固存是否需要擦除 （非0为需要擦除，0为不需要擦除）
+ * @param record_last 数传记录模式持续时间， 单位：秒
+ *
+ * @return 返回E_NO_ERR（-1）为正确
  */
-int Image_Raw_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase);
+int Image_Raw_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase, uint16_t record_last);
+
+/**
+ * 相机数传工作模式设置，创建任务模式
+ *
+ * @param exp_time 相机曝光时间设置
+ * @param gain 相机增益设置
+ * @param need_erase 数传固存擦除选项
+ * @param mode work_mode 枚举类型
+ * @param record_last 数传机回放持续时间
+ *
+ * @return 返回E_NO_ERR（-1）任务创建成功
+ */
+int Cam_DTB_Work(uint32_t exp_time, uint8_t gain, uint8_t need_erase, work_mode mode, uint16_t record_last);
 
 
 /***********************图像下行相关函数*************************/

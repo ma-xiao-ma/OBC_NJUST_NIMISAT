@@ -6,6 +6,7 @@
  */
 
 #include <string.h>
+#include <stdbool.h>
 
 #include "driver_debug.h"
 #include "bsp_nor_flash.h"
@@ -30,10 +31,12 @@
 
 #include "camera_805.h"
 
-#define CAM_REP_TIMEOUT 100
+#define CAM_REP_TIMEOUT 1000
 #define FLASH_IMG_NUM   15
 static int ImagStoreInFlash(void);
 static int ImagStoreInSD(void);
+
+bool Cam_Busy = false;
 
 /*相机数据传输信息*/
 static CamTrans_t Cam __attribute__((section(".bss.hk"), aligned(4)));
@@ -760,7 +763,7 @@ int Camera_Work_Mode_Get(cam_ctl_t *cam_ctl_mode)
 int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode)
 {
     /* 获取相机访问锁，申请访问相机 */
-    if( xSemaphoreTake(Cam.AccessMutexSem, 10) != pdTRUE )
+    if( xSemaphoreTake(Cam.AccessMutexSem, 50) != pdTRUE )
     {
         driver_debug(DEBUG_CAMERA,"WARNING: CAM take mutex sem fail!\r\n");
         return E_NO_QUEUE;
@@ -829,6 +832,7 @@ int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode)
         /* 附拍照时间 */
         CurrentImage.ImageTime = clock_get_time_nopara();
 
+        adcs_hk_get_peek(&hk_frame.append_frame.adcs_hk);
         /* 附位置信息 */
         memcpy(CurrentImage.ImageLocation,
                 hk_frame.append_frame.adcs_hk.adcs805_hk_orbit.downAdcsOrbPos, sizeof(CurrentImage.ImageLocation));
@@ -844,6 +848,11 @@ int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode)
             driver_debug(DEBUG_CAMERA,"WARNING: CAM data receive timeout!!\r\n");
             return E_TIMEOUT;
         }
+
+        /* 除能 USART */
+        USART_Cmd(CAMERA_PORT_NAME, DISABLE);
+        /* 给出互斥锁 */
+        xSemaphoreGive(Cam.AccessMutexSem);
 
         driver_debug( DEBUG_CAMERA,"Check sum: %02x\r\n", sum_check(&Cam.ReceiveBuffer[0], Cam.Rxlen - 5) );
 
@@ -893,11 +902,13 @@ int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode)
         /* 图像数据TF卡存储 */
         ImagStoreInSD();
     }
-
-    /* 除能 USART */
-    USART_Cmd(CAMERA_PORT_NAME, DISABLE);
-    /* 给出互斥锁 */
-    xSemaphoreGive(Cam.AccessMutexSem);
+    else
+    {
+        /* 除能 USART */
+        USART_Cmd(CAMERA_PORT_NAME, DISABLE);
+        /* 给出互斥锁 */
+        xSemaphoreGive(Cam.AccessMutexSem);
+    }
 
     return E_NO_ERR;
 }
@@ -908,8 +919,11 @@ int Camera_Work_Mode_Set(cam_ctl_t cam_ctl_mode)
  * @param exp_time 相机曝光时间设置
  * @param gain 相机增益设置
  * @param need_erase 数传机固存是否需要擦除 （非0为需要擦除，0为不需要擦除）
+ * @param record_last 数传记录模式持续时间， 单位：秒
+ *
+ * @return 返回E_NO_ERR（-1）为正确
  */
-int Image_1fps_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
+int Image_1fps_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase, uint16_t record_last)
 {
     int ret;
 
@@ -918,14 +932,18 @@ int Image_1fps_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
     if( ( ret = dtb_power_on() ) != E_NO_ERR )  //数传机上电
         return ret;
 
-    if( ( ret = dtb_mem_record( MemOne ,need_erase ) ) != E_NO_ERR )  //数传开启记录模式
-        return ret;
-
     if( ( ret = Camera_Power_On() ) != E_NO_ERR ) //相机上电
     {
         dtb_power_off();
         return ret;
     }
+
+    vTaskDelay(15000);
+
+    if( ( ret = dtb_mem_record( MemOne ,need_erase ) ) != E_NO_ERR )  //数传开启记录模式
+        return ret;
+
+    vTaskDelay(1000);
 
     if( exp_time != 0 )
     {
@@ -935,24 +953,44 @@ int Image_1fps_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
             Camera_Power_Off();
             return ret;
         }
-
-        cam_ctl_mode.expo = AutoExpoOff;
+        vTaskDelay(100);
     }
 
     if( gain != 0 )
     {
-
         if( ( ret = Camera_Gain_Set(gain) ) != E_NO_ERR )
         {
             dtb_power_off();
             Camera_Power_Off();
             return ret;
         }
-
-        cam_ctl_mode.expo = AutoExpoOff;
+        vTaskDelay(100);
     }
 
-    return Camera_Work_Mode_Set(cam_ctl_mode);
+    if( ( ret = Camera_Work_Mode_Set(cam_ctl_mode) ) != E_NO_ERR )  //设置相机模式
+        return ret;
+
+    record_last = record_last > 300 ? 300 : record_last;
+
+    vTaskDelay( record_last * 1000 / portTICK_RATE_MS ); //相机最多开启5分钟
+
+    cam_ctl_mode.expo = 0;
+    cam_ctl_mode.tran = 0;
+    cam_ctl_mode.expo = 0;
+
+    Camera_Work_Mode_Set(cam_ctl_mode);
+
+    vTaskDelay(1000);
+
+    Camera_Power_Off();
+
+    xDTBTeleControlSend(MemStop, 2000);
+
+    vTaskDelay(1000);
+
+    dtb_power_off();
+
+    return E_NO_ERR;
 }
 
 
@@ -962,8 +1000,11 @@ int Image_1fps_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
  * @param exp_time 相机曝光时间设置
  * @param gain 相机增益设置
  * @param need_erase 数传机固存是否需要擦除 （非0为需要擦除，0为不需要擦除）
+ * @param record_last 数传记录模式持续时间， 单位：秒
+ *
+ * @return 返回E_NO_ERR（-1）为正确
  */
-int Video_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
+int Video_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase, uint16_t record_last)
 {
     int ret;
 
@@ -972,14 +1013,18 @@ int Video_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
     if( ( ret = dtb_power_on() ) != E_NO_ERR )  //数传机上电
         return ret;
 
-    if( ( ret = dtb_mem_record( MemTwo , need_erase ) ) != E_NO_ERR )  //数传固存二区 开启记录模式
-        return ret;
-
     if( ( ret = Camera_Power_On() ) != E_NO_ERR ) //相机上电
     {
         dtb_power_off();
         return ret;
     }
+
+    vTaskDelay(15000);
+
+    if( ( ret = dtb_mem_record( MemTwo , need_erase ) ) != E_NO_ERR )  //数传固存二区 开启记录模式
+        return ret;
+
+    vTaskDelay(1000);
 
     if( exp_time != 0 )
     {
@@ -990,7 +1035,7 @@ int Video_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
             return ret;
         }
 
-        cam_ctl_mode.expo = AutoExpoOff;
+        vTaskDelay(100);
     }
 
     if( gain != 0 )
@@ -1003,10 +1048,33 @@ int Video_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
             return ret;
         }
 
-        cam_ctl_mode.expo = AutoExpoOff;
+        vTaskDelay(100);
     }
 
-    return Camera_Work_Mode_Set(cam_ctl_mode);
+    if( ( ret = Camera_Work_Mode_Set(cam_ctl_mode) ) != E_NO_ERR )  //设置相机模式
+        return ret;
+
+    record_last = record_last > 300 ? 300 : record_last;
+
+    vTaskDelay( record_last * 1000 / portTICK_RATE_MS ); //相机最多开启5分钟
+
+    cam_ctl_mode.expo = 0;
+    cam_ctl_mode.tran = 0;
+    cam_ctl_mode.expo = 0;
+
+    Camera_Work_Mode_Set(cam_ctl_mode);
+
+    vTaskDelay(1000);
+
+    Camera_Power_Off();
+
+    xDTBTeleControlSend(MemStop, 2000);
+
+    vTaskDelay(1000);
+
+    dtb_power_off();
+
+    return E_NO_ERR;
 }
 
 /**
@@ -1015,17 +1083,17 @@ int Video_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
  * @param exp_time 相机曝光时间设置
  * @param gain 相机增益设置
  * @param need_erase 数传机固存是否需要擦除 （非0为需要擦除，0为不需要擦除）
+ * @param record_last 数传记录模式持续时间， 单位：秒
+ *
+ * @return 返回E_NO_ERR（-1）为正确
  */
-int Image_Raw_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
+int Image_Raw_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase, uint16_t record_last)
 {
     int ret;
 
-    cam_ctl_t cam_ctl_mode = { LVDS, Video, AutoExpoOn }; //视频模式 自动曝光开
+    cam_ctl_t cam_ctl_mode = { LVDS, ImageRaw, AutoExpoOn }; //视频模式 自动曝光开
 
     if( ( ret = dtb_power_on() ) != E_NO_ERR )  //数传机上电
-        return ret;
-
-    if( ( ret = dtb_mem_record( MemTwo , need_erase ) ) != E_NO_ERR )  //数传固存二区 开启记录模式
         return ret;
 
     if( ( ret = Camera_Power_On() ) != E_NO_ERR ) //相机上电
@@ -1033,6 +1101,13 @@ int Image_Raw_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
         dtb_power_off();
         return ret;
     }
+
+    vTaskDelay(15000);
+
+    if( ( ret = dtb_mem_record( MemThree , need_erase ) ) != E_NO_ERR )  //数传固存二区 开启记录模式
+        return ret;
+
+    vTaskDelay(1000);
 
     if( exp_time != 0 )
     {
@@ -1043,7 +1118,7 @@ int Image_Raw_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
             return ret;
         }
 
-        cam_ctl_mode.expo = AutoExpoOff;
+        vTaskDelay(100);
     }
 
     if( gain != 0 )
@@ -1056,10 +1131,147 @@ int Image_Raw_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase)
             return ret;
         }
 
-        cam_ctl_mode.expo = AutoExpoOff;
+        vTaskDelay(100);
     }
 
-    return Camera_Work_Mode_Set(cam_ctl_mode);
+    if( ( ret = Camera_Work_Mode_Set(cam_ctl_mode) ) != E_NO_ERR )  //设置相机模式
+        return ret;
+
+    record_last = record_last > 300 ? 300 : record_last;
+
+    vTaskDelay( record_last * 1000 / portTICK_RATE_MS ); //相机最多开启5分钟
+
+    cam_ctl_mode.expo = 0;
+    cam_ctl_mode.tran = 0;
+    cam_ctl_mode.expo = 0;
+
+    Camera_Work_Mode_Set(cam_ctl_mode);
+
+    vTaskDelay(1000);
+
+    Camera_Power_Off();
+
+    xDTBTeleControlSend(MemStop, 2000);
+
+    vTaskDelay(1000);
+
+    dtb_power_off();
+
+    return E_NO_ERR;
+}
+
+
+/**
+ * 备份码流相机工作流程
+ *
+ * @param exp_time 相机曝光时间设置
+ * @param gain 相机增益设置
+ */
+int Image_Backup_Mode_Process(uint32_t exp_time, uint8_t gain)
+{
+    int ret;
+
+    cam_ctl_t cam_ctl_mode = { TTL, Backup, AutoExpoOn };
+
+    if( ( ret = Camera_Power_On() ) != E_NO_ERR ) //相机上电
+        return ret;
+
+    vTaskDelay(15000);
+
+    if( exp_time != 0 )
+    {
+        if( ( ret = Camera_Exposure_Time_Set(exp_time) ) != E_NO_ERR )
+        {
+            Camera_Power_Off();
+            return ret;
+        }
+        vTaskDelay(200);
+    }
+
+    if( gain != 0 )
+    {
+        if( ( ret = Camera_Gain_Set(gain) ) != E_NO_ERR )
+        {
+            Camera_Power_Off();
+            return ret;
+        }
+        vTaskDelay(200);
+    }
+
+    ret = Camera_Work_Mode_Set(cam_ctl_mode);  //设置相机模式
+
+    vTaskDelay(3000);
+
+    Camera_Power_Off();
+
+    return ret;
+}
+
+/**
+ * 相机数传机配合工作任务函数
+ *
+ * @param para
+ */
+void Cam_DTB_Work_Task(void *para)
+{
+    Cam_Busy = true;
+
+    CamModeSet_t *pMode = (CamModeSet_t *)para;
+
+    switch(pMode->mode)
+    {
+        case ImageRaw:
+            Image_Raw_Mode_Process(pMode->exp_time, pMode->gain, pMode->need_erase, pMode->record_last);
+            break;
+        case Image1fps:
+            Image_1fps_Mode_Process(pMode->exp_time, pMode->gain, pMode->need_erase, pMode->record_last);
+            break;
+        case Video:
+            Video_Mode_Process(pMode->exp_time, pMode->gain, pMode->need_erase, pMode->record_last);
+            break;
+        case Backup:
+            Image_Backup_Mode_Process(pMode->exp_time, pMode->gain);
+            break;
+        default:
+            break;
+    }
+
+    Cam_Busy = false;
+
+    vTaskDelete(NULL);
+}
+
+/**
+ * 相机数传工作模式设置，创建任务模式
+ *
+ * @param exp_time 相机曝光时间设置
+ * @param gain 相机增益设置
+ * @param need_erase 数传固存擦除选项
+ * @param mode work_mode 枚举类型
+ * @param record_last 数传机回放持续时间
+ *
+ * @return 返回E_NO_ERR（-1）任务创建成功
+ */
+int Cam_DTB_Work(uint32_t exp_time, uint8_t gain, uint8_t need_erase, work_mode mode, uint16_t record_last)
+{
+    static CamModeSet_t pMode;
+
+    if( Cam_Busy == true )
+        return E_TIMEOUT;
+
+    pMode.exp_time = exp_time;
+    pMode.gain = gain;
+    pMode.need_erase = need_erase;
+    pMode.mode = mode;
+
+    record_last = record_last ? record_last : 300; //若参数为0，则持续最大时间300秒即5分钟
+
+    pMode.record_last = record_last;
+
+    if( xTaskCreate( Cam_DTB_Work_Task, "WORK", 256, &pMode, 1, NULL ) != pdTRUE )
+        return E_OUT_OF_MEM;
+    else
+        return E_NO_ERR;
 }
 
 
@@ -1214,7 +1426,7 @@ static int sector_bind_id(uint32_t sector, uint32_t id)
  */
 void img_store_block_recover(void)
 {
-    uint32_t max_image_id = 0;
+    cam_flash max_image_id = {0};
     /* 遍历存储表 */
     for (int i = 0; i < FLASH_IMG_NUM; i++)
     {
@@ -1225,12 +1437,17 @@ void img_store_block_recover(void)
             image_store_falsh[i].image_id = 0;
 
         /* 获取当前照片ID值 */
-        max_image_id = (image_store_falsh[i].image_id > max_image_id) ?
-                image_store_falsh[i].image_id : max_image_id;
+        max_image_id = (image_store_falsh[i].image_id > max_image_id.image_id) ?
+                image_store_falsh[i] : max_image_id;
     }
 
-    /* 恢复当前照片ID值 */
-    CurrentImage.ImageID = max_image_id;
+    if( max_image_id.image_id )
+    {   /* 将ram中的照片恢复为当前最新照片 */
+        uint32_t read_addr = get_addr_via_sector_num( max_image_id.falsh_sector );
+
+        FSMC_NOR_ReadBuffer( (uint16_t *)&CurrentImage, read_addr, sizeof(ImageInfo_t) / 2 );
+        FSMC_NOR_ReadBuffer( (uint16_t *)&Cam.ReceiveBuffer[6], read_addr + sizeof(ImageInfo_t) / 2, CurrentImage.ImageSize / 2 );
+    }
 }
 
 /**
@@ -1263,10 +1480,10 @@ static int ImagStoreInFlash(void)
         return E_FLASH_ERROR;
     }
 
+    /* 测试FLASH存储正确性 */
     ImageInfo_t image_info_test = {0};
     FSMC_NOR_ReadBuffer( (uint16_t *)&image_info_test, write_addr, sizeof(ImageInfo_t) / 2 );
 
-    /* 测试FLASH存储正确性 */
     memset(image_test_arry, 0, 256*1024);
     FSMC_NOR_ReadBuffer( (uint16_t *)image_test_arry, write_addr + sizeof(ImageInfo_t) / 2, CurrentImage.ImageSize / 2 );
 
@@ -1276,8 +1493,9 @@ static int ImagStoreInFlash(void)
     }
     else
     {
-        driver_debug(DEBUG_CAMERA, "INFO: IMG flash store OK.\r\n");
+        driver_debug(DEBUG_CAMERA, "ERROR: IMG flash store Fail!!!\r\n");
     }
+    /* END */
 
     if(sector_bind_id(free_block_sector, CurrentImage.ImageID) != E_NO_ERR)
     {
@@ -1327,6 +1545,25 @@ static int ImagStoreInSD(void)
         driver_debug(DEBUG_CAMERA, "Camera Write ImageData.dat Failure!!\r\n");
         return E_NO_DEVICE;
     }
+
+    /* 测试SD存储正确性 */
+    memset(image_test_arry, 0, 256*1024);
+
+    if( file_read( path, &image_test_arry, (UINT)CurrentImage.ImageSize, 0 ) != FR_OK )
+    {
+        driver_debug(DEBUG_CAMERA, "Camera Read ImageData.dat Failure!!\r\n");
+        return E_NO_DEVICE;
+    }
+
+    if( memcmp(image_test_arry, &Cam.ReceiveBuffer[6], CurrentImage.ImageSize ) == 0 )
+    {
+        driver_debug(DEBUG_CAMERA, "INFO: IMG SD store OK.\r\n");
+    }
+    else
+    {
+        driver_debug(DEBUG_CAMERA, "ERROR: IMG SD store Fail!!!\r\n");
+    }
+    /* END */
 
     return E_NO_ERR;
 }
@@ -1395,7 +1632,7 @@ int cam_sram_img_packet_down(uint16_t packet_id, uint8_t down_cnt)
     img_packet->PacketSize = (packet_id == CurrentImage.TotalPacket - 1) ?
             CurrentImage.LastPacketSize : IMAGE_PACK_MAX_SIZE;
 
-    memcpy(img_packet->ImageData, &Cam.ReceiveBuffer[6 + packet_id*IMAGE_PACK_MAX_SIZE], img_packet->PacketSize);
+    memcpy(img_packet->ImageData, &Cam.ReceiveBuffer[6 + packet_id * IMAGE_PACK_MAX_SIZE], img_packet->PacketSize);
 
     int ret = 0;
 
@@ -1561,8 +1798,8 @@ int cam_flash_img_info_down(uint32_t id, uint8_t down_cnt)
     if (img_info == NULL)
         return E_NO_BUFFER;
 
-    FSMC_NOR_ReadBuffer((uint16_t *)img_info, get_addr_via_sector_num(sector_num),
-            sizeof(ImageInfo_t));
+    FSMC_NOR_ReadBuffer( (uint16_t *)img_info, get_addr_via_sector_num(sector_num),
+            sizeof(ImageInfo_t) / 2 );
 
     int ret = 0;
 
@@ -1593,8 +1830,8 @@ int cam_flash_img_packet_down(uint32_t id, uint16_t packet, uint8_t down_cnt)
     if (img_info == NULL)
         return E_NO_BUFFER;
 
-    FSMC_NOR_ReadBuffer((uint16_t *)img_info, get_addr_via_sector_num(sector_num),
-            sizeof(ImageInfo_t));
+    FSMC_NOR_ReadBuffer( (uint16_t *)img_info, get_addr_via_sector_num(sector_num),
+            sizeof(ImageInfo_t) / 2 );
 
     if (packet >= img_info->TotalPacket)
     {
@@ -1613,8 +1850,8 @@ int cam_flash_img_packet_down(uint32_t id, uint16_t packet, uint8_t down_cnt)
     img_packet->PacketSize = (packet == img_info->TotalPacket-1) ?
             img_info->LastPacketSize : IMAGE_PACK_MAX_SIZE;
 
-    FSMC_NOR_ReadBuffer((uint16_t *)img_packet->ImageData, get_addr_via_sector_num(sector_num) + sizeof(ImageInfo_t) / 2
-            + packet * IMAGE_PACK_MAX_SIZE, img_packet->PacketSize);
+    FSMC_NOR_ReadBuffer( (uint16_t *)img_packet->ImageData, get_addr_via_sector_num(sector_num) + (sizeof(ImageInfo_t)
+            + packet * IMAGE_PACK_MAX_SIZE) / 2 , img_packet->PacketSize / 2 );
 
     int ret = 0;
 
@@ -1643,11 +1880,11 @@ int cam_flash_img_to_sram(uint32_t id)
     if(sector_num == 0)
         return E_INVALID_PARAM;
 
-    FSMC_NOR_ReadBuffer((uint16_t *)&CurrentImage, get_addr_via_sector_num(sector_num),
-            sizeof(ImageInfo_t));
+    FSMC_NOR_ReadBuffer( (uint16_t *)&CurrentImage, get_addr_via_sector_num(sector_num),
+            sizeof(ImageInfo_t) / 2 );
 
-    FSMC_NOR_ReadBuffer((uint16_t *)&Cam.ReceiveBuffer[6],
-            get_addr_via_sector_num(sector_num) + sizeof(ImageInfo_t) / 2, CurrentImage.ImageSize);
+    FSMC_NOR_ReadBuffer( (uint16_t *)&Cam.ReceiveBuffer[6],
+            get_addr_via_sector_num(sector_num) + sizeof(ImageInfo_t) / 2, CurrentImage.ImageSize / 2 );
 
     return E_NO_ERR;
 }
@@ -1671,8 +1908,8 @@ int cam_newest_img_info_down(uint8_t mem_region, uint8_t down_cnt)
         return E_NO_BUFFER;
 
 
-    FSMC_NOR_ReadBuffer((uint16_t *)newest_img, get_addr_via_sector_num(sector_num),
-                sizeof(ImageInfo_t));
+    FSMC_NOR_ReadBuffer( (uint16_t *)newest_img, get_addr_via_sector_num(sector_num),
+                sizeof(ImageInfo_t) / 2 );
 
     if (newest_img->ImageID == CurrentImage.ImageID)
     {
@@ -1726,7 +1963,7 @@ int cam_img_info_down( uint8_t mem_region, uint32_t id, uint8_t down_cnt )
  */
 int Image_Info_Down( uint32_t id, uint8_t mem_region, uint8_t down_cnt )
 {
-    if( id == 0xFFFF )
+    if( id == 0xFFFFFFFF )
         return cam_newest_img_info_down( mem_region, down_cnt );
     else
         return cam_img_info_down( mem_region, id, down_cnt );
@@ -1959,6 +2196,70 @@ int cmd_Camera_Work_Mode_Set(struct command_context *ctx)
     return CMD_ERROR_NONE;
 }
 
+int cmd_Camera_power_on_off(struct command_context *ctx)
+{
+    int flag = 0;
+    char * args = command_args(ctx);
+    uint8_t power_switch = 0;
+
+    if( sscanf(args, "%u", &power_switch) != 1 )
+        return CMD_ERROR_SYNTAX;
+
+    flag = cam_power_switch( power_switch );
+
+    if(flag == E_NO_ERR)
+        printf("Success!!\r\n");
+    else
+        printf("Fail!!\r\n");
+
+    return CMD_ERROR_NONE;
+}
+
+int cmd_Camera_Reset(struct command_context *ctx __attribute__((unused)))
+{
+    FILINFO fno;
+    DIR dir;
+    char lfname[30] = {0};
+    uint32_t lfname_length = 25;
+    char path[50] = {0};
+
+    strcpy(path, "0:img");
+    printf("Remove all image files!\r\n");
+
+    if( f_opendir(&dir, path) != FR_OK )
+    {
+        printf("Open directory failed\r\n");
+        return CMD_ERROR_FAIL;
+    }
+
+    strcat(path,"/");
+
+    for(;;)
+    {
+        if( f_readdir(&dir, &fno) != FR_OK )
+        {
+            printf("Read directory failed\r\n");
+            return CMD_ERROR_FAIL;
+        }
+
+        if(fno.fname[0] == 0)
+            break;
+
+        if(fno.fname[0] == '.')
+            continue;
+
+        strcat( path, fno.lfname[0] ? fno.lfname : fno.fname ); //长文件名
+
+        f_unlink(path);
+
+        printf("Remove file: %s \r\n", path);
+
+        memcpy(path, "0:img/", 7);
+    }
+
+    return CMD_ERROR_NONE;
+}
+
 command_t __sub_command camera805_subcommands[] = {
     {
         .name = "reset",
@@ -1996,8 +2297,16 @@ command_t __sub_command camera805_subcommands[] = {
         .help = "Camera control mode",
         .usage = "<tran> <mode> <expo>",
         .handler = cmd_Camera_Work_Mode_Set,
-    },
-
+    },{
+        .name = "power",
+        .help = "Camera power control",
+        .usage = "<Off--0> <On--1>",
+        .handler = cmd_Camera_power_on_off,
+    },{
+        .name = "rm",
+        .help = "SD Image file remove",
+        .handler = cmd_Camera_Reset,
+    }
 };
 command_t __root_command cam805_commands[] = {
     {

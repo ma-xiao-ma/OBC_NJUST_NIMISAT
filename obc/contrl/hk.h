@@ -44,8 +44,8 @@
 #define HK_STORAGE_INTERVAL         15
 #define HK_OFFSET_H_MS				(uint32_t)(HK_STORAGE_INTERVAL * HK_FILE_MAX_COUNT / 2)
 
-/*一个遥测文件最多存储200条遥测信息*/
-#define HK_FILE_MAX_COUNT			200
+/*一个遥测文件最多存储240条遥测信息*/
+#define HK_FILE_MAX_COUNT			240
 
 typedef struct hkListNode {
 	uint32_t TimeValue;
@@ -197,10 +197,9 @@ typedef struct __attribute__((packed))
     obc_hk_t        obc;
     eps_hk_t        eps;
     vu_isis_hk_t    ttc;
-    /*dtb_805_hk_t    dtb;*/
     vu_jlg_hk_t     jlg;
     cam_805_hk_t    cam;
-
+    dtb_805_hk_t    dtb;
 } HK_Main_t;
 
 typedef struct __attribute__((packed))

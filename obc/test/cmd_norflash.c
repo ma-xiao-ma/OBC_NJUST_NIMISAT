@@ -141,19 +141,15 @@ int NorFlash_Sector_Erase_Handler(struct command_context * context) {
 }
 
 
-int NorFlash_Chip_Erase_Handler(struct command_context * context __attribute__((unused))) {
-
+int NorFlash_Chip_Erase_Handler(struct command_context * context __attribute__((unused)))
+{
     NOR_STATUS EraseResult = NOR_ERROR;
 
-    EraseResult = FSMC_NOR_EraseChip();
-    if(EraseResult != NOR_SUCCESS)
-    {
-        printf("Chip Erase Failed!\n");
-    }
-    else
-    {
-        printf("Chip Erase Success!\n");
-    }
+    FSMC_NOR_EraseChip();
+
+    printf("Chip Erasing ...\r\n");
+    vTaskDelay(40000);
+    printf("Erase Complete!!\n");
 
     return CMD_ERROR_NONE;
 }

@@ -431,8 +431,9 @@ static void up_group_one_Cmd_pro(unsigned char cmd_id, const unsigned char *cube
 
         case TR_MEM_BACK_BASH:
 
-            if( dtb_mem_back( obc_unpacket->tr_mem_back_bash.mem_num,
-                    obc_unpacket->tr_mem_back_bash.data_rate ) != E_NO_ERR )
+            if( DTB_Mem_Back_Work( obc_unpacket->tr_mem_back_bash.mem_num,
+                    obc_unpacket->tr_mem_back_bash.data_rate,
+                    obc_unpacket->tr_mem_back_bash.back_last ) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;
@@ -573,8 +574,8 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
 
         case CAM_WORK_MODE_1FPS:
 
-            if( Image_1fps_Mode_Process( cam_cmd->cam_mode_set.exp_time, cam_cmd->cam_mode_set.gain,
-                    cam_cmd->cam_mode_set.need_erase ) != E_NO_ERR )
+            if( Cam_DTB_Work( cam_cmd->cam_mode_set.exp_time, cam_cmd->cam_mode_set.gain,
+                    cam_cmd->cam_mode_set.need_erase, Image1fps, cam_cmd->cam_mode_set.record_last) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;
@@ -584,8 +585,8 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
 
         case CAM_WORK_MODE_VIDEO:
 
-            if( Video_Mode_Process( cam_cmd->cam_mode_set.exp_time, cam_cmd->cam_mode_set.gain,
-                    cam_cmd->cam_mode_set.need_erase ) != E_NO_ERR )
+            if( Cam_DTB_Work( cam_cmd->cam_mode_set.exp_time, cam_cmd->cam_mode_set.gain,
+                    cam_cmd->cam_mode_set.need_erase, Video, cam_cmd->cam_mode_set.record_last ) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;
@@ -595,8 +596,8 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
 
         case CAM_WORK_MODE_RAW:
 
-            if( Image_Raw_Mode_Process( cam_cmd->cam_mode_set.exp_time, cam_cmd->cam_mode_set.gain,
-                    cam_cmd->cam_mode_set.need_erase ) != E_NO_ERR )
+            if( Cam_DTB_Work( cam_cmd->cam_mode_set.exp_time, cam_cmd->cam_mode_set.gain,
+                    cam_cmd->cam_mode_set.need_erase, ImageRaw, cam_cmd->cam_mode_set.record_last ) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;
@@ -615,7 +616,8 @@ static void up_group_three_Cmd_pro(unsigned char cmd_id, const unsigned char *cu
 
         case CAM_WORK_MODE_BACKUP:
 
-            if( Camera_Work_Mode_Set(cam_ctl_mode) != E_NO_ERR )
+            if( Cam_DTB_Work( cam_cmd->cam_mode_set.exp_time, cam_cmd->cam_mode_set.gain,
+                    cam_cmd->cam_mode_set.need_erase, Backup, cam_cmd->cam_mode_set.record_last ) != E_NO_ERR )
                 result = Fail;
             else
                 result = Success;

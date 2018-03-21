@@ -355,8 +355,8 @@ void hk_collect_no_store(void)
 	ttc_hk_get_peek(&hk_frame.main_frame.ttc);
 
         /*数传机遥测获取*/
-//	  dtb_hk_get_peek(&hk_frame.main_frame.dtb);
-	jlg_hk_get_peek(&hk_frame.main_frame.jlg);
+	dtb_hk_get_peek(&hk_frame.main_frame.dtb);
+//	jlg_hk_get_peek(&hk_frame.main_frame.jlg);
 
         /*相机遥测获取*/
     cam_hk_get_peek(&hk_frame.main_frame.cam);
@@ -380,8 +380,8 @@ void hk_collect(void)
     ttc_hk_get_peek(&hk_frame.main_frame.ttc);
 
         /*数传机遥测获取*/
-//    dtb_hk_get_peek(&hk_frame.main_frame.dtb);
-    jlg_hk_get_peek(&hk_frame.main_frame.jlg);
+    dtb_hk_get_peek(&hk_frame.main_frame.dtb);
+//    jlg_hk_get_peek(&hk_frame.main_frame.jlg);
 
         /*相机遥测获取*/
     cam_hk_get_peek(&hk_frame.main_frame.cam);
@@ -935,7 +935,7 @@ void adcs_hk_task(void)
     if ( (ret = adcs_get_hk(&adcs_hk, 100)) != E_NO_ERR )
         printf("WARN: Get ADCS hk fail! Result: %d\r\n", ret);
 
-//    xQueueOverwrite(adcs_hk_queue, &adcs_hk);
+    xQueueOverwrite(adcs_hk_queue, &adcs_hk);
 }
 
 /**

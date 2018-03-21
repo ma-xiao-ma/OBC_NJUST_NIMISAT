@@ -438,7 +438,7 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
     while(1)
     {
         task_report_alive(Isis);
-        vTaskDelay(1537);
+        vTaskDelay(1234);
 
         /**获取接收机缓冲区帧计数*/
         if (vu_receiver_get_frame_num(&frame_num) != E_NO_ERR)
@@ -495,6 +495,11 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
 
         memmove(&((route_packet_t *)recv_frame)->dst, &recv_frame->Data, frame_num);
 
+        /**成功接收后移除此帧*/
+        vu_receiver_remove_frame();
+        vTaskDelay(100);
+        vu_receiver_remove_frame();
+
         /*若指令为关闭备份通信机指令，为了防止备份通信机接收出问题，在ISIS上行处理任务中直接关闭*/
         if ( ((route_packet_t *)recv_frame)->typ == VU_INS_BACKUP_OFF )
             vu_backup_switch_off();
@@ -517,22 +522,6 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
 
 //            /*关闭ISIS连续发射*/
 //            vu_transmitter_set_idle_state(TurnOff);
-        }
-
-        /**成功接收后移除此帧*/
-        if (vu_receiver_remove_frame() != E_NO_ERR)
-        {
-            for (uint8_t repeat_time = 0; repeat_time < 5; repeat_time++)
-            {
-                if (vu_receiver_remove_frame() == E_NO_ERR)
-                    break;
-
-                if (repeat_time == 4)
-                {
-                    vu_receiver_software_reset();
-                    vTaskDelay(50 / portTICK_PERIOD_MS);
-                }
-            }
         }
     }
 }
@@ -819,6 +808,11 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
             continue;
         }
 
+        vTaskDelay(100);
+
+        /**成功接收后移除此帧*/
+        vu_remove_frame();
+
         /**通信机接收上行消息计数加1*/
         vu_jlg_rx_count++;
 
@@ -827,9 +821,6 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
         {
             driver_debug(DEBUG_TTC, "WARNING: JLG vu has received a incorrect frame!!\r\n");
             ObcMemFree(recv_frame);
-
-            /* 移除错误帧 */
-            vu_remove_frame();
             continue;
         }
 
@@ -854,21 +845,6 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
 //        /*开启连续发射*/
 //        vu_set_idle_state(RemainOn);
 
-        /**成功接收后移除此帧*/
-        if (vu_remove_frame() != E_NO_ERR)
-        {
-            for (uint8_t repeat_time = 0; repeat_time < 5; repeat_time++)
-            {
-                if (vu_remove_frame() == E_NO_ERR)
-                    break;
-
-                if (repeat_time == 4)
-                {
-                    vu_software_reset();
-                    vTaskDelay(50 / portTICK_PERIOD_MS);
-                }
-            }
-        }
     }
 }
 

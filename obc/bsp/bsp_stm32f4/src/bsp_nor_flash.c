@@ -14,7 +14,8 @@
 /* 判忙时的执行语句循环次数  */
 #define BlockErase_Timeout    	((uint32_t)0x00A00000)
 #define ChipErase_Timeout     	((uint32_t)0x00200000)
-#define Program_Timeout       	((uint32_t)0x00001400)
+//#define Program_Timeout       	((uint32_t)0x00001400)
+#define Program_Timeout         ((uint32_t)0x00000100)
 
 /* PD6是NOR FLASH输出到STM32的忙信号，通过GPIO查询方式判断  */
 #define NOR_IS_BUSY()			(GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_6) == RESET)
@@ -423,18 +424,18 @@ NOR_STATUS FSMC_NOR_GetStatus(u32 Timeout)
   NOR_STATUS status = NOR_ONGOING;
   u32 timeout = Timeout;
 
-//  /* Poll on NOR memory Ready/Busy signal ------------------------------------*/
-//  while((GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_6) != RESET) && (timeout > 0))
-//  {
-//    timeout--;
-//  }
-//
-//  timeout = Timeout;
-//
-//  while((GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_6) == RESET) && (timeout > 0))
-//  {
-//    timeout--;
-//  }
+  /* Poll on NOR memory Ready/Busy signal ------------------------------------*/
+  while((GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_6) != RESET) && (timeout > 0))
+  {
+    timeout--;
+  }
+
+  timeout = Timeout;
+
+  while((GPIO_ReadInputDataBit(GPIOD, GPIO_Pin_6) == RESET) && (timeout > 0))
+  {
+    timeout--;
+  }
 
   /* Get the NOR memory operation status -------------------------------------*/
   while((Timeout != 0x00) && (status != NOR_SUCCESS))

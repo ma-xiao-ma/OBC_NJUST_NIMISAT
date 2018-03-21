@@ -216,7 +216,6 @@ int router_unpacket(route_packet_t *packet)
         switch (packet->typ)
         {
             case INS_OBC_GET_ADCS_HK:
-//                adcs_queue_wirte(packet, NULL);
                 xQueueOverwrite(adcs_hk_queue, packet->dat);
                 ObcMemFree(packet);
                 break;

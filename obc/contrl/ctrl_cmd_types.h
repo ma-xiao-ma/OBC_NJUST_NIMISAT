@@ -198,6 +198,7 @@ typedef struct __attribute__((packed))
 {
     uint8_t mem_num;
     uint8_t data_rate;
+    uint16_t back_last;
 }mem_back_bash;
 
 typedef struct __attribute__((packed))
@@ -205,6 +206,7 @@ typedef struct __attribute__((packed))
     uint32_t    exp_time;
     uint8_t     gain;
     uint8_t     need_erase;
+    uint16_t    record_last;
 }cam_mode_bash;
 
 typedef struct __attribute__((packed))

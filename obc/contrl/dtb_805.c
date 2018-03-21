@@ -4,6 +4,9 @@
  *  Created on: 2017年9月18日
  *      Author: Ma Wenli
  */
+
+#include "stdbool.h"
+
 #include "obc_mem.h"
 #include "crc.h"
 #include "error.h"
@@ -12,6 +15,7 @@
 #include "bsp_switch.h"
 #include "hk.h"
 #include "string.h"
+#include "ctrl_cmd_types.h"
 
 
 #include "dtb_805.h"
@@ -20,6 +24,10 @@
 #define DTB_I2C_HANDLE  1
 #define DTB_TM_FLAG     0x29
 #define DTB_TC_FLAG     0x09
+
+#define DTB_CMD_TIMEOUT 1000
+
+bool DTB_Busy = false;
 
 /**
  * IO控制数传机上电
@@ -179,16 +187,16 @@ int mem_erase( mem_region mem_num )
     switch( mem_num )
     {
         case MemOne:
-            ret = xDTBTeleControlSend(Mem1Erase, 100);
+            ret = xDTBTeleControlSend(Mem1Erase, DTB_CMD_TIMEOUT);
             break;
         case MemTwo:
-            ret = xDTBTeleControlSend(Mem2Erase, 100);
+            ret = xDTBTeleControlSend(Mem2Erase, DTB_CMD_TIMEOUT);
             break;
         case MemThree:
-            ret = xDTBTeleControlSend(Mem3Erase, 100);
+            ret = xDTBTeleControlSend(Mem3Erase, DTB_CMD_TIMEOUT);
             break;
         case MemFour:
-            ret = xDTBTeleControlSend(Mem4Erase, 100);
+            ret = xDTBTeleControlSend(Mem4Erase, DTB_CMD_TIMEOUT);
             break;
         default:
             break;
@@ -214,16 +222,16 @@ int mem_record( mem_region mem_num )
      switch( mem_num )
      {
          case MemOne:
-             ret = xDTBTeleControlSend(Mem1Record, 100);
+             ret = xDTBTeleControlSend(Mem1Record, DTB_CMD_TIMEOUT);
              break;
          case MemTwo:
-             ret = xDTBTeleControlSend(Mem2Record, 100);
+             ret = xDTBTeleControlSend(Mem2Record, DTB_CMD_TIMEOUT);
              break;
          case MemThree:
-             ret = xDTBTeleControlSend(Mem3Record, 100);
+             ret = xDTBTeleControlSend(Mem3Record, DTB_CMD_TIMEOUT);
              break;
          case MemFour:
-             ret = xDTBTeleControlSend(Mem4Record, 100);
+             ret = xDTBTeleControlSend(Mem4Record, DTB_CMD_TIMEOUT);
              break;
          default:
              break;
@@ -249,16 +257,16 @@ int mem_back( mem_region mem_num )
      switch( mem_num )
      {
          case MemOne:
-             ret = xDTBTeleControlSend(Mem1Back, 100);
+             ret = xDTBTeleControlSend(Mem1Back, DTB_CMD_TIMEOUT);
              break;
          case MemTwo:
-             ret = xDTBTeleControlSend(Mem2Back, 100);
+             ret = xDTBTeleControlSend(Mem2Back, DTB_CMD_TIMEOUT);
              break;
          case MemThree:
-             ret = xDTBTeleControlSend(Mem3Back, 100);
+             ret = xDTBTeleControlSend(Mem3Back, DTB_CMD_TIMEOUT);
              break;
          case MemFour:
-             ret = xDTBTeleControlSend(Mem4Back, 100);
+             ret = xDTBTeleControlSend(Mem4Back, DTB_CMD_TIMEOUT);
              break;
          default:
              break;
@@ -284,16 +292,16 @@ int rf_rate_select( data_rate down_rate )
      switch( down_rate )
      {
          case MemOne:
-             ret = xDTBTeleControlSend(Mem1Back, 100);
+             ret = xDTBTeleControlSend(Rate1Mbps, DTB_CMD_TIMEOUT);
              break;
          case MemTwo:
-             ret = xDTBTeleControlSend(Mem2Back, 100);
+             ret = xDTBTeleControlSend(Rate2Mbps, DTB_CMD_TIMEOUT);
              break;
          case MemThree:
-             ret = xDTBTeleControlSend(Mem3Back, 100);
+             ret = xDTBTeleControlSend(Rate4Mbps, DTB_CMD_TIMEOUT);
              break;
          case MemFour:
-             ret = xDTBTeleControlSend(Mem4Back, 100);
+             ret = xDTBTeleControlSend(Rate8Mbps, DTB_CMD_TIMEOUT);
              break;
          default:
              break;
@@ -336,20 +344,16 @@ int dtb_mem_record(uint8_t mem_num, uint8_t need_erase)
  *
  * @param mem_num 存储区号 1、2、3、4
  * @param data_rate 下行码速率1--1Mbps、2--2Mbps、3--4Mbps、4--8Mbps
+ * @param back_last 回放持续时间，单位：秒
  * @return 返回E_NO_ERR（-1）为正确
  */
-int dtb_mem_back(uint8_t mem_num, uint8_t data_rate)
+int dtb_mem_back(uint8_t mem_num, uint8_t data_rate, uint16_t back_last)
 {
     /* 保证电力供应 */
     if( dtb_power_on() != E_NO_ERR )
         return E_NO_DEVICE;
 
-    /* 发射机开机 */
-    if( xDTBTeleControlSend(Boot, 100) != E_NO_ERR )
-    {
-        dtb_power_off();
-        return E_NO_SS;
-    }
+    vTaskDelay(2000);
 
     /* 选择下行码速率  1--1Mbps、2--2Mbps、3--4Mbps、4--8Mbps */
     if( rf_rate_select( data_rate ) != E_NO_ERR)
@@ -358,13 +362,92 @@ int dtb_mem_back(uint8_t mem_num, uint8_t data_rate)
         return E_NO_SS;
     }
 
+    vTaskDelay(500);
+
+    /* 发射机开机 */
+    if( xDTBTeleControlSend(Boot, DTB_CMD_TIMEOUT) != E_NO_ERR )
+    {
+        dtb_power_off();
+        return E_NO_SS;
+    }
+
+    vTaskDelay(500);
+
     if( mem_back( mem_num ) != E_NO_ERR )
     {
         dtb_power_off();
         return E_NO_SS;
     }
 
+    back_last = back_last > 600 ? 600 : back_last;
+
+    vTaskDelay(back_last * 1000);
+
+    /* 固存停止 */
+    if( xDTBTeleControlSend(MemStop, DTB_CMD_TIMEOUT) != E_NO_ERR )
+    {
+        dtb_power_off();
+        return E_NO_SS;
+    }
+
+    vTaskDelay(500);
+
+    /* 发射机关机 */
+    if( xDTBTeleControlSend(ShutDown, DTB_CMD_TIMEOUT) != E_NO_ERR )
+    {
+        dtb_power_off();
+        return E_NO_SS;
+    }
+
+    vTaskDelay(2000);
+
+    dtb_power_off();
+
     return E_NO_ERR;
+}
+
+/**
+ * 回放处理任务
+ * @param para
+ */
+void dtb_mem_back_task(void *para)
+{
+    DTB_Busy = true;
+
+    mem_back_bash *pBash = (mem_back_bash *)para;
+
+    dtb_mem_back( pBash->mem_num, pBash->data_rate, pBash->back_last );
+
+    DTB_Busy = false;
+
+    vTaskDelete(NULL);
+}
+
+/**
+ * 数传机回放事务，创建任务
+ *
+ * @param mem_num 内存区选择
+ * @param data_rate 下行速率选择
+ * @return 返回E_NO_ERR（-1）为正确
+ */
+int DTB_Mem_Back_Work(uint8_t mem_num, uint8_t data_rate, uint16_t back_last)
+{
+    static mem_back_bash back_bash;
+
+    if( DTB_Busy == true )
+        return E_TIMEOUT;
+
+    back_bash.mem_num = mem_num;
+    back_bash.data_rate = data_rate;
+
+    back_last = back_last ? back_last : 600; //若回放参数设置为0则回放最大时间10分钟即600秒
+
+    back_bash.back_last = back_last;
+
+    if( xTaskCreate( dtb_mem_back_task, "BACK", 256, &back_bash, 1, NULL ) != pdTRUE )
+        return E_OUT_OF_MEM;
+    else
+        return E_NO_ERR;
 }
 
 /**
@@ -376,9 +459,9 @@ int dtb_mem_back(uint8_t mem_num, uint8_t data_rate)
 int dtb_rf_switch( tr_sw_status select )
 {
     if( select == tr_sw_on )
-        return xDTBTeleControlSend(Boot, 100);
+        return xDTBTeleControlSend(Boot, DTB_CMD_TIMEOUT);
     else
-        return xDTBTeleControlSend(ShutDown, 100);
+        return xDTBTeleControlSend(ShutDown, DTB_CMD_TIMEOUT);
 }
 
 /**
@@ -390,9 +473,9 @@ int dtb_rf_switch( tr_sw_status select )
 int dtb_pseudo_switch( tr_sw_status select )
 {
     if( select == tr_sw_on )
-        return xDTBTeleControlSend(PseudoOn, 100);
+        return xDTBTeleControlSend(PseudoOn, DTB_CMD_TIMEOUT);
     else
-        return xDTBTeleControlSend(PseudoOff, 100);
+        return xDTBTeleControlSend(PseudoOff, DTB_CMD_TIMEOUT);
 }
 
 float dtb_temp_conversion(uint8_t temp_raw)

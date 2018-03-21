@@ -110,7 +110,7 @@ static control_para control_task;
 
 #define VU_IDLE_ON       (10 * 60) /*通信机空闲状态连续发射开 持续时间    单位：秒*/
 #define JLG_VU_SWITCH_ON (10 * 60) /*解理工通信机备份机切换     持续时间    单位：秒*/
-#define CAM_WORK_TIME    (10 * 60) /*相机工作时间控制  单位：秒*/
+#define CAM_WORK_TIME    (6 * 60) /*相机工作时间控制  单位：秒*/
 #define DTB_WORK_TIME    (11 * 60) /*数传回放时间控制  单位：秒*/
 #define PASSIN_LAST      (10 * 60) /*过境时间  单位：秒*/
 #define TIME_SYSN        ( 5 * 60) /*时间同步间隔  单位：秒*/
@@ -246,19 +246,24 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 	}
 }
 
-#define COLLECT_CYCLE 2000
+#define COLLECT_CYCLE 2000 //采集任务周期 单位：毫秒
 /**
  * 将存储时间间隔转换成下行任务中的计数器判断次数
  * @param pvParameters 秒数
  */
-#define DOWN_JUDGMENT(x)    ( x / (COLLECT_CYCLE / configTICK_RATE_HZ) )
+#define COLLECT_TASK_JUDGMENT(x)    ( x / (COLLECT_CYCLE / configTICK_RATE_HZ) )
 
-#define HK_SAVE_INTERVAL    12 //存储间隔12秒  须为COLLECT_CYCLE的倍数
-
+#define HK_SAVE_INTERVAL            60 //存储间隔60秒  须为COLLECT_CYCLE的倍数
+#define HK_DOWN_INTERVAL_OUTSIDE    12 //境外遥测下行间隔， 单位：秒
+#define ADCS_BOOT_WAITING           2  //姿控系统启动等待时间， 单位：秒
+#define DTB_BOOT_WAITING            4  //数传启动等待时间， 单位：秒
+#define CAM_BOOT_WAITING            10  //相机启动等待时间， 单位：秒
+#define VU_BOOT_WAITING             4  //备份通信机启动等待时间， 单位：秒
 
 void hk_collect_task(void *pvParameters __attribute__((unused)))
 {
-    uint32_t hk_save_counter = 0;
+    uint32_t hk_save_counter = 0, hk_down_counter = 0, adcs_boot_waiting = 0,
+            dtb_boot_waiting = 0, cam_boot_waiting = 0, vu_boot_waiting = 0;
 
     eps_start();
     hk_collect_task_init();
@@ -285,28 +290,52 @@ void hk_collect_task(void *pvParameters __attribute__((unused)))
 
         /* 若数传上电，则获取遥测值 */
         if( OUT_SW_DTB_5V_PIN() )
-            dtb_hk_task();
+        {
+            if( ++dtb_boot_waiting >= COLLECT_TASK_JUDGMENT(DTB_BOOT_WAITING) )
+                dtb_hk_task();
+        }
+        else
+            dtb_boot_waiting = 0;
 
+        /* 备份通信机工作，等待后开始采集 */
         if( IsJLGvuWorking )
-            jlg_hk_task();
+        {
+            if( ++vu_boot_waiting >= COLLECT_TASK_JUDGMENT(VU_BOOT_WAITING) )
+                jlg_hk_task();
+        }
+        else
+            vu_boot_waiting = 0;
 
         /* 若相机上电，则获取遥测值 */
-        if( OUT_SW_CAMERA_10W_PIN() && OUT_SW_CAMERA_5W_PIN() )
-            cam_hk_task();
+        if( OUT_SW_CAMERA_5W_PIN() && OUT_SW_CAMERA_10W_PIN() )
+        {
+            if( ++cam_boot_waiting >= COLLECT_TASK_JUDGMENT(CAM_BOOT_WAITING) )
+                cam_hk_task();
+        }
+        else
+            cam_boot_waiting = 0;
 
         /* 若姿控上电，则获取遥测值 */
         if( SW_EPS_S0_PIN() )
-            adcs_hk_task();
+            if( ++adcs_boot_waiting >= COLLECT_TASK_JUDGMENT(ADCS_BOOT_WAITING) )
+                adcs_hk_task();
+        else
+            adcs_boot_waiting = 0;
 
         /* 如果开始下行标志置1，则下行遥测 */
         if( down_cmd_enable == true )
             hk_down_proc_task();
+        else if( ++hk_down_counter >= COLLECT_TASK_JUDGMENT(HK_DOWN_INTERVAL_OUTSIDE) && !PassFlag) /* 非过境时 */
+        {
+            hk_down_counter = 0;
+            hk_down_proc_task();
+        }
 
         /* 否则保存遥测 */
-        if( ++hk_save_counter >= DOWN_JUDGMENT(HK_SAVE_INTERVAL) )  //存储间隔12秒
+        if( ++hk_save_counter >= COLLECT_TASK_JUDGMENT(HK_SAVE_INTERVAL) )  //存储间隔60秒
         {
             hk_save_counter = 0;
-            hk_data_save_task(); /*250分钟存满一个文件，一个文件1000调遥测*/
+            hk_data_save_task(); /*240分钟存满一个文件，一个文件240条遥测*/
         }
     }
 }
@@ -554,24 +583,6 @@ void hk_data_save_task(void)
 {
 	hk_collect();
 
-	if ( !PassFlag ) /* 非过境时每个存储周期下行遥测 */
-	{
-        /**
-         * 遥测值信标
-         */
-	    /* 解决首帧丢失问题  */
-        ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
-                &hk_frame.main_frame, sizeof(HK_Main_t) );
-
-        ProtocolSendDownCmd( GND_ROUTE_ADDR, OBC_ROUTE_ADDR, OBC_TELEMETRY,
-                &hk_frame.main_frame, sizeof(HK_Main_t) );
-
-        vTaskDelay(10 / portTICK_RATE_MS);
-
-        ProtocolSendDownCmd( GND_ROUTE_ADDR, ADCS_ROUTE_ADDR, ADCS_TELEMETRY,
-                &hk_frame.append_frame, sizeof(HK_Append_t) );
-	}
-
 	hk_store_add();
 }
 
@@ -635,7 +646,7 @@ int Delay_Task_Mon_Start(delay_task_t *para)
         return E_INVALID_PARAM;
 
     /*片外NOR_FALSH SECTOR_0 读、改、写*/
-    FSMC_NOR_ReadBuffer( (uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t)/2 );
+    FSMC_NOR_ReadBuffer( (uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t) / 2 );
 
     /* 给任务恢复结构体赋值 */
     obc_save.delay_task_recover[0].task_function = Delay_Task_Mon;

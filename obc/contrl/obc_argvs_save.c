@@ -34,7 +34,7 @@ uint8_t obc_argvs_store(void)
     /*if( bsp_ReadCpuFlash(OBC_STORE_FLASH_ADDR, (uint8_t*)&obc_save, sizeof(obc_save)) != 0 )
         return 1;*/
 
-	FSMC_NOR_ReadBuffer( (uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t)/2 );
+	FSMC_NOR_ReadBuffer( (uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t) / 2 );
 
 	obc_save.obc_reset_time = clock_get_time_nopara();
 	obc_save.antenna_status = antenna_status;
@@ -58,7 +58,7 @@ uint8_t obc_argvs_store(void)
         return 1;
     }
 
-    if (FSMC_NOR_WriteBuffer((uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t)/2) != NOR_SUCCESS)
+    if (FSMC_NOR_WriteBuffer((uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t) / 2) != NOR_SUCCESS)
     {
         printf("ERROR: NorFalsh write sector 0 fail!\r\n");
         return 1;
@@ -71,7 +71,7 @@ uint8_t obc_argvs_recover(void)
 {
 	uint8_t res = 1;
 
-	FSMC_NOR_ReadBuffer( (uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t)/2 );
+	FSMC_NOR_ReadBuffer( (uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t) / 2 );
 
     if(obc_save.obc_boot_count == 0xFFFFFFFF || obc_save.obc_boot_count == 0)
         obc_save.obc_boot_count = 1;

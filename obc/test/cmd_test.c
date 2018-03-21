@@ -191,6 +191,22 @@ int dtb_tm(struct command_context * context __attribute__((unused)))
     return CMD_ERROR_NONE;
 }
 
+int dtb_pwr_switch(struct command_context *ctx)
+{
+    uint8_t dtb_pwr_sw;
+
+    char * args = command_args(ctx);
+    if( sscanf( args, "%u", &dtb_pwr_sw ) != 1 )
+        return CMD_ERROR_SYNTAX;
+
+    if( dtb_power_switch( dtb_pwr_sw ) != -1 )
+        printf("Fail!!\r\n");
+    else
+        printf("Success!!\r\n");
+
+    return CMD_ERROR_NONE;
+}
+
 int ttc_send_cmd(uint8_t handle, uint8_t cmd, uint8_t slen, uint8_t rlen)
 {
     uint8_t *pbuffer = ObcMemMalloc((slen>rlen)?slen:rlen);
@@ -399,7 +415,7 @@ int image_download_test(struct command_context *ctx)
     static uint8_t image_id, mem_region, down_cnt;
 
     char * args = command_args(ctx);
-    if(sscanf(args, "%u %u %u", &image_id, mem_region, down_cnt) != 3)
+    if(sscanf(args, "%u %u %u", &image_id, &mem_region, &down_cnt) != 3)
         return CMD_ERROR_SYNTAX;
 
     if( cam_img_info_down(mem_region, image_id, down_cnt) != E_NO_ERR)
@@ -453,6 +469,12 @@ struct command test_subcommands[] = {
         .name = "tm_dtb",
         .help = "dtb tm cmd",
         .handler = dtb_tm,
+    },
+    {
+        .name = "dtb_pwr",
+        .help = "dtb power switch",
+        .usage = "<0--off><1--on>",
+        .handler = dtb_pwr_switch,
     },
     {
         .name = "ttccmd",

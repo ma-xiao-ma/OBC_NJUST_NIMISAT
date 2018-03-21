@@ -503,9 +503,9 @@ int cmd_fat_rmall(struct command_context *ctx) {
 	return CMD_ERROR_NONE;
 }
 
-int cmd_reset_all(struct command_context *ctx __attribute__((unused))) {
-
-	char * args = command_args(ctx);
+int cmd_reset_all(struct command_context *ctx __attribute__((unused)))
+{
+    char * args = command_args(ctx);
 
 	FILINFO fno;
 	DIR dir;
@@ -521,16 +521,18 @@ int cmd_reset_all(struct command_context *ctx __attribute__((unused))) {
 	FRESULT result = f_opendir(&dir,path);
 	strcat(path,"/");
 
-	for(;;){
+	for(;;)
+	{
 		result = f_readdir(&dir,&fno);
-		if(result != FR_OK){
+
+		if(result != FR_OK)
+		{
 			printf("read directory failed\r\n");
 			printf("list error ,result is :%u\r\n",result);
-
 			portEXIT_CRITICAL();
-
 			return CMD_ERROR_FAIL;
 		}
+
 		if(fno.fname[0] == 0) break;
 		if(fno.fname[0] == '.') continue;
 

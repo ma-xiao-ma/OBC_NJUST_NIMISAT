@@ -10,6 +10,7 @@
 
 #include "obc_mem.h"
 #include "driver_debug.h"
+#include "cube_com.h"
 #include "router_io.h"
 #include "stm32f4xx.h"
 #include "task_monitor.h"
@@ -414,14 +415,20 @@ static void router_task(void *param __attribute__((unused)))
         if (packet->dst != router_get_my_address())
         {
             send_processing_queue_wirte(packet, NULL);
-            continue;
         }
-
-        /**
-         * 如果数据包是给本节点的,则发送到接收处理任务队列
-         *
-         */
-        server_queue_wirte(packet, NULL);
+        else if( packet->src == ADCS_ROUTE_ADDR &&
+                packet->typ == INS_OBC_GET_ADCS_HK)
+        {
+            adcs_queue_wirte(packet, NULL);
+        }
+        else
+        {
+            /**
+             * 如果数据包是给本节点的,则发送到接收处理任务队列
+             *
+             */
+            server_queue_wirte(packet, NULL);
+        }
     }
 }
 

@@ -228,13 +228,13 @@ int dtb_pseudo_switch( tr_sw_status select );
 int dtb_mem_record(uint8_t mem_num, uint8_t need_erase);
 
 /**
- * 数传机回放下行流程
+ * 数传机回放事务，创建任务
  *
- * @param mem_num 存储区号 1、2、3、4
- * @param data_rate 下行码速率1Mbps、2Mbps、4Mbps、8Mbps
+ * @param mem_num 内存区选择
+ * @param data_rate 下行速率选择
  * @return 返回E_NO_ERR（-1）为正确
  */
-int dtb_mem_back(uint8_t mem_num, uint8_t data_rate);
+int DTB_Mem_Back_Work(uint8_t mem_num, uint8_t data_rate, uint16_t back_last);
 
 /**
  * 下行码速率选择
