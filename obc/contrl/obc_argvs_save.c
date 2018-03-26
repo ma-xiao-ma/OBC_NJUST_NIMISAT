@@ -43,7 +43,7 @@ uint8_t obc_argvs_store(void)
 	obc_save.vu_rec_cnt = vu_isis_rx_count;
 	obc_save.backup_vu_rec_cnt = vu_jlg_rx_count;
 
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < DELAY_TASK_NUM; i++)
     {
         delay_task_t *task_para = (delay_task_t *)obc_save.delay_task_recover[i].task_para;
 
@@ -78,11 +78,6 @@ uint8_t obc_argvs_recover(void)
     else
         obc_save.obc_boot_count = obc_save.obc_boot_count + 1;
 
-    if (USER_NOR_SectorErase(0) == NOR_SUCCESS)
-        res = FSMC_NOR_WriteBuffer((uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t)/2);
-
-//		res = bsp_WriteCpuFlash(OBC_STORE_FLASH_ADDR, (uint8_t*)&obc_save, sizeof(obc_save));
-
     if(obc_save.obc_reset_time == 0xFFFFFFFF)
     {
         obc_save.obc_reset_time = 0;
@@ -112,9 +107,9 @@ uint8_t obc_argvs_recover(void)
     {
         obc_save.backup_vu_rec_cnt = 0;
     }
-//	}
+
 	/* 延时任务恢复 */
-	for (int i = 0; i < 5; i++)
+	for (int i = 0; i < DELAY_TASK_NUM; i++)
 	{
 	    delay_task_t *task_para = (delay_task_t *)obc_save.delay_task_recover[i].task_para;
 
@@ -131,6 +126,9 @@ uint8_t obc_argvs_recover(void)
 	        }
 	    }
 	}
+
+    if (USER_NOR_SectorErase(0) == NOR_SUCCESS)
+        res = FSMC_NOR_WriteBuffer( (uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t) / 2 );
 
 	obc_boot_count = obc_save.obc_boot_count;
 	obc_reset_time = obc_save.obc_reset_time;

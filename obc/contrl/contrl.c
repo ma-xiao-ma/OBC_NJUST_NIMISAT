@@ -612,7 +612,7 @@ void adcs_pwr_task( void *pvParameters __attribute__((unused)) )
  *
  * @param para
  */
-void __attribute__((weak))Delay_Task_Mon(void *para)
+void __attribute__((weak))Delay_Task(void *para)
 {
     delay_task_t *task_para = (delay_task_t *)para;
 
@@ -632,6 +632,8 @@ void __attribute__((weak))Delay_Task_Mon(void *para)
     vTaskDelete(NULL);
 }
 
+uint8_t delay_task_name[DELAY_TASK_NUM][4] = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
+
 /**
  * 延时处理任务创建
  *
@@ -640,18 +642,34 @@ void __attribute__((weak))Delay_Task_Mon(void *para)
  */
 int Delay_Task_Mon_Start(delay_task_t *para)
 {
+    int i;
     extern obc_save_t obc_save;
 
-    if ( para->execution_utc < clock_get_time_nopara() )
+    /* 如果上行指令执行时间比当前星上时间小，或者晚于2030年1月1日0时0分0秒，则认为上行参数有误 */
+    if ( para->execution_utc < clock_get_time_nopara() || para->execution_utc > 1893427200 )
         return E_INVALID_PARAM;
 
     /*片外NOR_FALSH SECTOR_0 读、改、写*/
     FSMC_NOR_ReadBuffer( (uint16_t *)&obc_save, OBC_STORE_NOR_ADDR, sizeof(obc_save_t) / 2 );
 
+    for( i = 0; i < DELAY_TASK_NUM; i++ )
+    {
+        /* 寻找空闲的或者失效的存储体 */
+        if( ((delay_task_t *)obc_save.delay_task_recover[i].task_para)->execution_utc == 0xFFFFFFFF
+                || ((delay_task_t *)obc_save.delay_task_recover[i].task_para)->execution_utc <
+                clock_get_time_nopara() )
+            break;
+    }
+
+    /* 若没有查找到空闲存储结构  */
+    if( i == DELAY_TASK_NUM )
+        return E_NO_BUFFER;
+
     /* 给任务恢复结构体赋值 */
-    obc_save.delay_task_recover[0].task_function = Delay_Task_Mon;
-    strcpy(obc_save.delay_task_recover[0].task_name, "MON");
-    memcpy( obc_save.delay_task_recover[0].task_para, para, 60);
+    obc_save.delay_task_recover[i].task_function = Delay_Task;
+    strcpy(obc_save.delay_task_recover[i].task_name, &delay_task_name[i][0]);
+    memcpy( obc_save.delay_task_recover[i].task_para, para, 60);
+
 
     /* 擦除NOR_FLASH系统变量存储区 */
     if (USER_NOR_SectorErase(0) != NOR_SUCCESS)
@@ -666,7 +684,8 @@ int Delay_Task_Mon_Start(delay_task_t *para)
         return E_FLASH_ERROR;
     }
 
-    int ret = xTaskCreate( Delay_Task_Mon, "MON", 256, obc_save.delay_task_recover[0].task_para, 4, NULL );
+    int ret = xTaskCreate( obc_save.delay_task_recover[i].task_function, obc_save.delay_task_recover[i].task_name,
+            256, obc_save.delay_task_recover[i].task_para, 1, NULL );
 
     if (ret != pdTRUE)
         return E_NO_BUFFER;

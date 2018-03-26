@@ -362,7 +362,7 @@ int dtb_mem_back(uint8_t mem_num, uint8_t data_rate, uint16_t back_last)
         return E_NO_SS;
     }
 
-    vTaskDelay(500);
+    vTaskDelay(1000);
 
     /* 发射机开机 */
     if( xDTBTeleControlSend(Boot, DTB_CMD_TIMEOUT) != E_NO_ERR )
@@ -371,7 +371,7 @@ int dtb_mem_back(uint8_t mem_num, uint8_t data_rate, uint16_t back_last)
         return E_NO_SS;
     }
 
-    vTaskDelay(500);
+    vTaskDelay(1000);
 
     if( mem_back( mem_num ) != E_NO_ERR )
     {
@@ -390,7 +390,7 @@ int dtb_mem_back(uint8_t mem_num, uint8_t data_rate, uint16_t back_last)
         return E_NO_SS;
     }
 
-    vTaskDelay(500);
+    vTaskDelay(1000);
 
     /* 发射机关机 */
     if( xDTBTeleControlSend(ShutDown, DTB_CMD_TIMEOUT) != E_NO_ERR )

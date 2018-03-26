@@ -14,6 +14,8 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#define DELAY_TASK_NUM  7
+
 typedef void (*delay_task) (void *para);
 
 typedef struct __attribute__((packed))
@@ -33,7 +35,7 @@ typedef struct __attribute__((packed))
 	uint32_t    hk_store_cnt;
 	uint32_t    vu_rec_cnt;         /*vu通信机接收指令计数*/
 	uint32_t    backup_vu_rec_cnt;  /*备份vu通信机接收指令计数*/
-	task_save   delay_task_recover[5];
+	task_save   delay_task_recover[DELAY_TASK_NUM];
 } obc_save_t;
 
 

@@ -940,10 +940,14 @@ int Image_1fps_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase,
 
     vTaskDelay(15000);
 
-    if( ( ret = dtb_mem_record( MemOne ,need_erase ) ) != E_NO_ERR )  //数传开启记录模式
+    if( ( ret = dtb_mem_record( MemOne, need_erase ) ) != E_NO_ERR )  //数传开启记录模式
+    {
+        dtb_power_off();
+        Camera_Power_Off();
         return ret;
+    }
 
-    vTaskDelay(1000);
+    vTaskDelay(2000);
 
     if( exp_time != 0 )
     {
@@ -953,7 +957,7 @@ int Image_1fps_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase,
             Camera_Power_Off();
             return ret;
         }
-        vTaskDelay(100);
+        vTaskDelay(500);
     }
 
     if( gain != 0 )
@@ -964,7 +968,7 @@ int Image_1fps_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase,
             Camera_Power_Off();
             return ret;
         }
-        vTaskDelay(100);
+        vTaskDelay(500);
     }
 
     if( ( ret = Camera_Work_Mode_Set(cam_ctl_mode) ) != E_NO_ERR )  //设置相机模式
@@ -1022,9 +1026,13 @@ int Video_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase, uint
     vTaskDelay(15000);
 
     if( ( ret = dtb_mem_record( MemTwo , need_erase ) ) != E_NO_ERR )  //数传固存二区 开启记录模式
+    {
+        dtb_power_off();
+        Camera_Power_Off();
         return ret;
+    }
 
-    vTaskDelay(1000);
+    vTaskDelay(2000);
 
     if( exp_time != 0 )
     {
@@ -1035,7 +1043,7 @@ int Video_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase, uint
             return ret;
         }
 
-        vTaskDelay(100);
+        vTaskDelay(500);
     }
 
     if( gain != 0 )
@@ -1048,7 +1056,7 @@ int Video_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase, uint
             return ret;
         }
 
-        vTaskDelay(100);
+        vTaskDelay(500);
     }
 
     if( ( ret = Camera_Work_Mode_Set(cam_ctl_mode) ) != E_NO_ERR )  //设置相机模式
@@ -1105,9 +1113,13 @@ int Image_Raw_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase, 
     vTaskDelay(15000);
 
     if( ( ret = dtb_mem_record( MemThree , need_erase ) ) != E_NO_ERR )  //数传固存二区 开启记录模式
+    {
+        dtb_power_off();
+        Camera_Power_Off();
         return ret;
+    }
 
-    vTaskDelay(1000);
+    vTaskDelay(2000);
 
     if( exp_time != 0 )
     {
@@ -1118,7 +1130,7 @@ int Image_Raw_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase, 
             return ret;
         }
 
-        vTaskDelay(100);
+        vTaskDelay(500);
     }
 
     if( gain != 0 )
@@ -1131,7 +1143,7 @@ int Image_Raw_Mode_Process(uint32_t exp_time, uint8_t gain, uint8_t need_erase, 
             return ret;
         }
 
-        vTaskDelay(100);
+        vTaskDelay(500);
     }
 
     if( ( ret = Camera_Work_Mode_Set(cam_ctl_mode) ) != E_NO_ERR )  //设置相机模式
@@ -1185,7 +1197,7 @@ int Image_Backup_Mode_Process(uint32_t exp_time, uint8_t gain)
             Camera_Power_Off();
             return ret;
         }
-        vTaskDelay(200);
+        vTaskDelay(500);
     }
 
     if( gain != 0 )
@@ -1195,7 +1207,7 @@ int Image_Backup_Mode_Process(uint32_t exp_time, uint8_t gain)
             Camera_Power_Off();
             return ret;
         }
-        vTaskDelay(200);
+        vTaskDelay(500);
     }
 
     ret = Camera_Work_Mode_Set(cam_ctl_mode);  //设置相机模式
