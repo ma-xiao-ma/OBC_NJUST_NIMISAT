@@ -257,7 +257,7 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 #define HK_DOWN_INTERVAL_OUTSIDE    12 //境外遥测下行间隔， 单位：秒
 #define ADCS_BOOT_WAITING           2  //姿控系统启动等待时间， 单位：秒
 #define DTB_BOOT_WAITING            4  //数传启动等待时间， 单位：秒
-#define CAM_BOOT_WAITING            10  //相机启动等待时间， 单位：秒
+#define CAM_BOOT_WAITING            10 //相机启动等待时间， 单位：秒
 #define VU_BOOT_WAITING             4  //备份通信机启动等待时间， 单位：秒
 
 void hk_collect_task(void *pvParameters __attribute__((unused)))

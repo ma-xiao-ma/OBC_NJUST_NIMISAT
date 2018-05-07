@@ -141,17 +141,16 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
 	{
         case INS_HK_GET:
 
-            IsRealTelemetry = 0;
             hk_select = (uint8_t)obc_unpacket->earlier_hk.select;
 
-            if(hk_select == HK_SDCARD)
+            if( hk_select == HK_SDCARD )
             {
                 hkListNode_t * hk_node = NULL;
 
                 hkleek = 0;
 
                 /*如果成功找到对应的延时遥测*/
-                if( (hk_node = hk_list_find(obc_unpacket->earlier_hk.secs)) != NULL )
+                if( (hk_node = hk_list_find( obc_unpacket->earlier_hk.secs )) != NULL )
                 {
                     sprintf(hk_sd_path, "hk/%u.txt", hk_node->TimeValue);
 
@@ -161,10 +160,14 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
                     {
                         IsRealTelemetry = 1;
                         result 	= Fail;
-                        driver_debug(DEBUG_HK,"the filename is not existing\r\n");
-                        driver_debug(DEBUG_HK,"open file error ,result is :%u\r\n",f_result);
+                        driver_debug( DEBUG_HK, "the filename is not existing\r\n" );
+                        driver_debug( DEBUG_HK, "open file error ,result is :%u\r\n",f_result );
                     }
-                    result = Success;
+                    else
+                    {
+                        IsRealTelemetry = 0; //复位下行遥测状态，开始下行延时遥测
+                        result = Success;
+                    }
                 }
                 else
                 {
@@ -172,7 +175,7 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
                     result 	= Fail;
                 }
             }
-            else if(hk_select == HK_SRAM)
+            else if( hk_select == HK_SRAM )
             {
 
                 f_close(&hkfile);
@@ -183,7 +186,7 @@ static void up_group_zero_Cmd_pro(unsigned char cmd_id, const unsigned char *cub
                 result = Success;
             }
 
-            obc_cmd_ack(cmd_id, result);
+            obc_cmd_ack( cmd_id, result );
             break;
 
         case INS_OBC_STR_DOWN:

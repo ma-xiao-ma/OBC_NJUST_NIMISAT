@@ -921,14 +921,14 @@ int adcs_i2c_send(int handle, i2c_frame_t * frame, uint16_t timeout)
     if (!device[handle].is_initialised)
         return E_NO_DEVICE;
 
-    if (uxQueueMessagesWaiting(device[handle].tx.queue) != 0)
-    {
-        vPortEnterCritical();
-        {
-            device[handle].is_busy = 0;
-        }
-        vPortExitCritical();
-    }
+//    if (uxQueueMessagesWaiting(device[handle].tx.queue) != 0)
+//    {
+//        vPortEnterCritical();
+//        {
+//            device[handle].is_busy = 0;
+//        }
+//        vPortExitCritical();
+//    }
 
     if (xQueueSendToBack(device[handle].tx.queue, &frame, timeout) == pdFALSE)
         return E_TIMEOUT;

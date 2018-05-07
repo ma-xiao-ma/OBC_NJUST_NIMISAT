@@ -419,7 +419,10 @@ static void router_task(void *param __attribute__((unused)))
         else if( packet->src == ADCS_ROUTE_ADDR &&
                 packet->typ == INS_OBC_GET_ADCS_HK)
         {
-            adcs_queue_wirte(packet, NULL);
+//            adcs_queue_wirte( packet, NULL );
+            extern QueueHandle_t adcs_hk_queue;
+            xQueueOverwrite(adcs_hk_queue, packet->dat);
+            ObcMemFree(packet);
         }
         else
         {

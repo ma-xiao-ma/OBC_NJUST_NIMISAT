@@ -412,10 +412,10 @@ int vu_backup_switch_on(void)
     extern uint8_t IsJLGvuWorking;
 
     /* PC104_100母线输出, PC104_50 5V输出*/
-    if (EpsOutSwitch(OUT_BACKUP_VU, ENABLE) != EPS_ERROR &&
+    if (/*EpsOutSwitch(OUT_BACKUP_VU, ENABLE) != EPS_ERROR &&*/
             EpsOutSwitch(OUT_SWITCH_5V, ENABLE) != EPS_ERROR)
     {
-        vTaskDelay(3000); /* 延时等待备份板启动 */
+//        vTaskDelay(3000); /* 延时等待备份板启动 */
 
         IsJLGvuWorking = pdTRUE;
         result = E_NO_ERR;
@@ -437,7 +437,7 @@ int vu_backup_switch_off(void)
     extern uint8_t IsJLGvuWorking;
 
     /* PC104_100母线输出, PC104_50 5V输出*/
-    if (EpsOutSwitch(OUT_BACKUP_VU, DISABLE) != EPS_ERROR &&
+    if (/*EpsOutSwitch(OUT_BACKUP_VU, DISABLE) != EPS_ERROR &&*/
             EpsOutSwitch(OUT_SWITCH_5V, DISABLE) != EPS_ERROR)
     {
         IsJLGvuWorking = pdFALSE;

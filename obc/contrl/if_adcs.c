@@ -175,7 +175,7 @@ int adcs_transaction(uint8_t type, void * txbuf, size_t txlen, void * rxbuf, siz
 int adcs_get_hk(void *hk, uint16_t timeout)
 {
 
-    return adcs_transaction(INS_OBC_GET_ADCS_HK, NULL, 0, /*NULL*/hk, sizeof(adcs805_hk_t)/*0*/, /*0*/timeout);
+    return adcs_transaction(INS_OBC_GET_ADCS_HK, NULL, 0, NULL/*hk*/, /*sizeof(adcs805_hk_t)*/0, 0/*timeout*/);
 }
 
 /**

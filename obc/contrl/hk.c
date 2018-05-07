@@ -932,10 +932,10 @@ void adcs_hk_task(void)
 
     int ret;
 
-    if ( (ret = adcs_get_hk(&adcs_hk, 100)) != E_NO_ERR )
+    if ( (ret = adcs_get_hk(&adcs_hk, 200)) != E_NO_ERR )
         printf("WARN: Get ADCS hk fail! Result: %d\r\n", ret);
 
-    xQueueOverwrite(adcs_hk_queue, &adcs_hk);
+//    xQueueOverwrite(adcs_hk_queue, &adcs_hk);
 }
 
 /**
