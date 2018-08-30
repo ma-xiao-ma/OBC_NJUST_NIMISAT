@@ -13,10 +13,18 @@
 
 void ADC1_Init(void)
 {
+	GPIO_InitTypeDef  GPIO_InitStructure;
     ADC_CommonInitTypeDef   ADC_CommonInitStructure;
     ADC_InitTypeDef         ADC_InitStructure;
 
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);//使能GPIOA时钟
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
+
+    //先初始化IO口
+     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
+     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;//模拟输入
+     GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;//上拉
+     GPIO_Init(GPIOA, &GPIO_InitStructure);//初始化
 
     RCC_APB2PeriphResetCmd(RCC_APB2Periph_ADC1, ENABLE);      //reset
     RCC_APB2PeriphResetCmd(RCC_APB2Periph_ADC1, DISABLE);   //complete reset

@@ -55,14 +55,17 @@ void task_initz(void)
     /** 给SD卡挂载FATFS文件系统 */
     f_mount(0,&fs);
 
-    /* 任务监视器初始化, 最大超时时间30s */
-    supervisor_init(30000);
+    /* 任务监视器初始化, 最大超时时间28s */
+    supervisor_init(28000);
 
     /*控制开关IO口初始化*/
     bsp_InitSwitch();
 
     /*姿控上电*/
     EpsOutSwitch(OUT_EPS_S0, ENABLE);
+
+    /*备份通信机上电*/
+    EpsOutSwitch(OUT_BACKUP_VU, ENABLE);
 
 	/*协议串口输出输入*/
 #if USE_SERIAL_PORT_DOWNLINK_INTERFACE

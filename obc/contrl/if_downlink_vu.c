@@ -504,25 +504,25 @@ void vu_isis_uplink_task(void *para __attribute__((unused)))
         if ( ((route_packet_t *)recv_frame)->typ == VU_INS_BACKUP_OFF )
             vu_backup_switch_off();
 
-        if (!IsJLGvuWorking)/* 若关闭备份通信机 */
-        {
+//        if (!IsJLGvuWorking)/* 若关闭备份通信机 */
+//        {
             /* 去掉路由头长度 */
             ((route_packet_t *)recv_frame)->len = frame_num - ROUTE_HEAD_SIZE;
 
             /* 送入路由队列 */
             route_queue_wirte((route_packet_t *)recv_frame, NULL);
 
-//            /*开启连续发射*/
+            /*开启连续发射*/
 //            vu_transmitter_set_idle_state(RemainOn);
-        }
-        else/* 若开启备份通信机 */
-        {
-            /* 释放申请的内存 */
-            ObcMemFree(recv_frame);
-
+//        }
+//        else/* 若开启备份通信机 */
+//        {
+//            /* 释放申请的内存 */
+//            ObcMemFree(recv_frame);
+//
 //            /*关闭ISIS连续发射*/
 //            vu_transmitter_set_idle_state(TurnOff);
-        }
+//        }
     }
 }
 
@@ -788,8 +788,8 @@ void vu_jlg_uplink_task(void *para __attribute__((unused)))
         vTaskDelay(1568);
 
         /**如果解理工备份通信机没有开启*/
-        if (!IsJLGvuWorking)
-            continue;
+//        if (!IsJLGvuWorking)
+//            continue;
 
         /**获取接收机缓冲区帧计数*/
         if (vu_get_frame_num(&frame_num) != E_NO_ERR)

@@ -298,13 +298,13 @@ void hk_collect_task(void *pvParameters __attribute__((unused)))
             dtb_boot_waiting = 0;
 
         /* 备份通信机工作，等待后开始采集 */
-        if( IsJLGvuWorking )
-        {
-            if( ++vu_boot_waiting >= COLLECT_TASK_JUDGMENT(VU_BOOT_WAITING) )
+//        if( IsJLGvuWorking )
+//        {
+//            if( ++vu_boot_waiting >= COLLECT_TASK_JUDGMENT(VU_BOOT_WAITING) )
                 jlg_hk_task();
-        }
-        else
-            vu_boot_waiting = 0;
+//        }
+//        else
+//            vu_boot_waiting = 0;
 
         /* 若相机上电，则获取遥测值 */
         if( OUT_SW_CAMERA_5W_PIN() && OUT_SW_CAMERA_10W_PIN() )

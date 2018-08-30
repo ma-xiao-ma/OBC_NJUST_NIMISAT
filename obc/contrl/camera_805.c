@@ -195,8 +195,9 @@ void Camera_805_Init(void)
 
     /*图像flash存储映射表恢复*/
     img_store_block_recover();
-    /*开启相机加热常开的一路*/
-    EpsOutSwitch(OUT_CAMERA_HEAT_1, ENABLE);
+
+    /*开启相机加热常开的一路，上天之前打开*/
+//    EpsOutSwitch(OUT_CAMERA_HEAT_1, ENABLE);
 }
 
 void CAMERA_TX_ISR_HANDLER(void)

@@ -356,7 +356,7 @@ void hk_collect_no_store(void)
 
         /*数传机遥测获取*/
 	dtb_hk_get_peek(&hk_frame.main_frame.dtb);
-//	jlg_hk_get_peek(&hk_frame.main_frame.jlg);
+	jlg_hk_get_peek(&hk_frame.main_frame.jlg);
 
         /*相机遥测获取*/
     cam_hk_get_peek(&hk_frame.main_frame.cam);

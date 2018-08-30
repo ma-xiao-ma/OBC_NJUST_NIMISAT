@@ -46,7 +46,7 @@
 
 
 EventGroupHandle_t task_status;
-TickType_t  monitor_window = 30000; // 超时时间默认30秒
+static TickType_t  monitor_window = 28000; // 超时时间默认30秒
 
 /**
  *任务监视器初始化
@@ -82,9 +82,9 @@ void supervisor_task(void *para)
 
     while(1)
     {
-        EventValue = xEventGroupWaitBits( task_status, MONITOR_ALL_BIT, pdTRUE, pdTRUE, monitor_window );
+    	IWDG_Feed();
 
-        IWDG_Feed();
+        EventValue = xEventGroupWaitBits( task_status, MONITOR_ALL_BIT, pdTRUE, pdTRUE, monitor_window );
 
 //        printf("EventValue :"BYTETOBINARYPATTERN"\r\n", BYTETOBINARY((uint8_t)EventValue));
 
