@@ -12,8 +12,8 @@
 #include "command.h"
 
 void bsp_InitSwitch(void) {
+
 	GPIO_InitTypeDef GPIO_InitStructure;
-//	GPIO_InitTypeDef GPIO_InitStructure_status;
 
 	RCC_AHB1PeriphClockCmd(RCC_PAL_STATUS_1_PORT,ENABLE);
 	//使能时钟
@@ -96,9 +96,6 @@ void bsp_InitSwitch(void) {
 
     GPIO_InitStructure.GPIO_Pin = GPIO_PAL_STATUS_2_PIN;
     GPIO_Init(GPIO_PAL_STATUS_2_PORT, &GPIO_InitStructure);
-
-//    GPIO_InitStructure.GPIO_Pin = GPIO_SAIL_STATUS_PIN;
-//    GPIO_Init(GPIO_SAIL_STATUS_PORT, &GPIO_InitStructure);
 
 	EpsOutSwitch(OUT_ALL, DISABLE);
 }

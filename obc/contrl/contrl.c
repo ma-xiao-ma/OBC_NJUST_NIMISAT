@@ -144,28 +144,27 @@ void ControlTask(void * pvParameters __attribute__((unused)))
 	    ttc_hk_get_peek(vu_tm);
 //	    eps_hk_get_peek(eps_tm);
 
-	    /**如果通信机空闲状态连续发射已经开启*/
+	    /** 如果通信机空闲状态连续发射已经开启 */
 	    if (vu_tm->tx_state.IdleState == RemainOn)
 	        control_task.vu_idle_state++;
 	    else
 	        control_task.vu_idle_state = 0;
 
-	    /**如果备份通信机是开机状态，则计数器累加*/
-	    if ( ((obc_switch_t *)&obc_tm->on_off_status)->jlg_vu_on == true ||
-	            ((obc_switch_t *)&obc_tm->on_off_status)->switch_vu_on == true)
+	    /** 如果备份通信机信道是开启状态，则计数器累加 */
+	    if (((obc_switch_t *)&obc_tm->on_off_status)->switch_vu_on == true)
 	        control_task.vu_jlg_switch_on++;
 	    else
 	        control_task.vu_jlg_switch_on = 0;
 
-        /**如果相机是开机状态，则计数器累加*/
-        if ( ((obc_switch_t *)&obc_tm->on_off_status)->cam_5w_5v_pwr == true ||
+        /** 如果相机是开机状态，则计数器累加 */
+        if (((obc_switch_t *)&obc_tm->on_off_status)->cam_5w_5v_pwr == true ||
                 ((obc_switch_t *)&obc_tm->on_off_status)->cam_10w_5v_pwr == true)
             control_task.cam_power_on_counter++;
         else
             control_task.cam_power_on_counter = 0;
 
         /**如果数传机是开机状态，则计数器累加*/
-        if ( ((obc_switch_t *)&obc_tm->on_off_status)->dtb_5v_pwr == true ||
+        if (((obc_switch_t *)&obc_tm->on_off_status)->dtb_5v_pwr == true ||
                 ((obc_switch_t *)&obc_tm->on_off_status)->dtb_12v_pwr == true)
             control_task.dtb_power_on_counter++;
         else
